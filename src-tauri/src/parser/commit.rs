@@ -69,6 +69,7 @@ impl CommitMessage {
     }
 
     /// Check if any body line exceeds the recommended length (72 chars)
+    #[cfg(test)]
     pub fn has_long_body_lines(&self) -> bool {
         self.body.lines().any(|line| line.len() > 72)
     }

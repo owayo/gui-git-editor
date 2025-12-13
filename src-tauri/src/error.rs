@@ -10,17 +10,11 @@ pub enum AppError {
     #[error("Permission denied: {path}")]
     PermissionDenied { path: String },
 
-    #[error("File is locked: {path}")]
-    FileLocked { path: String },
-
     #[error("Parse error at line {line}: {message}")]
     ParseError { line: usize, message: String },
 
     #[error("IO error: {message}")]
     IoError { message: String },
-
-    #[error("Unknown error: {message}")]
-    Unknown { message: String },
 }
 
 impl From<std::io::Error> for AppError {
