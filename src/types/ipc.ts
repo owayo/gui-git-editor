@@ -1,5 +1,10 @@
 import { invoke } from "@tauri-apps/api/core";
-import type { FileContent, RebaseTodoFile } from "./git";
+import type {
+  FileContent,
+  RebaseTodoFile,
+  CommitMessage,
+  CommitValidation,
+} from "./git";
 import type { AppError } from "./errors";
 
 // Result type for IPC calls
@@ -58,4 +63,23 @@ export async function serializeRebaseTodo(
   file: RebaseTodoFile
 ): Promise<IpcResult<string>> {
   return safeInvoke<string>("serialize_rebase_todo", { file });
+}
+
+// Commit message operations
+export async function parseCommitMsg(
+  content: string
+): Promise<IpcResult<CommitMessage>> {
+  return safeInvoke<CommitMessage>("parse_commit_msg", { content });
+}
+
+export async function serializeCommitMsg(
+  message: CommitMessage
+): Promise<IpcResult<string>> {
+  return safeInvoke<string>("serialize_commit_msg", { message });
+}
+
+export async function validateCommitMsg(
+  message: CommitMessage
+): Promise<IpcResult<CommitValidation>> {
+  return safeInvoke<CommitValidation>("validate_commit_msg", { message });
 }

@@ -38,11 +38,27 @@ export interface RebaseTodoFile {
   comments: string[];
 }
 
+// Git trailer (metadata like Signed-off-by)
+export interface Trailer {
+  key: string;
+  value: string;
+}
+
 // Commit message
 export interface CommitMessage {
   subject: string;
   body: string;
-  trailer: string;
+  trailers: Trailer[];
+  comments: string[];
+  diff_content: string | null;
+}
+
+// Commit validation result
+export interface CommitValidation {
+  is_valid: boolean;
+  subject_too_long: boolean;
+  subject_length: number;
+  long_body_lines: [number, number][]; // [line_number, length]
 }
 
 // File content from backend

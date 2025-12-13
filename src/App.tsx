@@ -1,9 +1,16 @@
 import { useEffect, useCallback } from "react";
 import { getMatches } from "@tauri-apps/plugin-cli";
-import { useFileStore, useRebaseStore, useHistoryStore } from "./stores";
+import {
+  useFileStore,
+  useRebaseStore,
+  useCommitStore,
+  useHistoryStore,
+} from "./stores";
 import { useKeyboardShortcuts } from "./hooks";
 import { ActionBar, ErrorDisplay, Loading } from "./components/common";
 import { RebaseEditor } from "./components/rebase";
+import { CommitEditor } from "./components/commit";
+import { FallbackEditor } from "./components/fallback";
 import { exitApp } from "./types/ipc";
 
 function App() {
@@ -32,6 +39,14 @@ function App() {
   } = useRebaseStore();
 
   const {
+    isLoading: commitLoading,
+    error: commitError,
+    parseContent: parseCommitContent,
+    serialize: serializeCommit,
+    clearError: clearCommitError,
+  } = useCommitStore();
+
+  const {
     canUndo,
     canRedo,
     undo,
@@ -40,8 +55,15 @@ function App() {
     clear: clearHistory,
   } = useHistoryStore();
 
-  const isLoading = fileLoading || rebaseLoading;
-  const error = fileError || rebaseError;
+  const isLoading = fileLoading || rebaseLoading || commitLoading;
+  const error = fileError || rebaseError || commitError;
+
+  // Check if file is a commit message type
+  const isCommitType =
+    fileType === "commit_msg" ||
+    fileType === "merge_msg" ||
+    fileType === "squash_msg" ||
+    fileType === "tag_msg";
 
   // Load file from CLI arguments on mount
   useEffect(() => {
@@ -68,10 +90,26 @@ function App() {
     }
   }, [fileType, currentContent, parseContent]);
 
+  // Parse commit content when file is loaded
+  useEffect(() => {
+    if (isCommitType && currentContent) {
+      parseCommitContent(currentContent);
+    }
+  }, [isCommitType, currentContent, parseCommitContent]);
+
   // Handle save
   const handleSave = useCallback(async () => {
     if (fileType === "rebase_todo") {
       const serialized = await serialize();
+      if (serialized) {
+        setContent(serialized);
+        const success = await saveFile();
+        if (success) {
+          await exitApp(0);
+        }
+      }
+    } else if (isCommitType) {
+      const serialized = await serializeCommit();
       if (serialized) {
         setContent(serialized);
         const success = await saveFile();
@@ -85,7 +123,14 @@ function App() {
         await exitApp(0);
       }
     }
-  }, [fileType, serialize, setContent, saveFile]);
+  }, [
+    fileType,
+    isCommitType,
+    serialize,
+    serializeCommit,
+    setContent,
+    saveFile,
+  ]);
 
   // Handle cancel
   const handleCancel = useCallback(async () => {
@@ -131,7 +176,8 @@ function App() {
   const clearError = useCallback(() => {
     clearFileError();
     clearRebaseError();
-  }, [clearFileError, clearRebaseError]);
+    clearCommitError();
+  }, [clearFileError, clearRebaseError, clearCommitError]);
 
   // Show loading state
   if (isLoading) {
@@ -178,14 +224,10 @@ function App() {
       <main className="flex-1 overflow-auto p-4">
         {fileType === "rebase_todo" ? (
           <RebaseEditor />
+        ) : isCommitType ? (
+          <CommitEditor />
         ) : (
-          <div className="text-gray-600 dark:text-gray-300">
-            {/* CommitMessageEditor will be implemented later */}
-            <p>Commit Message Editor (実装予定)</p>
-            <pre className="mt-4 rounded-lg bg-gray-100 p-4 font-mono text-sm whitespace-pre-wrap dark:bg-gray-800">
-              {currentContent}
-            </pre>
-          </div>
+          <FallbackEditor />
         )}
       </main>
 

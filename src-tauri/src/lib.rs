@@ -3,8 +3,8 @@ mod error;
 mod parser;
 
 use commands::{
-    create_backup, exit_app, parse_rebase_todo, read_file, restore_backup, serialize_rebase_todo,
-    write_file,
+    create_backup, exit_app, parse_commit_msg, parse_rebase_todo, read_file, restore_backup,
+    serialize_commit_msg, serialize_rebase_todo, validate_commit_msg, write_file,
 };
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -20,6 +20,9 @@ pub fn run() {
             exit_app,
             parse_rebase_todo,
             serialize_rebase_todo,
+            parse_commit_msg,
+            serialize_commit_msg,
+            validate_commit_msg,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
