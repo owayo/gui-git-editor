@@ -78,7 +78,12 @@ export function RebaseEntryList({
         items={entries.map((e) => e.id)}
         strategy={verticalListSortingStrategy}
       >
-        <div className="flex flex-col gap-2">
+        <div
+          role="list"
+          aria-label="Rebaseエントリ一覧"
+          aria-live="polite"
+          className="flex flex-col gap-2"
+        >
           {entries.map((entry) => (
             <RebaseEntryItem
               key={entry.id}
@@ -88,6 +93,10 @@ export function RebaseEntryList({
               onCommandChange={(cmd) => onCommandChange(entry.id, cmd)}
             />
           ))}
+        </div>
+        {/* Screen reader instructions for drag and drop */}
+        <div id="drag-instructions" className="sr-only">
+          スペースキーでドラッグを開始し、矢印キーで移動、スペースキーでドロップします
         </div>
       </SortableContext>
     </DndContext>

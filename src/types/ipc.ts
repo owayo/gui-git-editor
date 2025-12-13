@@ -43,9 +43,22 @@ export async function createBackup(path: string): Promise<IpcResult<string>> {
 
 export async function restoreBackup(
   backupPath: string,
-  originalPath: string
+  targetPath: string
 ): Promise<IpcResult<void>> {
-  return safeInvoke<void>("restore_backup", { backupPath, originalPath });
+  return safeInvoke<void>("restore_backup", {
+    backup_path: backupPath,
+    target_path: targetPath,
+  });
+}
+
+export async function checkBackupExists(
+  path: string
+): Promise<IpcResult<string | null>> {
+  return safeInvoke<string | null>("check_backup_exists", { path });
+}
+
+export async function deleteBackup(path: string): Promise<IpcResult<void>> {
+  return safeInvoke<void>("delete_backup", { path });
 }
 
 export async function exitApp(code: number): Promise<void> {

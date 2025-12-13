@@ -1,4 +1,4 @@
-import { useEffect, useCallback } from "react";
+import { useEffect, useCallback, useState } from "react";
 import { getMatches } from "@tauri-apps/plugin-cli";
 import {
   useFileStore,
@@ -6,12 +6,22 @@ import {
   useCommitStore,
   useHistoryStore,
 } from "./stores";
-import { useKeyboardShortcuts } from "./hooks";
-import { ActionBar, ErrorDisplay, Loading } from "./components/common";
+import { useKeyboardShortcuts, useAutoBackup } from "./hooks";
+import {
+  ActionBar,
+  BackupRecoveryDialog,
+  ErrorDisplay,
+  Loading,
+} from "./components/common";
 import { RebaseEditor } from "./components/rebase";
 import { CommitEditor } from "./components/commit";
 import { FallbackEditor } from "./components/fallback";
-import { exitApp } from "./types/ipc";
+import {
+  checkBackupExists,
+  deleteBackup,
+  exitApp,
+  restoreBackup,
+} from "./types/ipc";
 
 function App() {
   const {
@@ -55,8 +65,19 @@ function App() {
     clear: clearHistory,
   } = useHistoryStore();
 
+  const [showBackupDialog, setShowBackupDialog] = useState(false);
+  const [pendingBackupPath, setPendingBackupPath] = useState<string | null>(
+    null
+  );
+
   const isLoading = fileLoading || rebaseLoading || commitLoading;
   const error = fileError || rebaseError || commitError;
+
+  // Auto-backup hook
+  const { clearBackup } = useAutoBackup({
+    filePath,
+    isDirty,
+  });
 
   // Check if file is a commit message type
   const isCommitType =
@@ -73,7 +94,16 @@ function App() {
         const args = matches.args;
 
         if (args.file && typeof args.file.value === "string") {
-          await loadFile(args.file.value);
+          const targetPath = args.file.value;
+
+          // Check for existing backup
+          const backupResult = await checkBackupExists(targetPath);
+          if (backupResult.ok && backupResult.data) {
+            setPendingBackupPath(backupResult.data);
+            setShowBackupDialog(true);
+          }
+
+          await loadFile(targetPath);
         }
       } catch (err) {
         console.error("Failed to get CLI matches:", err);
@@ -99,29 +129,28 @@ function App() {
 
   // Handle save
   const handleSave = useCallback(async () => {
+    let success = false;
+
     if (fileType === "rebase_todo") {
       const serialized = await serialize();
       if (serialized) {
         setContent(serialized);
-        const success = await saveFile();
-        if (success) {
-          await exitApp(0);
-        }
+        success = await saveFile();
       }
     } else if (isCommitType) {
       const serialized = await serializeCommit();
       if (serialized) {
         setContent(serialized);
-        const success = await saveFile();
-        if (success) {
-          await exitApp(0);
-        }
+        success = await saveFile();
       }
     } else {
-      const success = await saveFile();
-      if (success) {
-        await exitApp(0);
-      }
+      success = await saveFile();
+    }
+
+    if (success) {
+      // Clear backup on successful save
+      await clearBackup();
+      await exitApp(0);
     }
   }, [
     fileType,
@@ -130,12 +159,37 @@ function App() {
     serializeCommit,
     setContent,
     saveFile,
+    clearBackup,
   ]);
 
   // Handle cancel
   const handleCancel = useCallback(async () => {
+    if (filePath) {
+      await deleteBackup(filePath);
+    }
     await exitApp(1);
-  }, []);
+  }, [filePath]);
+
+  // Handle backup restore
+  const handleRestoreBackup = useCallback(async () => {
+    if (!filePath || !pendingBackupPath) return;
+
+    const result = await restoreBackup(pendingBackupPath, filePath);
+    if (result.ok) {
+      await loadFile(filePath);
+    }
+    setShowBackupDialog(false);
+    setPendingBackupPath(null);
+  }, [filePath, pendingBackupPath, loadFile]);
+
+  // Handle backup discard
+  const handleDiscardBackup = useCallback(async () => {
+    if (filePath) {
+      await deleteBackup(filePath);
+    }
+    setShowBackupDialog(false);
+    setPendingBackupPath(null);
+  }, [filePath]);
 
   // Handle undo
   const handleUndo = useCallback(() => {
@@ -237,6 +291,14 @@ function App() {
         <span className="mx-2">•</span>
         <span>{fileType}</span>
       </footer>
+
+      {/* Backup recovery dialog */}
+      {showBackupDialog && (
+        <BackupRecoveryDialog
+          onRestore={handleRestoreBackup}
+          onDiscard={handleDiscardBackup}
+        />
+      )}
     </div>
   );
 }

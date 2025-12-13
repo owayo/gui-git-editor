@@ -87,6 +87,34 @@ pub async fn restore_backup(backup_path: String, target_path: String) -> Result<
     Ok(())
 }
 
+/// Check if a backup file exists
+#[tauri::command]
+pub async fn check_backup_exists(path: String) -> Result<Option<String>, AppError> {
+    let backup_path = format!("{}.backup", path);
+    let backup = Path::new(&backup_path);
+
+    if backup.exists() {
+        Ok(Some(backup_path))
+    } else {
+        Ok(None)
+    }
+}
+
+/// Delete backup file
+#[tauri::command]
+pub async fn delete_backup(path: String) -> Result<(), AppError> {
+    let backup_path = format!("{}.backup", path);
+    let backup = Path::new(&backup_path);
+
+    if backup.exists() {
+        fs::remove_file(backup).map_err(|e| AppError::IoError {
+            message: e.to_string(),
+        })?;
+    }
+
+    Ok(())
+}
+
 /// Exit the application with specified code
 #[tauri::command]
 pub fn exit_app(code: i32, app_handle: tauri::AppHandle) {

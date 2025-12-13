@@ -44,7 +44,7 @@ export function ActionBar({
             aria-label="元に戻す"
             title="元に戻す (Ctrl+Z)"
           >
-            <ArrowUturnLeftIcon className="h-5 w-5" />
+            <ArrowUturnLeftIcon className="h-5 w-5" aria-hidden="true" />
           </button>
         )}
         {onRedo && (
@@ -56,13 +56,18 @@ export function ActionBar({
             aria-label="やり直す"
             title="やり直す (Ctrl+Shift+Z)"
           >
-            <ArrowUturnRightIcon className="h-5 w-5" />
+            <ArrowUturnRightIcon className="h-5 w-5" aria-hidden="true" />
           </button>
         )}
       </div>
 
       {/* Center: Status */}
-      <div className="text-sm text-gray-500 dark:text-gray-400">
+      <div
+        role="status"
+        aria-live="polite"
+        aria-atomic="true"
+        className="text-sm text-gray-500 dark:text-gray-400"
+      >
         {isSaving && "保存中..."}
         {!isSaving && isDirty && "未保存の変更があります"}
       </div>
@@ -83,9 +88,9 @@ export function ActionBar({
           }
         >
           {resolvedTheme === "dark" ? (
-            <SunIcon className="h-5 w-5" />
+            <SunIcon className="h-5 w-5" aria-hidden="true" />
           ) : (
-            <MoonIcon className="h-5 w-5" />
+            <MoonIcon className="h-5 w-5" aria-hidden="true" />
           )}
         </button>
 
@@ -94,10 +99,11 @@ export function ActionBar({
         <button
           type="button"
           onClick={onCancel}
+          aria-label="キャンセル"
           className="flex items-center gap-1.5 rounded-md px-3 py-1.5 text-gray-700 transition-colors hover:bg-gray-200 dark:text-gray-300 dark:hover:bg-gray-700"
           title="キャンセル (Esc)"
         >
-          <XMarkIcon className="h-4 w-4" />
+          <XMarkIcon className="h-4 w-4" aria-hidden="true" />
           <span className="text-sm">キャンセル</span>
         </button>
 
@@ -105,10 +111,12 @@ export function ActionBar({
           type="button"
           onClick={onSave}
           disabled={isSaving || !isDirty}
+          aria-label={isSaving ? "保存中" : "保存して終了"}
+          aria-busy={isSaving}
           className="flex items-center gap-1.5 rounded-md bg-green-600 px-3 py-1.5 text-white transition-colors hover:bg-green-700 disabled:cursor-not-allowed disabled:opacity-50"
           title="保存して終了 (Ctrl+S)"
         >
-          <CheckIcon className="h-4 w-4" />
+          <CheckIcon className="h-4 w-4" aria-hidden="true" />
           <span className="text-sm">{isSaving ? "保存中..." : "保存"}</span>
         </button>
       </div>

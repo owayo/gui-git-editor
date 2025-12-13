@@ -63,11 +63,12 @@ export function RebaseEntryItem({
       {/* Drag handle */}
       <button
         type="button"
+        aria-label={`${entry.message}を移動`}
         className="cursor-grab touch-none rounded p-1 text-gray-400 hover:bg-gray-200 hover:text-gray-600 active:cursor-grabbing dark:hover:bg-gray-700 dark:hover:text-gray-300"
         {...attributes}
         {...listeners}
       >
-        <Bars3Icon className="h-5 w-5" />
+        <Bars3Icon className="h-5 w-5" aria-hidden="true" />
       </button>
 
       {/* Command selector */}
