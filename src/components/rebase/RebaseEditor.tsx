@@ -1,5 +1,16 @@
+import { useEffect, useCallback } from "react";
 import { useRebaseStore } from "../../stores";
 import { RebaseEntryList } from "./RebaseEntryList";
+import type { SimpleCommand } from "../../types/git";
+
+const COMMAND_SHORTCUTS: Record<string, SimpleCommand> = {
+  p: "pick",
+  r: "reword",
+  e: "edit",
+  s: "squash",
+  f: "fixup",
+  d: "drop",
+};
 
 export function RebaseEditor() {
   const {
@@ -9,7 +20,51 @@ export function RebaseEditor() {
     selectEntry,
     moveEntry,
     updateEntryCommand,
+    setSimpleCommand,
   } = useRebaseStore();
+
+  // Keyboard shortcuts for command changes
+  const handleKeyDown = useCallback(
+    (event: KeyboardEvent) => {
+      // Ignore if modifier keys are pressed or if typing in an input
+      if (event.ctrlKey || event.metaKey || event.altKey) return;
+      if (
+        event.target instanceof HTMLInputElement ||
+        event.target instanceof HTMLTextAreaElement ||
+        event.target instanceof HTMLSelectElement
+      ) {
+        return;
+      }
+
+      const command = COMMAND_SHORTCUTS[event.key.toLowerCase()];
+      if (command && selectedEntryId) {
+        event.preventDefault();
+        setSimpleCommand(selectedEntryId, command);
+      }
+
+      // Arrow key navigation
+      if (event.key === "ArrowUp" || event.key === "ArrowDown") {
+        event.preventDefault();
+        const currentIndex = entries.findIndex((e) => e.id === selectedEntryId);
+        if (event.key === "ArrowUp" && currentIndex > 0) {
+          selectEntry(entries[currentIndex - 1].id);
+        } else if (
+          event.key === "ArrowDown" &&
+          currentIndex < entries.length - 1
+        ) {
+          selectEntry(entries[currentIndex + 1].id);
+        } else if (currentIndex === -1 && entries.length > 0) {
+          selectEntry(entries[0].id);
+        }
+      }
+    },
+    [selectedEntryId, entries, setSimpleCommand, selectEntry]
+  );
+
+  useEffect(() => {
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [handleKeyDown]);
 
   return (
     <div className="flex h-full flex-col gap-4">
@@ -56,30 +111,60 @@ export function RebaseEditor() {
       )}
 
       {/* Keyboard shortcuts help */}
-      <div className="flex flex-wrap gap-4 border-t border-gray-200 pt-3 text-xs text-gray-500 dark:border-gray-700 dark:text-gray-500">
+      <div className="flex flex-wrap gap-x-4 gap-y-1 border-t border-gray-200 pt-3 text-xs text-gray-500 dark:border-gray-700 dark:text-gray-500">
         <span>
           <kbd className="rounded bg-gray-200 px-1.5 py-0.5 font-mono dark:bg-gray-700">
-            Ctrl+S
+            p
           </kbd>{" "}
-          保存
+          pick
         </span>
         <span>
           <kbd className="rounded bg-gray-200 px-1.5 py-0.5 font-mono dark:bg-gray-700">
-            Esc
+            r
           </kbd>{" "}
-          キャンセル
+          reword
+        </span>
+        <span>
+          <kbd className="rounded bg-gray-200 px-1.5 py-0.5 font-mono dark:bg-gray-700">
+            e
+          </kbd>{" "}
+          edit
+        </span>
+        <span>
+          <kbd className="rounded bg-gray-200 px-1.5 py-0.5 font-mono dark:bg-gray-700">
+            s
+          </kbd>{" "}
+          squash
+        </span>
+        <span>
+          <kbd className="rounded bg-gray-200 px-1.5 py-0.5 font-mono dark:bg-gray-700">
+            f
+          </kbd>{" "}
+          fixup
+        </span>
+        <span>
+          <kbd className="rounded bg-gray-200 px-1.5 py-0.5 font-mono dark:bg-gray-700">
+            d
+          </kbd>{" "}
+          drop
+        </span>
+        <span>
+          <kbd className="rounded bg-gray-200 px-1.5 py-0.5 font-mono dark:bg-gray-700">
+            ↑↓
+          </kbd>{" "}
+          移動
         </span>
         <span>
           <kbd className="rounded bg-gray-200 px-1.5 py-0.5 font-mono dark:bg-gray-700">
             Ctrl+Z
           </kbd>{" "}
-          元に戻す
+          戻す
         </span>
         <span>
           <kbd className="rounded bg-gray-200 px-1.5 py-0.5 font-mono dark:bg-gray-700">
-            Ctrl+Shift+Z
+            Ctrl+S
           </kbd>{" "}
-          やり直す
+          保存
         </span>
       </div>
     </div>
