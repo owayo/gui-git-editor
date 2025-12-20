@@ -49,7 +49,7 @@ export function CommandSelector({
           leaveFrom="opacity-100"
           leaveTo="opacity-0"
         >
-          <ListboxOptions className="absolute z-10 mt-1 max-h-60 w-32 overflow-auto rounded-md bg-white py-1 text-sm shadow-lg ring-1 ring-black/5 focus:outline-none dark:bg-gray-800 dark:ring-white/10">
+          <ListboxOptions className="absolute z-50 mt-1 max-h-60 w-32 overflow-auto rounded-md bg-white py-1 text-sm shadow-lg ring-1 ring-black/5 focus:outline-none dark:bg-gray-800 dark:ring-white/10">
             {SIMPLE_COMMANDS.map((command) => {
               const isCommandDisabled = disabledCommands.includes(command);
               return (
