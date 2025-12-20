@@ -1,7 +1,8 @@
-import { useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useRebaseStore } from "../../stores";
 import { RebaseEntryList } from "./RebaseEntryList";
-import type { SimpleCommand } from "../../types/git";
+import { RewordModal } from "./RewordModal";
+import type { SimpleCommand, RebaseEntry } from "../../types/git";
 
 const COMMAND_SHORTCUTS: Record<string, SimpleCommand> = {
   p: "pick",
@@ -44,7 +45,11 @@ export function RebaseEditor() {
     moveEntry,
     updateEntryCommand,
     setSimpleCommand,
+    updateEntryMessage,
   } = useRebaseStore();
+
+  // State for reword modal
+  const [rewordEntry, setRewordEntry] = useState<RebaseEntry | null>(null);
 
   // Keyboard shortcuts for command changes
   const handleKeyDown = useCallback(
@@ -94,6 +99,14 @@ export function RebaseEditor() {
         }
         event.preventDefault();
         setSimpleCommand(selectedEntryId, command);
+
+        // Open reword modal when 'r' is pressed
+        if (command === "reword") {
+          const entry = entries.find((e) => e.id === selectedEntryId);
+          if (entry) {
+            setRewordEntry(entry);
+          }
+        }
       }
 
       // Arrow key navigation
@@ -119,6 +132,37 @@ export function RebaseEditor() {
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [handleKeyDown]);
+
+  // Reword modal handlers
+  const handleRewordSave = useCallback(
+    (newMessage: string) => {
+      if (rewordEntry) {
+        updateEntryMessage(rewordEntry.id, newMessage);
+        setRewordEntry(null);
+      }
+    },
+    [rewordEntry, updateEntryMessage]
+  );
+
+  const handleRewordCancel = useCallback(() => {
+    setRewordEntry(null);
+  }, []);
+
+  // Wrap command change to open modal when reword is selected
+  const handleCommandChange = useCallback(
+    (id: string, command: import("../../types/git").RebaseCommandType) => {
+      updateEntryCommand(id, command);
+
+      // Open reword modal when reword command is selected
+      if (command.type === "reword") {
+        const entry = entries.find((e) => e.id === id);
+        if (entry) {
+          setRewordEntry(entry);
+        }
+      }
+    },
+    [entries, updateEntryCommand]
+  );
 
   return (
     <div className="flex h-full flex-col gap-4">
@@ -146,7 +190,7 @@ export function RebaseEditor() {
           selectedEntryId={selectedEntryId}
           onSelectEntry={selectEntry}
           onReorder={moveEntry}
-          onCommandChange={updateEntryCommand}
+          onCommandChange={handleCommandChange}
         />
       </div>
 
@@ -227,6 +271,15 @@ export function RebaseEditor() {
           保存
         </span>
       </div>
+
+      {/* Reword modal */}
+      <RewordModal
+        isOpen={rewordEntry !== null}
+        commitHash={rewordEntry?.commit_hash ?? ""}
+        initialMessage={rewordEntry?.message ?? ""}
+        onSave={handleRewordSave}
+        onCancel={handleRewordCancel}
+      />
     </div>
   );
 }
