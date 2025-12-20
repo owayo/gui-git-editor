@@ -84,7 +84,7 @@ export function RebaseEntryItem({
     }
 
     // Normal state (pick, reword, edit)
-    return `${baseClasses} border-gray-200 bg-white hover:border-gray-300 hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-800 dark:hover:border-gray-600 dark:hover:bg-gray-750 ${selectionClasses}`;
+    return `${baseClasses} border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-800 ${selectionClasses}`;
   };
 
   return (
