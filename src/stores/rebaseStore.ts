@@ -21,6 +21,8 @@ interface RebaseState {
   // Derived state helpers
   getEntry: (id: string) => RebaseEntry | undefined;
   getSelectedEntry: () => RebaseEntry | undefined;
+  /** Returns validation error message if entries are invalid, null otherwise */
+  getValidationError: () => string | null;
 
   // Actions
   parseContent: (content: string) => Promise<boolean>;
@@ -57,6 +59,25 @@ export const useRebaseStore = create<RebaseState>((set, get) => ({
     return selectedEntryId
       ? entries.find((e) => e.id === selectedEntryId)
       : undefined;
+  },
+
+  getValidationError: () => {
+    const { entries } = get();
+    if (entries.length === 0) return null;
+
+    // Find the first non-drop entry
+    for (const entry of entries) {
+      const cmdType = entry.command.type;
+      if (cmdType === "drop") continue;
+
+      // If the first non-drop entry is squash or fixup, it's invalid
+      if (cmdType === "squash" || cmdType === "fixup") {
+        return "先頭のコミットにsquash/fixupは使用できません。統合先のコミットがありません。";
+      }
+      // First non-drop entry is valid (pick, reword, edit, etc.)
+      break;
+    }
+    return null;
   },
 
   parseContent: async (content: string) => {

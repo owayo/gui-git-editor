@@ -16,6 +16,8 @@ interface ActionBarProps {
   isSaving?: boolean;
   isDirty?: boolean;
   saveLabel?: string;
+  /** Validation error message - disables save button when present */
+  validationError?: string | null;
 }
 
 export function ActionBar({
@@ -28,7 +30,9 @@ export function ActionBar({
   isSaving = false,
   isDirty = false,
   saveLabel = "保存",
+  validationError = null,
 }: ActionBarProps) {
+  const canSave = isDirty && !isSaving && !validationError;
   return (
     <div className="flex items-center justify-between border-t border-gray-200 bg-gray-100 px-4 py-2 dark:border-gray-700 dark:bg-gray-800">
       {/* Left side: Undo/Redo */}
@@ -66,7 +70,17 @@ export function ActionBar({
         aria-atomic="true"
         className="flex items-center gap-2 text-sm"
       >
-        {isSaving ? (
+        {validationError ? (
+          <>
+            <span
+              className="h-2 w-2 rounded-full bg-red-500"
+              aria-hidden="true"
+            />
+            <span className="text-red-600 dark:text-red-400">
+              {validationError}
+            </span>
+          </>
+        ) : isSaving ? (
           <span className="text-blue-600 dark:text-blue-400">保存中...</span>
         ) : isDirty ? (
           <>
@@ -97,7 +111,7 @@ export function ActionBar({
         <button
           type="button"
           onClick={onSave}
-          disabled={isSaving || !isDirty}
+          disabled={!canSave}
           aria-label={isSaving ? "処理中" : saveLabel}
           aria-busy={isSaving}
           className="flex items-center gap-1.5 rounded-md bg-green-600 px-3 py-1.5 text-white transition-colors hover:bg-green-700 disabled:cursor-not-allowed disabled:opacity-50"

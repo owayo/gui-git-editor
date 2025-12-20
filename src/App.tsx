@@ -37,6 +37,7 @@ function App() {
     serialize,
     setEntries,
     clearError: clearRebaseError,
+    getValidationError,
   } = useRebaseStore();
 
   const {
@@ -236,6 +237,9 @@ function App() {
               : isDirty
         }
         saveLabel={fileType === "rebase_todo" ? "Rebaseを開始" : "保存"}
+        validationError={
+          fileType === "rebase_todo" ? getValidationError() : null
+        }
       />
     </div>
   );
