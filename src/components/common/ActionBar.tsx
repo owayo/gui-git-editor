@@ -71,7 +71,6 @@ export function ActionBar({
         className="text-sm text-gray-500 dark:text-gray-400"
       >
         {isSaving && "保存中..."}
-        {!isSaving && isDirty && "未保存の変更があります"}
       </div>
 
       {/* Right side: Theme toggle, Cancel, Save */}

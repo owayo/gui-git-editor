@@ -210,7 +210,7 @@ export function RebaseEditor() {
         </span>
         <span>
           <kbd className="rounded bg-gray-200 px-1.5 py-0.5 font-mono dark:bg-gray-700">
-            ⌘↑↓
+            ⌘+↑↓
           </kbd>{" "}
           順序変更
         </span>
