@@ -13,6 +13,9 @@ interface CommitState {
   validation: CommitValidation | null;
   isLoading: boolean;
   error: AppError | null;
+  isDirty: boolean;
+  originalSubject: string;
+  originalBody: string;
 
   // Derived
   getMessage: () => CommitMessage;
@@ -39,6 +42,9 @@ const initialState = {
   validation: null as CommitValidation | null,
   isLoading: false,
   error: null as AppError | null,
+  isDirty: false,
+  originalSubject: "",
+  originalBody: "",
 };
 
 export const useCommitStore = create<CommitState>((set, get) => ({
@@ -66,6 +72,9 @@ export const useCommitStore = create<CommitState>((set, get) => ({
         comments: msg.comments,
         diffContent: msg.diff_content,
         isLoading: false,
+        isDirty: false,
+        originalSubject: msg.subject,
+        originalBody: msg.body,
       });
       // Validate after parsing
       await get().validate();
@@ -92,13 +101,21 @@ export const useCommitStore = create<CommitState>((set, get) => ({
   },
 
   setSubject: (subject: string) => {
-    set({ subject });
+    const { originalSubject, originalBody, body } = get();
+    set({
+      subject,
+      isDirty: subject !== originalSubject || body !== originalBody,
+    });
     // Debounced validation would be better in production
     get().validate();
   },
 
   setBody: (body: string) => {
-    set({ body });
+    const { originalSubject, originalBody, subject } = get();
+    set({
+      body,
+      isDirty: subject !== originalSubject || body !== originalBody,
+    });
     get().validate();
   },
 

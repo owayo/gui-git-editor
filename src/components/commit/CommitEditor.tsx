@@ -83,10 +83,7 @@ export function CommitEditor() {
 
       {/* Instructions */}
       <div className="rounded-lg bg-blue-50 p-3 text-sm text-blue-700 dark:bg-blue-900/20 dark:text-blue-300">
-        <p>
-          件名は50文字以内、本文は各行72文字以内が推奨されています。
-          空行を挟んで件名と本文を分けてください。
-        </p>
+        <p>件名は50文字以内、本文は各行72文字以内が推奨されています。</p>
       </div>
 
       {/* Subject input */}
