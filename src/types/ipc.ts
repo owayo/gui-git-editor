@@ -79,9 +79,13 @@ export async function serializeRebaseTodo(
 }
 
 export async function generateCommitMessage(
-  hashes: string[]
+  hashes: string[],
+  withBody: boolean = false
 ): Promise<IpcResult<string>> {
-  return safeInvoke<string>("generate_commit_message", { hashes });
+  return safeInvoke<string>("generate_commit_message", {
+    hashes,
+    with_body: withBody,
+  });
 }
 
 // Commit message operations

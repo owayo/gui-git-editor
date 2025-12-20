@@ -72,14 +72,14 @@ export function RewordModal({
     }
   };
 
-  const handleGenerateWithAI = async () => {
+  const handleGenerateWithAI = async (withBody: boolean) => {
     setIsGenerating(true);
     setGenerateError(null);
 
     // Collect all hashes (main + related squash/fixup)
     const hashes = [commitHash, ...relatedHashes];
 
-    const result = await generateCommitMessage(hashes);
+    const result = await generateCommitMessage(hashes, withBody);
 
     if (result.ok) {
       setMessage(result.data);
@@ -129,15 +129,24 @@ export function RewordModal({
 
         {/* Body */}
         <div className="p-4">
-          <div className="mb-3 flex items-center justify-end">
+          <div className="mb-3 flex items-center justify-end gap-2">
             <button
               type="button"
-              onClick={handleGenerateWithAI}
+              onClick={() => handleGenerateWithAI(false)}
               disabled={isGenerating}
               className="flex items-center gap-1.5 rounded-md bg-purple-600 px-3 py-1.5 text-sm text-white hover:bg-purple-700 disabled:cursor-not-allowed disabled:opacity-50"
             >
               <SparklesIcon className="h-4 w-4" />
-              {isGenerating ? "生成中..." : "AIで生成"}
+              {isGenerating ? "生成中..." : "タイトルのみ"}
+            </button>
+            <button
+              type="button"
+              onClick={() => handleGenerateWithAI(true)}
+              disabled={isGenerating}
+              className="flex items-center gap-1.5 rounded-md bg-purple-700 px-3 py-1.5 text-sm text-white hover:bg-purple-800 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              <SparklesIcon className="h-4 w-4" />
+              {isGenerating ? "生成中..." : "本文も生成"}
             </button>
           </div>
 

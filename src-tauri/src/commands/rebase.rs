@@ -19,7 +19,10 @@ pub fn serialize_rebase_todo(file: RebaseTodoFile) -> String {
 
 /// Generate commit message using git-sc for specified commit hashes
 #[tauri::command]
-pub async fn generate_commit_message(hashes: Vec<String>) -> Result<String, AppError> {
+pub async fn generate_commit_message(
+    hashes: Vec<String>,
+    with_body: bool,
+) -> Result<String, AppError> {
     if hashes.is_empty() {
         return Err(AppError::CommandError {
             message: "No commit hashes provided".to_string(),
@@ -28,6 +31,10 @@ pub async fn generate_commit_message(hashes: Vec<String>) -> Result<String, AppE
 
     let mut args = vec!["--generate-for".to_string()];
     args.extend(hashes);
+
+    if with_body {
+        args.push("--body".to_string());
+    }
 
     let output = Command::new("git-sc")
         .args(&args)
