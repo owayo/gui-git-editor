@@ -84,15 +84,31 @@ export function RebaseEntryList({
           aria-live="polite"
           className="flex flex-col gap-2"
         >
-          {entries.map((entry) => (
+          {/* Oldest commit indicator */}
+          <div className="flex items-center gap-2 text-xs text-gray-500 dark:text-gray-400">
+            <span className="flex-1 border-t border-dashed border-gray-300 dark:border-gray-600" />
+            <span>↑ 古いコミット（先に適用）</span>
+            <span className="flex-1 border-t border-dashed border-gray-300 dark:border-gray-600" />
+          </div>
+
+          {entries.map((entry, index) => (
             <RebaseEntryItem
               key={entry.id}
               entry={entry}
               isSelected={entry.id === selectedEntryId}
+              isFirst={index === 0}
+              isLast={index === entries.length - 1}
               onSelect={() => onSelectEntry(entry.id)}
               onCommandChange={(cmd) => onCommandChange(entry.id, cmd)}
             />
           ))}
+
+          {/* Newest commit indicator */}
+          <div className="flex items-center gap-2 text-xs text-gray-500 dark:text-gray-400">
+            <span className="flex-1 border-t border-dashed border-gray-300 dark:border-gray-600" />
+            <span>↓ 新しいコミット（後に適用）</span>
+            <span className="flex-1 border-t border-dashed border-gray-300 dark:border-gray-600" />
+          </div>
         </div>
         {/* Screen reader instructions for drag and drop */}
         <div id="drag-instructions" className="sr-only">
