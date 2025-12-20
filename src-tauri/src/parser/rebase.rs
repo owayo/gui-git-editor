@@ -1,3 +1,5 @@
+use base64::{engine::general_purpose::STANDARD, Engine};
+
 use crate::error::AppError;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
@@ -239,26 +241,37 @@ pub fn serialize_rebase_todo(file: &RebaseTodoFile) -> String {
     let mut lines = Vec::new();
 
     for entry in &file.entries {
-        let line = match &entry.command {
+        match &entry.command {
+            RebaseCommand::Reword => {
+                // For reword, convert to pick + exec to apply the message without opening editor
+                let subject = entry.message.lines().next().unwrap_or(&entry.message);
+                lines.push(format!("pick {} {}", entry.commit_hash, subject));
+
+                // Use base64 encoding to safely pass multi-line messages through shell
+                let encoded = STANDARD.encode(&entry.message);
+                lines.push(format!(
+                    "exec echo {} | base64 -d | git commit --amend -F -",
+                    encoded
+                ));
+            }
             RebaseCommand::Pick
-            | RebaseCommand::Reword
             | RebaseCommand::Edit
             | RebaseCommand::Squash
             | RebaseCommand::Fixup
             | RebaseCommand::Drop => {
                 // Only output the subject line (first line) - git rebase-todo format requires single-line entries
                 let subject = entry.message.lines().next().unwrap_or(&entry.message);
-                format!(
+                lines.push(format!(
                     "{} {} {}",
                     entry.command.to_short(),
                     entry.commit_hash,
                     subject
-                )
+                ));
             }
-            RebaseCommand::Exec(cmd) => format!("x {}", cmd),
-            RebaseCommand::Break => "b".to_string(),
-            RebaseCommand::Label(label) => format!("l {}", label),
-            RebaseCommand::Reset(label) => format!("t {}", label),
+            RebaseCommand::Exec(cmd) => lines.push(format!("x {}", cmd)),
+            RebaseCommand::Break => lines.push("b".to_string()),
+            RebaseCommand::Label(label) => lines.push(format!("l {}", label)),
+            RebaseCommand::Reset(label) => lines.push(format!("t {}", label)),
             RebaseCommand::Merge {
                 commit,
                 label,
@@ -272,10 +285,9 @@ pub fn serialize_rebase_todo(file: &RebaseTodoFile) -> String {
                 if let Some(msg) = message {
                     parts.push(format!("# {}", msg));
                 }
-                parts.join(" ")
+                lines.push(parts.join(" "));
             }
-        };
-        lines.push(line);
+        }
     }
 
     // Append comments
