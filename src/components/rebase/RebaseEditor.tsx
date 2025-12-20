@@ -4,6 +4,11 @@ import { RebaseEntryList } from "./RebaseEntryList";
 import { RewordModal } from "./RewordModal";
 import type { SimpleCommand, RebaseEntry } from "../../types/git";
 
+/** Remove leading # from commit message if present */
+function cleanMessage(message: string): string {
+  return message.replace(/^#\s*/, "");
+}
+
 const COMMAND_SHORTCUTS: Record<string, SimpleCommand> = {
   p: "pick",
   r: "reword",
@@ -310,7 +315,7 @@ export function RebaseEditor() {
         relatedHashes={
           rewordEntry ? collectRelatedHashes(entries, rewordEntry.id) : []
         }
-        initialMessage={rewordEntry?.message ?? ""}
+        initialMessage={rewordEntry ? cleanMessage(rewordEntry.message) : ""}
         onSave={handleRewordSave}
         onCancel={handleRewordCancel}
       />
