@@ -6,12 +6,12 @@ import {
   useCommitStore,
   useHistoryStore,
 } from "./stores";
-import { useKeyboardShortcuts, useAutoBackup } from "./hooks";
+import { useKeyboardShortcuts } from "./hooks";
 import { ActionBar, ErrorDisplay, Loading } from "./components/common";
 import { RebaseEditor } from "./components/rebase";
 import { CommitEditor } from "./components/commit";
 import { FallbackEditor } from "./components/fallback";
-import { deleteBackup, exitApp } from "./types/ipc";
+import { exitApp } from "./types/ipc";
 
 function App() {
   const {
@@ -58,12 +58,6 @@ function App() {
 
   const isLoading = fileLoading || rebaseLoading || commitLoading;
   const error = fileError || rebaseError || commitError;
-
-  // Auto-backup hook
-  const { clearBackup } = useAutoBackup({
-    filePath,
-    isDirty,
-  });
 
   // Check if file is a commit message type
   const isCommitType =
@@ -126,8 +120,6 @@ function App() {
     }
 
     if (success) {
-      // Clear backup on successful save
-      await clearBackup();
       await exitApp(0);
     }
   }, [
@@ -137,16 +129,12 @@ function App() {
     serializeCommit,
     setContent,
     saveFile,
-    clearBackup,
   ]);
 
   // Handle cancel
   const handleCancel = useCallback(async () => {
-    if (filePath) {
-      await deleteBackup(filePath);
-    }
     await exitApp(1);
-  }, [filePath]);
+  }, []);
 
   // Handle undo
   const handleUndo = useCallback(() => {

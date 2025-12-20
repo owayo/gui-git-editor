@@ -49,8 +49,7 @@ export function RebaseEditor() {
   // Keyboard shortcuts for command changes
   const handleKeyDown = useCallback(
     (event: KeyboardEvent) => {
-      // Ignore if modifier keys are pressed or if typing in an input
-      if (event.ctrlKey || event.metaKey || event.altKey) return;
+      // Ignore if typing in an input
       if (
         event.target instanceof HTMLInputElement ||
         event.target instanceof HTMLTextAreaElement ||
@@ -58,6 +57,31 @@ export function RebaseEditor() {
       ) {
         return;
       }
+
+      // Cmd+↑/↓: Move selected entry up/down
+      if (
+        event.metaKey &&
+        (event.key === "ArrowUp" || event.key === "ArrowDown")
+      ) {
+        event.preventDefault();
+        if (!selectedEntryId) return;
+
+        const currentIndex = entries.findIndex((e) => e.id === selectedEntryId);
+        if (currentIndex === -1) return;
+
+        if (event.key === "ArrowUp" && currentIndex > 0) {
+          moveEntry(currentIndex, currentIndex - 1);
+        } else if (
+          event.key === "ArrowDown" &&
+          currentIndex < entries.length - 1
+        ) {
+          moveEntry(currentIndex, currentIndex + 1);
+        }
+        return;
+      }
+
+      // Ignore other shortcuts if modifier keys are pressed
+      if (event.ctrlKey || event.metaKey || event.altKey) return;
 
       const command = COMMAND_SHORTCUTS[event.key.toLowerCase()];
       if (command && selectedEntryId) {
@@ -88,7 +112,7 @@ export function RebaseEditor() {
         }
       }
     },
-    [selectedEntryId, entries, setSimpleCommand, selectEntry]
+    [selectedEntryId, entries, setSimpleCommand, selectEntry, moveEntry]
   );
 
   useEffect(() => {
@@ -182,7 +206,13 @@ export function RebaseEditor() {
           <kbd className="rounded bg-gray-200 px-1.5 py-0.5 font-mono dark:bg-gray-700">
             ↑↓
           </kbd>{" "}
-          移動
+          選択
+        </span>
+        <span>
+          <kbd className="rounded bg-gray-200 px-1.5 py-0.5 font-mono dark:bg-gray-700">
+            ⌘↑↓
+          </kbd>{" "}
+          順序変更
         </span>
         <span>
           <kbd className="rounded bg-gray-200 px-1.5 py-0.5 font-mono dark:bg-gray-700">
