@@ -1,4 +1,4 @@
-import { useEffect, useCallback, useState } from "react";
+import { useEffect, useCallback } from "react";
 import { getMatches } from "@tauri-apps/plugin-cli";
 import {
   useFileStore,
@@ -7,21 +7,11 @@ import {
   useHistoryStore,
 } from "./stores";
 import { useKeyboardShortcuts, useAutoBackup } from "./hooks";
-import {
-  ActionBar,
-  BackupRecoveryDialog,
-  ErrorDisplay,
-  Loading,
-} from "./components/common";
+import { ActionBar, ErrorDisplay, Loading } from "./components/common";
 import { RebaseEditor } from "./components/rebase";
 import { CommitEditor } from "./components/commit";
 import { FallbackEditor } from "./components/fallback";
-import {
-  checkBackupExists,
-  deleteBackup,
-  exitApp,
-  restoreBackup,
-} from "./types/ipc";
+import { deleteBackup, exitApp } from "./types/ipc";
 
 function App() {
   const {
@@ -66,11 +56,6 @@ function App() {
     clear: clearHistory,
   } = useHistoryStore();
 
-  const [showBackupDialog, setShowBackupDialog] = useState(false);
-  const [pendingBackupPath, setPendingBackupPath] = useState<string | null>(
-    null
-  );
-
   const isLoading = fileLoading || rebaseLoading || commitLoading;
   const error = fileError || rebaseError || commitError;
 
@@ -96,14 +81,6 @@ function App() {
 
         if (args.file && typeof args.file.value === "string") {
           const targetPath = args.file.value;
-
-          // Check for existing backup
-          const backupResult = await checkBackupExists(targetPath);
-          if (backupResult.ok && backupResult.data) {
-            setPendingBackupPath(backupResult.data);
-            setShowBackupDialog(true);
-          }
-
           await loadFile(targetPath);
         }
       } catch (err) {
@@ -169,27 +146,6 @@ function App() {
       await deleteBackup(filePath);
     }
     await exitApp(1);
-  }, [filePath]);
-
-  // Handle backup restore
-  const handleRestoreBackup = useCallback(async () => {
-    if (!filePath || !pendingBackupPath) return;
-
-    const result = await restoreBackup(pendingBackupPath, filePath);
-    if (result.ok) {
-      await loadFile(filePath);
-    }
-    setShowBackupDialog(false);
-    setPendingBackupPath(null);
-  }, [filePath, pendingBackupPath, loadFile]);
-
-  // Handle backup discard
-  const handleDiscardBackup = useCallback(async () => {
-    if (filePath) {
-      await deleteBackup(filePath);
-    }
-    setShowBackupDialog(false);
-    setPendingBackupPath(null);
   }, [filePath]);
 
   // Handle undo
@@ -293,14 +249,6 @@ function App() {
         <span className="mx-2">•</span>
         <span>{fileType}</span>
       </footer>
-
-      {/* Backup recovery dialog */}
-      {showBackupDialog && (
-        <BackupRecoveryDialog
-          onRestore={handleRestoreBackup}
-          onDiscard={handleDiscardBackup}
-        />
-      )}
     </div>
   );
 }
