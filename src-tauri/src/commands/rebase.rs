@@ -36,7 +36,7 @@ pub async fn generate_commit_message(
         args.push("--body".to_string());
     }
 
-    println!("[CMD] git-sc {}", args.join(" "));
+    log::debug!("[CMD] git-sc {}", args.join(" "));
 
     let output = Command::new("git-sc")
         .args(&args)
@@ -46,7 +46,7 @@ pub async fn generate_commit_message(
             message: format!("Failed to execute git-sc: {}", e),
         })?;
 
-    println!("[CMD] exit status: {:?}", output.status);
+    log::debug!("[CMD] exit status: {:?}", output.status);
 
     if output.status.success() {
         let message = String::from_utf8_lossy(&output.stdout).trim().to_string();
