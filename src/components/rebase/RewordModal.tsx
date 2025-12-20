@@ -1,9 +1,13 @@
 import { useState, useEffect, useCallback, useRef } from "react";
-import { XMarkIcon } from "@heroicons/react/24/outline";
+import { XMarkIcon, SparklesIcon } from "@heroicons/react/24/outline";
+import { generateCommitMessage } from "../../types/ipc";
+import { getErrorMessage } from "../../types/errors";
 
 interface RewordModalProps {
   isOpen: boolean;
   commitHash: string;
+  /** Additional hashes for squash/fixup commits */
+  relatedHashes?: string[];
   initialMessage: string;
   onSave: (message: string) => void;
   onCancel: () => void;
@@ -12,17 +16,21 @@ interface RewordModalProps {
 export function RewordModal({
   isOpen,
   commitHash,
+  relatedHashes = [],
   initialMessage,
   onSave,
   onCancel,
 }: RewordModalProps) {
   const [message, setMessage] = useState(initialMessage);
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [generateError, setGenerateError] = useState<string | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   // Reset message when modal opens with new initial message
   useEffect(() => {
     if (isOpen) {
       setMessage(initialMessage);
+      setGenerateError(null);
       // Focus textarea when modal opens
       setTimeout(() => {
         textareaRef.current?.focus();
@@ -45,12 +53,12 @@ export function RewordModal({
       // Cmd/Ctrl+Enter to save
       if ((event.metaKey || event.ctrlKey) && event.key === "Enter") {
         event.preventDefault();
-        if (message.trim()) {
+        if (message.trim() && !isGenerating) {
           onSave(message);
         }
       }
     },
-    [isOpen, message, onSave, onCancel]
+    [isOpen, message, isGenerating, onSave, onCancel]
   );
 
   useEffect(() => {
@@ -58,13 +66,36 @@ export function RewordModal({
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [handleKeyDown]);
 
-  if (!isOpen) return null;
-
   const handleSave = () => {
     if (message.trim()) {
       onSave(message);
     }
   };
+
+  const handleGenerateWithAI = async () => {
+    setIsGenerating(true);
+    setGenerateError(null);
+
+    // Collect all hashes (main + related squash/fixup)
+    const hashes = [commitHash, ...relatedHashes];
+
+    const result = await generateCommitMessage(hashes);
+
+    if (result.ok) {
+      setMessage(result.data);
+      // Focus textarea after generation
+      setTimeout(() => {
+        textareaRef.current?.focus();
+        textareaRef.current?.select();
+      }, 0);
+    } else {
+      setGenerateError(getErrorMessage(result.error));
+    }
+
+    setIsGenerating(false);
+  };
+
+  if (!isOpen) return null;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
@@ -79,6 +110,11 @@ export function RewordModal({
               <span className="font-mono text-amber-600 dark:text-amber-400">
                 {commitHash.slice(0, 7)}
               </span>
+              {relatedHashes.length > 0 && (
+                <span className="ml-2 text-purple-600 dark:text-purple-400">
+                  +{relatedHashes.length} コミット
+                </span>
+              )}
             </p>
           </div>
           <button
@@ -93,11 +129,30 @@ export function RewordModal({
 
         {/* Body */}
         <div className="p-4">
+          <div className="mb-3 flex items-center justify-end">
+            <button
+              type="button"
+              onClick={handleGenerateWithAI}
+              disabled={isGenerating}
+              className="flex items-center gap-1.5 rounded-md bg-purple-600 px-3 py-1.5 text-sm text-white hover:bg-purple-700 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              <SparklesIcon className="h-4 w-4" />
+              {isGenerating ? "生成中..." : "AIで生成"}
+            </button>
+          </div>
+
+          {generateError && (
+            <div className="mb-3 rounded-md bg-red-50 px-3 py-2 text-sm text-red-700 dark:bg-red-900/20 dark:text-red-300">
+              {generateError}
+            </div>
+          )}
+
           <textarea
             ref={textareaRef}
             value={message}
             onChange={(e) => setMessage(e.target.value)}
-            className="h-40 w-full resize-none rounded-md border border-gray-300 bg-white px-3 py-2 font-mono text-sm text-gray-800 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 focus:outline-none dark:border-gray-600 dark:bg-gray-900 dark:text-gray-200"
+            disabled={isGenerating}
+            className="h-40 w-full resize-none rounded-md border border-gray-300 bg-white px-3 py-2 font-mono text-sm text-gray-800 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 focus:outline-none disabled:cursor-not-allowed disabled:opacity-50 dark:border-gray-600 dark:bg-gray-900 dark:text-gray-200"
             placeholder="コミットメッセージを入力..."
           />
         </div>
@@ -114,14 +169,15 @@ export function RewordModal({
             <button
               type="button"
               onClick={onCancel}
-              className="rounded-md px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700"
+              disabled={isGenerating}
+              className="rounded-md px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-50 dark:text-gray-300 dark:hover:bg-gray-700"
             >
               キャンセル
             </button>
             <button
               type="button"
               onClick={handleSave}
-              disabled={!message.trim()}
+              disabled={!message.trim() || isGenerating}
               className="rounded-md bg-blue-600 px-4 py-2 text-sm text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
             >
               保存

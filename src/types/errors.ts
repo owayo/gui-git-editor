@@ -4,6 +4,7 @@ export type AppErrorCode =
   | "FileLocked"
   | "ParseError"
   | "IoError"
+  | "CommandError"
   | "Unknown";
 
 export interface AppError {
@@ -27,6 +28,8 @@ export function getErrorMessage(error: AppError): string {
       return `Parse error at line ${error.details.line}: ${error.details.message}`;
     case "IoError":
       return `IO error: ${error.details.message}`;
+    case "CommandError":
+      return `Command error: ${error.details.message}`;
     default:
       return `Unknown error: ${error.details.message}`;
   }

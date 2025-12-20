@@ -36,6 +36,37 @@ function canSquashOrFixupEntry(
   return false;
 }
 
+/**
+ * Collect related commit hashes for squash/fixup entries.
+ * When a commit has subsequent squash/fixup commands, their changes
+ * will be combined, so we need all their hashes for AI message generation.
+ */
+function collectRelatedHashes(
+  entries: RebaseEntry[],
+  entryId: string
+): string[] {
+  const index = entries.findIndex((e) => e.id === entryId);
+  if (index === -1) return [];
+
+  const relatedHashes: string[] = [];
+
+  // Look at subsequent entries
+  for (let i = index + 1; i < entries.length; i++) {
+    const entry = entries[i];
+    const cmdType = entry.command.type;
+
+    // Collect squash and fixup entries
+    if (cmdType === "squash" || cmdType === "fixup") {
+      relatedHashes.push(entry.commit_hash);
+    } else {
+      // Stop when we hit a non-squash/fixup command
+      break;
+    }
+  }
+
+  return relatedHashes;
+}
+
 export function RebaseEditor() {
   const {
     entries,
@@ -276,6 +307,9 @@ export function RebaseEditor() {
       <RewordModal
         isOpen={rewordEntry !== null}
         commitHash={rewordEntry?.commit_hash ?? ""}
+        relatedHashes={
+          rewordEntry ? collectRelatedHashes(entries, rewordEntry.id) : []
+        }
         initialMessage={rewordEntry?.message ?? ""}
         onSave={handleRewordSave}
         onCancel={handleRewordCancel}

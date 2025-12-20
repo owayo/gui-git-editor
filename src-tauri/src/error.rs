@@ -15,6 +15,9 @@ pub enum AppError {
 
     #[error("IO error: {message}")]
     IoError { message: String },
+
+    #[error("Command execution failed: {message}")]
+    CommandError { message: String },
 }
 
 impl From<std::io::Error> for AppError {

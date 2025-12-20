@@ -78,6 +78,12 @@ export async function serializeRebaseTodo(
   return safeInvoke<string>("serialize_rebase_todo", { file });
 }
 
+export async function generateCommitMessage(
+  hashes: string[]
+): Promise<IpcResult<string>> {
+  return safeInvoke<string>("generate_commit_message", { hashes });
+}
+
 // Commit message operations
 export async function parseCommitMsg(
   content: string

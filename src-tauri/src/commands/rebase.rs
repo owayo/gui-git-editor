@@ -1,3 +1,5 @@
+use std::process::Command;
+
 use crate::error::AppError;
 use crate::parser::{
     parse_rebase_todo as parse_todo, serialize_rebase_todo as serialize_todo, RebaseTodoFile,
@@ -13,4 +15,43 @@ pub fn parse_rebase_todo(content: String) -> Result<RebaseTodoFile, AppError> {
 #[tauri::command]
 pub fn serialize_rebase_todo(file: RebaseTodoFile) -> String {
     serialize_todo(&file)
+}
+
+/// Generate commit message using git-sc for specified commit hashes
+#[tauri::command]
+pub async fn generate_commit_message(hashes: Vec<String>) -> Result<String, AppError> {
+    if hashes.is_empty() {
+        return Err(AppError::CommandError {
+            message: "No commit hashes provided".to_string(),
+        });
+    }
+
+    let mut args = vec!["--generate-for".to_string()];
+    args.extend(hashes);
+
+    let output = Command::new("git-sc")
+        .args(&args)
+        .output()
+        .map_err(|e| AppError::CommandError {
+            message: format!("Failed to execute git-sc: {}", e),
+        })?;
+
+    if output.status.success() {
+        let message = String::from_utf8_lossy(&output.stdout).trim().to_string();
+        if message.is_empty() {
+            return Err(AppError::CommandError {
+                message: "git-sc returned empty message".to_string(),
+            });
+        }
+        Ok(message)
+    } else {
+        let stderr = String::from_utf8_lossy(&output.stderr).trim().to_string();
+        Err(AppError::CommandError {
+            message: if stderr.is_empty() {
+                "git-sc failed with no error message".to_string()
+            } else {
+                stderr
+            },
+        })
+    }
 }
