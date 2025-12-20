@@ -9,9 +9,10 @@ import type {
 import { SIMPLE_COMMANDS } from "../../types/git";
 import { CommandSelector } from "./CommandSelector";
 
-/** Remove leading # from commit message if present */
-function cleanMessage(message: string): string {
-  return message.replace(/^#\s*/, "");
+/** Extract subject line only (first line, without leading #) */
+function getSubject(message: string): string {
+  const firstLine = message.split("\n")[0];
+  return firstLine.replace(/^#\s*/, "");
 }
 
 interface RebaseEntryItemProps {
@@ -111,7 +112,7 @@ export function RebaseEntryItem({
       {/* Drag handle */}
       <button
         type="button"
-        aria-label={`${cleanMessage(entry.message)}を移動`}
+        aria-label={`${getSubject(entry.message)}を移動`}
         className="cursor-grab touch-none rounded p-1 text-gray-400 hover:bg-gray-200 hover:text-gray-600 active:cursor-grabbing dark:hover:bg-gray-700 dark:hover:text-gray-300"
         {...attributes}
         {...listeners}
@@ -154,9 +155,9 @@ export function RebaseEntryItem({
               ? "text-purple-700 dark:text-purple-300"
               : "text-gray-700 dark:text-gray-300"
         }`}
-        title={cleanMessage(entry.message)}
+        title={getSubject(entry.message)}
       >
-        {cleanMessage(entry.message)}
+        {getSubject(entry.message)}
       </span>
 
       {/* Special command value indicator */}
