@@ -17,7 +17,16 @@ core.editorで行える操作（interactive rebase、commit message編集、squa
   - 矢印キーでコミット選択（↑↓）
   - Undo/Redo対応
   - squash/fixup制限（先頭コミットや、前が全てdropの場合は選択不可）
+  - squash/fixup時の統合先コミット表示（サブ行で視覚的に確認可能）
+  - 先頭squash/fixupのバリデーション（エラー表示＋保存ボタン無効化）
   - rewordで複数行メッセージをサポート（本文付きメッセージも適用可能）
+  - 先頭コミットの自動選択（画面表示時）
+- **UX改善**
+  - 選択中コミットの視覚的強調（左ボーダー＋グラデーション背景＋リング効果）
+  - 未保存状態のステータス表示
+  - OS別ショートカット表示（macOS: ⌘、その他: Ctrl）
+  - アクセシビリティ対応（ARIA属性、フォーカス管理）
+  - バックアップ復元ダイアログ（前回の未保存変更を復元可能）
 - **コミットメッセージ編集**: COMMIT_EDITMSG, MERGE_MSG, SQUASH_MSG, TAG_EDITMSGのサポート
 - **AIコミットメッセージ生成**: git-scを使用したAIによるコミットメッセージ自動生成
   - タイトルのみ生成
@@ -154,7 +163,7 @@ git config --global --unset core.editor
 
 | キー | 動作 |
 |------|------|
-| `Ctrl/Cmd + S` | 保存して終了 |
+| `⌘ + S` / `Ctrl + S` | 保存して終了 |
 | `Escape` | キャンセル（変更を破棄） |
 
 ### Interactive Rebase
@@ -162,15 +171,16 @@ git config --global --unset core.editor
 | キー | 動作 |
 |------|------|
 | `↑` / `↓` | コミット選択 |
-| `Cmd + ↑` / `Cmd + ↓` | コミットの順序変更 |
+| `⌘ + ↑` / `⌘ + ↓` (macOS) | コミットの順序変更 |
+| `Ctrl + ↑` / `Ctrl + ↓` (Windows/Linux) | コミットの順序変更 |
 | `p` | pick |
-| `r` | reword |
+| `r` | reword（モーダルでメッセージ編集） |
 | `e` | edit |
 | `s` | squash |
 | `f` | fixup |
 | `d` | drop |
-| `Ctrl/Cmd + Z` | 元に戻す |
-| `Ctrl/Cmd + Shift + Z` | やり直す |
+| `⌘ + Z` / `Ctrl + Z` | 元に戻す |
+| `⌘ + Shift + Z` / `Ctrl + Shift + Z` | やり直す |
 
 ## ライセンス
 
