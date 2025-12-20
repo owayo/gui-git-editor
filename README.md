@@ -9,10 +9,16 @@ core.editorで行える操作（interactive rebase、commit message編集、squa
 
 ## 機能
 
-- **Interactive Rebase**: ドラッグ&ドロップでコミットの並び替え、コマンド変更（pick, reword, squash, fixup, drop等）
+- **Interactive Rebase**
+  - ドラッグ&ドロップでコミットの並び替え
+  - キーボードでコミットの並び替え（⌘+↑↓）
+  - コマンド変更（pick, reword, edit, squash, fixup, drop）
+  - キーボードショートカットでコマンド変更（p, r, e, s, f, d）
+  - 矢印キーでコミット選択（↑↓）
+  - Undo/Redo対応
+  - squash/fixup制限（先頭コミットや、前が全てdropの場合は選択不可）
 - **コミットメッセージ編集**: COMMIT_EDITMSG, MERGE_MSG, SQUASH_MSG, TAG_EDITMSGのサポート
 - **ダークモード対応**: システムテーマに自動追従
-- **キーボードショートカット**: Ctrl/Cmd+S（保存）、Escape（キャンセル）、Ctrl/Cmd+Z（Undo）
 
 ## 技術スタック
 
@@ -138,12 +144,27 @@ git config --global --unset core.editor
 
 ## キーボードショートカット
 
+### 共通
+
 | キー | 動作 |
 |------|------|
 | `Ctrl/Cmd + S` | 保存して終了 |
 | `Escape` | キャンセル（変更を破棄） |
-| `Ctrl/Cmd + Z` | 元に戻す（Rebase時） |
-| `Ctrl/Cmd + Shift + Z` | やり直す（Rebase時） |
+
+### Interactive Rebase
+
+| キー | 動作 |
+|------|------|
+| `↑` / `↓` | コミット選択 |
+| `Cmd + ↑` / `Cmd + ↓` | コミットの順序変更 |
+| `p` | pick |
+| `r` | reword |
+| `e` | edit |
+| `s` | squash |
+| `f` | fixup |
+| `d` | drop |
+| `Ctrl/Cmd + Z` | 元に戻す |
+| `Ctrl/Cmd + Shift + Z` | やり直す |
 
 ## ライセンス
 
