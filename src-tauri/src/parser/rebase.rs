@@ -246,11 +246,13 @@ pub fn serialize_rebase_todo(file: &RebaseTodoFile) -> String {
             | RebaseCommand::Squash
             | RebaseCommand::Fixup
             | RebaseCommand::Drop => {
+                // Only output the subject line (first line) - git rebase-todo format requires single-line entries
+                let subject = entry.message.lines().next().unwrap_or(&entry.message);
                 format!(
                     "{} {} {}",
                     entry.command.to_short(),
                     entry.commit_hash,
-                    entry.message
+                    subject
                 )
             }
             RebaseCommand::Exec(cmd) => format!("x {}", cmd),
