@@ -17,7 +17,12 @@ core.editorで行える操作（interactive rebase、commit message編集、squa
   - 矢印キーでコミット選択（↑↓）
   - Undo/Redo対応
   - squash/fixup制限（先頭コミットや、前が全てdropの場合は選択不可）
+  - rewordで複数行メッセージをサポート（本文付きメッセージも適用可能）
 - **コミットメッセージ編集**: COMMIT_EDITMSG, MERGE_MSG, SQUASH_MSG, TAG_EDITMSGのサポート
+- **AIコミットメッセージ生成**: git-scを使用したAIによるコミットメッセージ自動生成
+  - タイトルのみ生成
+  - 本文付きで生成
+  - Rebaseのrewordモーダルでも利用可能
 - **ダークモード対応**: システムテーマに自動追従
 
 ## 技術スタック
@@ -33,6 +38,7 @@ core.editorで行える操作（interactive rebase、commit message編集、squa
 - Node.js 18+
 - Rust 1.70+
 - npm または pnpm
+- [git-sc](https://github.com/owa/git-sc)（AIコミットメッセージ生成機能を使用する場合）
 
 ### セットアップ
 
