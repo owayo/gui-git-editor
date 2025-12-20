@@ -203,18 +203,6 @@ function App() {
 
   return (
     <div className="flex h-screen flex-col bg-white dark:bg-gray-900">
-      <ActionBar
-        onSave={handleSave}
-        onCancel={handleCancel}
-        onUndo={fileType === "rebase_todo" ? handleUndo : undefined}
-        onRedo={fileType === "rebase_todo" ? handleRedo : undefined}
-        canUndo={canUndo()}
-        canRedo={canRedo()}
-        isSaving={isSaving}
-        isDirty={fileType === "rebase_todo" ? rebaseIsDirty : isDirty}
-        saveLabel={fileType === "rebase_todo" ? "Rebaseを開始" : "保存"}
-      />
-
       {error && (
         <div className="p-4">
           <ErrorDisplay error={error} onDismiss={clearError} />
@@ -231,12 +219,17 @@ function App() {
         )}
       </main>
 
-      {/* Footer with file info */}
-      <footer className="border-t border-gray-200 bg-gray-50 px-4 py-2 text-xs text-gray-500 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-400">
-        <span className="font-mono">{filePath}</span>
-        <span className="mx-2">•</span>
-        <span>{fileType}</span>
-      </footer>
+      <ActionBar
+        onSave={handleSave}
+        onCancel={handleCancel}
+        onUndo={fileType === "rebase_todo" ? handleUndo : undefined}
+        onRedo={fileType === "rebase_todo" ? handleRedo : undefined}
+        canUndo={canUndo()}
+        canRedo={canRedo()}
+        isSaving={isSaving}
+        isDirty={fileType === "rebase_todo" ? rebaseIsDirty : isDirty}
+        saveLabel={fileType === "rebase_todo" ? "Rebaseを開始" : "保存"}
+      />
     </div>
   );
 }

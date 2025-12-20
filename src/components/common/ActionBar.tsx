@@ -3,10 +3,7 @@ import {
   ArrowUturnRightIcon,
   CheckIcon,
   XMarkIcon,
-  SunIcon,
-  MoonIcon,
 } from "@heroicons/react/24/outline";
-import { useThemeStore } from "../../stores";
 
 interface ActionBarProps {
   onSave: () => void;
@@ -31,10 +28,8 @@ export function ActionBar({
   isDirty = false,
   saveLabel = "保存",
 }: ActionBarProps) {
-  const { resolvedTheme, toggleTheme } = useThemeStore();
-
   return (
-    <div className="flex items-center justify-between border-b border-gray-200 bg-gray-100 px-4 py-2 dark:border-gray-700 dark:bg-gray-800">
+    <div className="flex items-center justify-between border-t border-gray-200 bg-gray-100 px-4 py-2 dark:border-gray-700 dark:bg-gray-800">
       {/* Left side: Undo/Redo */}
       <div className="flex items-center gap-1">
         {onUndo && (
@@ -73,30 +68,8 @@ export function ActionBar({
         {isSaving && "保存中..."}
       </div>
 
-      {/* Right side: Theme toggle, Cancel, Save */}
+      {/* Right side: Cancel, Save */}
       <div className="flex items-center gap-2">
-        <button
-          type="button"
-          onClick={toggleTheme}
-          className="rounded-md p-2 text-gray-600 transition-colors hover:bg-gray-200 dark:text-gray-400 dark:hover:bg-gray-700"
-          aria-label={
-            resolvedTheme === "dark" ? "ライトモード" : "ダークモード"
-          }
-          title={
-            resolvedTheme === "dark"
-              ? "ライトモードに切り替え"
-              : "ダークモードに切り替え"
-          }
-        >
-          {resolvedTheme === "dark" ? (
-            <SunIcon className="h-5 w-5" aria-hidden="true" />
-          ) : (
-            <MoonIcon className="h-5 w-5" aria-hidden="true" />
-          )}
-        </button>
-
-        <div className="h-6 w-px bg-gray-300 dark:bg-gray-600" />
-
         <button
           type="button"
           onClick={onCancel}
