@@ -72,6 +72,8 @@ export const useRebaseStore = create<RebaseState>((set, get) => ({
         comments: file.comments,
         isLoading: false,
         isDirty: false,
+        // Auto-select the first entry
+        selectedEntryId: file.entries.length > 0 ? file.entries[0].id : null,
       });
       return true;
     } else {
