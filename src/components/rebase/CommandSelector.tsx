@@ -18,12 +18,15 @@ interface CommandSelectorProps {
   value: SimpleCommand;
   onChange: (command: SimpleCommand) => void;
   disabled?: boolean;
+  /** Commands that should be disabled (shown but not selectable) */
+  disabledCommands?: SimpleCommand[];
 }
 
 export function CommandSelector({
   value,
   onChange,
   disabled = false,
+  disabledCommands = [],
 }: CommandSelectorProps) {
   return (
     <Listbox value={value} onChange={onChange} disabled={disabled}>
@@ -47,41 +50,47 @@ export function CommandSelector({
           leaveTo="opacity-0"
         >
           <ListboxOptions className="absolute z-10 mt-1 max-h-60 w-32 overflow-auto rounded-md bg-white py-1 text-sm shadow-lg ring-1 ring-black/5 focus:outline-none dark:bg-gray-800 dark:ring-white/10">
-            {SIMPLE_COMMANDS.map((command) => (
-              <ListboxOption
-                key={command}
-                value={command}
-                className={({ active }) =>
-                  `relative cursor-pointer py-2 pr-4 pl-10 select-none ${
-                    active
-                      ? "bg-gray-100 text-gray-900 dark:bg-gray-700 dark:text-white"
-                      : "text-gray-700 dark:text-gray-300"
-                  }`
-                }
-              >
-                {({ selected }) => (
-                  <>
-                    <span className="flex items-center gap-2">
-                      <span
-                        className={`inline-block h-3 w-3 rounded-full ${COMMAND_COLORS[command]}`}
-                      />
-                      <span
-                        className={`block truncate ${
-                          selected ? "font-medium" : "font-normal"
-                        }`}
-                      >
-                        {COMMAND_LABELS[command]}
+            {SIMPLE_COMMANDS.map((command) => {
+              const isCommandDisabled = disabledCommands.includes(command);
+              return (
+                <ListboxOption
+                  key={command}
+                  value={command}
+                  disabled={isCommandDisabled}
+                  className={({ active }) =>
+                    `relative py-2 pr-4 pl-10 select-none ${
+                      isCommandDisabled
+                        ? "cursor-not-allowed text-gray-400 opacity-40 dark:text-gray-600"
+                        : active
+                          ? "cursor-pointer bg-gray-100 text-gray-900 dark:bg-gray-700 dark:text-white"
+                          : "cursor-pointer text-gray-700 dark:text-gray-300"
+                    }`
+                  }
+                >
+                  {({ selected }) => (
+                    <>
+                      <span className="flex items-center gap-2">
+                        <span
+                          className={`inline-block h-3 w-3 rounded-full ${COMMAND_COLORS[command]} ${isCommandDisabled ? "opacity-40" : ""}`}
+                        />
+                        <span
+                          className={`block truncate ${
+                            selected ? "font-medium" : "font-normal"
+                          }`}
+                        >
+                          {COMMAND_LABELS[command]}
+                        </span>
                       </span>
-                    </span>
-                    {selected && (
-                      <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-green-600 dark:text-green-400">
-                        <CheckIcon className="h-4 w-4" aria-hidden="true" />
-                      </span>
-                    )}
-                  </>
-                )}
-              </ListboxOption>
-            ))}
+                      {selected && (
+                        <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-green-600 dark:text-green-400">
+                          <CheckIcon className="h-4 w-4" aria-hidden="true" />
+                        </span>
+                      )}
+                    </>
+                  )}
+                </ListboxOption>
+              );
+            })}
           </ListboxOptions>
         </Transition>
       </div>

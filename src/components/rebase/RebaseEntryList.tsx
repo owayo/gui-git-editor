@@ -20,6 +20,23 @@ import {
 import type { RebaseEntry, RebaseCommandType } from "../../types/git";
 import { RebaseEntryItem } from "./RebaseEntryItem";
 
+/**
+ * Check if an entry can be squashed/fixup'd.
+ * An entry can only be squash/fixup if there's a valid target commit before it
+ * (i.e., a commit that is not drop).
+ */
+function canSquashOrFixup(entries: RebaseEntry[], index: number): boolean {
+  // Check all entries before this one
+  for (let i = 0; i < index; i++) {
+    const entry = entries[i];
+    // A valid target is any command that's not drop
+    if (entry.command.type !== "drop") {
+      return true;
+    }
+  }
+  return false;
+}
+
 interface RebaseEntryListProps {
   entries: RebaseEntry[];
   selectedEntryId: string | null;
@@ -98,6 +115,7 @@ export function RebaseEntryList({
               isSelected={entry.id === selectedEntryId}
               isFirst={index === 0}
               isLast={index === entries.length - 1}
+              canSquashOrFixup={canSquashOrFixup(entries, index)}
               onSelect={() => onSelectEntry(entry.id)}
               onCommandChange={(cmd) => onCommandChange(entry.id, cmd)}
             />

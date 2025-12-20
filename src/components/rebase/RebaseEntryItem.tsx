@@ -19,6 +19,8 @@ interface RebaseEntryItemProps {
   isSelected: boolean;
   isFirst?: boolean;
   isLast?: boolean;
+  /** Whether this entry can be set to squash/fixup (has valid target before it) */
+  canSquashOrFixup?: boolean;
   onSelect: () => void;
   onCommandChange: (command: RebaseCommandType) => void;
 }
@@ -33,6 +35,7 @@ function getSimpleCommand(command: RebaseCommandType): SimpleCommand | null {
 export function RebaseEntryItem({
   entry,
   isSelected,
+  canSquashOrFixup = true,
   onSelect,
   onCommandChange,
 }: RebaseEntryItemProps) {
@@ -117,6 +120,7 @@ export function RebaseEntryItem({
         <CommandSelector
           value={simpleCommand}
           onChange={(cmd) => onCommandChange({ type: cmd })}
+          disabledCommands={canSquashOrFixup ? [] : ["squash", "fixup"]}
         />
       ) : (
         <span className="w-24 rounded-md bg-gray-500 px-3 py-1.5 text-center text-sm font-medium text-white">
