@@ -32,17 +32,32 @@ core.editorで行える操作（interactive rebase、commit message編集、squa
 
 ```bash
 # 依存関係のインストール
-npm install
+pnpm install
 
 # 開発サーバー起動
-npm run tauri dev
+pnpm tauri dev
 ```
 
 ### ビルド
 
 ```bash
-npm run tauri build
+# リリースビルド
+pnpm tauri:build
+
+# デバッグビルド（開発用）
+pnpm tauri:build:debug
 ```
+
+### バイナリ更新について
+
+| コマンド | バイナリ更新 |
+|----------|--------------|
+| `pnpm tauri dev` | ❌ ホットリロードで動作、バイナリ更新なし |
+| `cd src-tauri && cargo build` | ✅ debug バイナリを更新 |
+| `pnpm tauri:build:debug` | ✅ debug バイナリを更新 |
+
+> **Note**: `tauri dev` は開発サーバーとホットリロードを使用するため、`target/debug/` のバイナリは更新されません。
+> Git エディタとして使用する場合は `pnpm tauri:build:debug` でビルドしてください。
 
 ## 使用方法
 
@@ -50,7 +65,22 @@ npm run tauri build
 
 ビルド後、`git config --global core.editor` でGitのデフォルトエディタとして設定します。
 
-#### macOS
+#### スクリプトで設定（macOS）
+
+```bash
+# VS Code に設定
+./scripts/set-editor-vscode.sh
+
+# GUI Git Editor（デバッグビルド）に設定
+./scripts/set-editor-dev.sh
+
+# GUI Git Editor（リリースビルド、/Applications にインストール済み）に設定
+./scripts/set-editor-release.sh
+```
+
+#### 手動で設定
+
+##### macOS
 
 ```bash
 # DMGからApplicationsにインストールした場合
@@ -60,13 +90,13 @@ git config --global core.editor '"/Applications/gui-git-editor.app/Contents/MacO
 git config --global core.editor '"/path/to/gui-git-editor/src-tauri/target/release/gui-git-editor"'
 ```
 
-#### Linux
+##### Linux
 
 ```bash
 git config --global core.editor '/usr/local/bin/gui-git-editor'
 ```
 
-#### Windows
+##### Windows
 
 ```bash
 git config --global core.editor '"C:/Program Files/gui-git-editor/gui-git-editor.exe"'
