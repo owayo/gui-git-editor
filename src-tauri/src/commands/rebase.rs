@@ -1,4 +1,4 @@
-use std::process::Command;
+use tokio::process::Command;
 
 use crate::error::AppError;
 use crate::parser::{
@@ -39,6 +39,7 @@ pub async fn generate_commit_message(
     let output = Command::new("git-sc")
         .args(&args)
         .output()
+        .await
         .map_err(|e| AppError::CommandError {
             message: format!("Failed to execute git-sc: {}", e),
         })?;
