@@ -3,6 +3,7 @@ import { useRebaseStore } from "../../stores";
 import { RebaseEntryList } from "./RebaseEntryList";
 import { RewordModal } from "./RewordModal";
 import type { SimpleCommand, RebaseEntry } from "../../types/git";
+import { getShortcut, getModifierKey } from "../../utils/platform";
 
 /** Remove leading # from commit message if present */
 function cleanMessage(message: string): string {
@@ -290,19 +291,19 @@ export function RebaseEditor() {
         </span>
         <span>
           <kbd className="rounded bg-gray-200 px-1.5 py-0.5 font-mono dark:bg-gray-700">
-            ⌘+↑↓
+            {getModifierKey()}+↑↓
           </kbd>{" "}
           順序変更
         </span>
         <span>
           <kbd className="rounded bg-gray-200 px-1.5 py-0.5 font-mono dark:bg-gray-700">
-            Ctrl+Z
+            {getShortcut("Z")}
           </kbd>{" "}
           戻す
         </span>
         <span>
           <kbd className="rounded bg-gray-200 px-1.5 py-0.5 font-mono dark:bg-gray-700">
-            Ctrl+S
+            {getShortcut("S")}
           </kbd>{" "}
           保存
         </span>

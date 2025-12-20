@@ -6,6 +6,7 @@ import { BodyTextarea } from "./BodyTextarea";
 import { TrailersDisplay } from "./TrailersDisplay";
 import { generateCommitMessageFromStaged } from "../../types/ipc";
 import { getErrorMessage } from "../../types/errors";
+import { getShortcut } from "../../utils/platform";
 
 export function CommitEditor() {
   const {
@@ -105,7 +106,7 @@ export function CommitEditor() {
       <div className="flex flex-wrap gap-4 border-t border-gray-200 pt-3 text-xs text-gray-500 dark:border-gray-700 dark:text-gray-500">
         <span>
           <kbd className="rounded bg-gray-200 px-1.5 py-0.5 font-mono dark:bg-gray-700">
-            Ctrl+S
+            {getShortcut("S")}
           </kbd>{" "}
           保存
         </span>

@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import { XMarkIcon, SparklesIcon } from "@heroicons/react/24/outline";
 import { generateCommitMessage } from "../../types/ipc";
 import { getErrorMessage } from "../../types/errors";
+import { getModifierKey } from "../../utils/platform";
 
 interface RewordModalProps {
   isOpen: boolean;
@@ -98,12 +99,23 @@ export function RewordModal({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-      <div className="mx-4 w-full max-w-2xl rounded-lg bg-white shadow-xl dark:bg-gray-800">
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
+      role="presentation"
+    >
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="reword-modal-title"
+        className="mx-4 w-full max-w-2xl rounded-lg bg-white shadow-xl dark:bg-gray-800"
+      >
         {/* Header */}
         <div className="flex items-center justify-between border-b border-gray-200 px-4 py-3 dark:border-gray-700">
           <div>
-            <h2 className="text-lg font-semibold text-gray-800 dark:text-gray-200">
+            <h2
+              id="reword-modal-title"
+              className="text-lg font-semibold text-gray-800 dark:text-gray-200"
+            >
               コミットメッセージを編集
             </h2>
             <p className="text-sm text-gray-500 dark:text-gray-400">
@@ -151,7 +163,11 @@ export function RewordModal({
           </div>
 
           {generateError && (
-            <div className="mb-3 rounded-md bg-red-50 px-3 py-2 text-sm text-red-700 dark:bg-red-900/20 dark:text-red-300">
+            <div
+              id="reword-error"
+              role="alert"
+              className="mb-3 rounded-md bg-red-50 px-3 py-2 text-sm text-red-700 dark:bg-red-900/20 dark:text-red-300"
+            >
               {generateError}
             </div>
           )}
@@ -161,6 +177,9 @@ export function RewordModal({
             value={message}
             onChange={(e) => setMessage(e.target.value)}
             disabled={isGenerating}
+            aria-label="コミットメッセージ"
+            aria-describedby={generateError ? "reword-error" : undefined}
+            aria-busy={isGenerating}
             className="h-40 w-full resize-none rounded-md border border-gray-300 bg-white px-3 py-2 font-mono text-sm text-gray-800 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 focus:outline-none disabled:cursor-not-allowed disabled:opacity-50 dark:border-gray-600 dark:bg-gray-900 dark:text-gray-200"
             placeholder="コミットメッセージを入力..."
           />
@@ -170,7 +189,7 @@ export function RewordModal({
         <div className="flex items-center justify-between border-t border-gray-200 px-4 py-3 dark:border-gray-700">
           <p className="text-xs text-gray-500 dark:text-gray-400">
             <kbd className="rounded bg-gray-200 px-1.5 py-0.5 font-mono dark:bg-gray-700">
-              ⌘+Enter
+              {getModifierKey()}+Enter
             </kbd>{" "}
             で保存
           </p>

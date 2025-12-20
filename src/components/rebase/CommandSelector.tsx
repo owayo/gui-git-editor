@@ -47,6 +47,10 @@ export function CommandSelector({
         >
           {SIMPLE_COMMANDS.map((command) => {
             const isCommandDisabled = disabledCommands.includes(command);
+            const disabledReason =
+              isCommandDisabled && (command === "squash" || command === "fixup")
+                ? "先頭コミット、または前のコミットがすべてdropの場合は選択できません"
+                : undefined;
             return (
               <ListboxOption
                 key={command}
@@ -63,7 +67,7 @@ export function CommandSelector({
                 }
               >
                 {({ selected }) => (
-                  <>
+                  <div title={disabledReason}>
                     <span className="flex items-center gap-2">
                       <span
                         className={`inline-block h-3 w-3 rounded-full ${COMMAND_COLORS[command]} ${isCommandDisabled ? "opacity-40" : ""}`}
@@ -81,7 +85,7 @@ export function CommandSelector({
                         <CheckIcon className="h-4 w-4" aria-hidden="true" />
                       </span>
                     )}
-                  </>
+                  </div>
                 )}
               </ListboxOption>
             );

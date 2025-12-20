@@ -37,6 +37,25 @@ function canSquashOrFixup(entries: RebaseEntry[], index: number): boolean {
   return false;
 }
 
+/**
+ * Find the target commit for squash/fixup.
+ * The target is the last non-squash/fixup/drop commit before this entry.
+ */
+function findSquashTarget(
+  entries: RebaseEntry[],
+  index: number
+): RebaseEntry | null {
+  for (let i = index - 1; i >= 0; i--) {
+    const entry = entries[i];
+    const cmdType = entry.command.type;
+    // Target is pick, reword, or edit (not squash, fixup, or drop)
+    if (cmdType !== "squash" && cmdType !== "fixup" && cmdType !== "drop") {
+      return entry;
+    }
+  }
+  return null;
+}
+
 interface RebaseEntryListProps {
   entries: RebaseEntry[];
   selectedEntryId: string | null;
@@ -116,6 +135,7 @@ export function RebaseEntryList({
               isFirst={index === 0}
               isLast={index === entries.length - 1}
               canSquashOrFixup={canSquashOrFixup(entries, index)}
+              squashTarget={findSquashTarget(entries, index)}
               onSelect={() => onSelectEntry(entry.id)}
               onCommandChange={(cmd) => onCommandChange(entry.id, cmd)}
             />

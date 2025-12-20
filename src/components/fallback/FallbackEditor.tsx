@@ -1,4 +1,5 @@
 import { useFileStore } from "../../stores";
+import { getShortcut } from "../../utils/platform";
 
 export function FallbackEditor() {
   const { currentContent, setContent } = useFileStore();
@@ -33,7 +34,7 @@ export function FallbackEditor() {
       <div className="flex flex-wrap gap-4 border-t border-gray-200 pt-3 text-xs text-gray-500 dark:border-gray-700 dark:text-gray-500">
         <span>
           <kbd className="rounded bg-gray-200 px-1.5 py-0.5 font-mono dark:bg-gray-700">
-            Ctrl+S
+            {getShortcut("S")}
           </kbd>{" "}
           保存
         </span>

@@ -18,34 +18,28 @@ export function BackupRecoveryDialog({
   const restoreButtonRef = useRef<HTMLButtonElement>(null);
 
   // Focus trap and keyboard handling
-  const handleKeyDown = useCallback(
-    (e: KeyboardEvent) => {
-      if (e.key === "Escape") {
+  // Note: Escape key intentionally does NOT close this dialog
+  // because discarding backup is a destructive action that should require explicit user action
+  const handleKeyDown = useCallback((e: KeyboardEvent) => {
+    // Focus trap
+    if (e.key === "Tab" && dialogRef.current) {
+      const focusableElements = dialogRef.current.querySelectorAll(
+        'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+      );
+      const firstElement = focusableElements[0] as HTMLElement;
+      const lastElement = focusableElements[
+        focusableElements.length - 1
+      ] as HTMLElement;
+
+      if (e.shiftKey && document.activeElement === firstElement) {
         e.preventDefault();
-        onDiscard();
+        lastElement.focus();
+      } else if (!e.shiftKey && document.activeElement === lastElement) {
+        e.preventDefault();
+        firstElement.focus();
       }
-
-      // Focus trap
-      if (e.key === "Tab" && dialogRef.current) {
-        const focusableElements = dialogRef.current.querySelectorAll(
-          'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
-        );
-        const firstElement = focusableElements[0] as HTMLElement;
-        const lastElement = focusableElements[
-          focusableElements.length - 1
-        ] as HTMLElement;
-
-        if (e.shiftKey && document.activeElement === firstElement) {
-          e.preventDefault();
-          lastElement.focus();
-        } else if (!e.shiftKey && document.activeElement === lastElement) {
-          e.preventDefault();
-          firstElement.focus();
-        }
-      }
-    },
-    [onDiscard]
-  );
+    }
+  }, []);
 
   // Focus management and event listeners
   useEffect(() => {
@@ -64,7 +58,6 @@ export function BackupRecoveryDialog({
     <div
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
       role="presentation"
-      aria-hidden="true"
     >
       <div
         ref={dialogRef}

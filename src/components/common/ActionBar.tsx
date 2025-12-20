@@ -4,6 +4,7 @@ import {
   CheckIcon,
   XMarkIcon,
 } from "@heroicons/react/24/outline";
+import { getShortcut } from "../../utils/platform";
 
 interface ActionBarProps {
   onSave: () => void;
@@ -39,7 +40,7 @@ export function ActionBar({
             disabled={!canUndo}
             className="rounded-md p-2 text-gray-600 transition-colors hover:bg-gray-200 disabled:cursor-not-allowed disabled:opacity-40 dark:text-gray-400 dark:hover:bg-gray-700"
             aria-label="元に戻す"
-            title="元に戻す (Ctrl+Z)"
+            title={`元に戻す (${getShortcut("Z")})`}
           >
             <ArrowUturnLeftIcon className="h-5 w-5" aria-hidden="true" />
           </button>
@@ -51,7 +52,7 @@ export function ActionBar({
             disabled={!canRedo}
             className="rounded-md p-2 text-gray-600 transition-colors hover:bg-gray-200 disabled:cursor-not-allowed disabled:opacity-40 dark:text-gray-400 dark:hover:bg-gray-700"
             aria-label="やり直す"
-            title="やり直す (Ctrl+Shift+Z)"
+            title={`やり直す (${getShortcut("Z", true)})`}
           >
             <ArrowUturnRightIcon className="h-5 w-5" aria-hidden="true" />
           </button>
@@ -63,9 +64,21 @@ export function ActionBar({
         role="status"
         aria-live="polite"
         aria-atomic="true"
-        className="text-sm text-gray-500 dark:text-gray-400"
+        className="flex items-center gap-2 text-sm"
       >
-        {isSaving && "保存中..."}
+        {isSaving ? (
+          <span className="text-blue-600 dark:text-blue-400">保存中...</span>
+        ) : isDirty ? (
+          <>
+            <span
+              className="h-2 w-2 rounded-full bg-amber-500"
+              aria-hidden="true"
+            />
+            <span className="text-amber-600 dark:text-amber-400">
+              未保存の変更
+            </span>
+          </>
+        ) : null}
       </div>
 
       {/* Right side: Cancel, Save */}
@@ -88,7 +101,7 @@ export function ActionBar({
           aria-label={isSaving ? "処理中" : saveLabel}
           aria-busy={isSaving}
           className="flex items-center gap-1.5 rounded-md bg-green-600 px-3 py-1.5 text-white transition-colors hover:bg-green-700 disabled:cursor-not-allowed disabled:opacity-50"
-          title="保存して終了 (Ctrl+S)"
+          title={`保存して終了 (${getShortcut("S")})`}
         >
           <CheckIcon className="h-4 w-4" aria-hidden="true" />
           <span className="text-sm">{isSaving ? "処理中..." : saveLabel}</span>
