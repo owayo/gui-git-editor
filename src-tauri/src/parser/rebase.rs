@@ -248,9 +248,10 @@ pub fn serialize_rebase_todo(file: &RebaseTodoFile) -> String {
                 lines.push(format!("pick {} {}", entry.commit_hash, subject));
 
                 // Use base64 encoding to safely pass multi-line messages through shell
+                // --quiet suppresses git commit output, --no-edit prevents editor from opening
                 let encoded = STANDARD.encode(&entry.message);
                 lines.push(format!(
-                    "exec echo {} | base64 -d | git commit --amend -F -",
+                    "exec echo {} | base64 -d | git commit --amend --quiet --no-edit -F -",
                     encoded
                 ));
             }
