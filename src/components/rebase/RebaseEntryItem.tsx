@@ -59,28 +59,36 @@ export function RebaseEntryItem({
   const isSquashOrFixup = commandType === "squash" || commandType === "fixup";
   const isSpecialCommand = simpleCommand === null;
 
-  // Build container classes based on command type
+  // Build container classes based on command type and selection state
+  // Command type uses left border stripe + background tint (interior cue)
+  // Selection uses ring (exterior cue) - visible regardless of command type
   const getContainerClasses = () => {
     const baseClasses =
-      "group flex items-center gap-3 rounded-lg border p-3 transition-all";
+      "group flex items-center gap-3 rounded-lg border-l-4 border p-3 transition-all";
+
+    // Selection ring - always applied when selected (exterior cue)
+    const selectionClasses = isSelected
+      ? "ring-2 ring-blue-500 ring-offset-1 ring-offset-white dark:ring-offset-gray-900 shadow-sm"
+      : "";
 
     if (isDragging) {
-      return `${baseClasses} z-50 border-blue-400 bg-blue-50 shadow-lg dark:border-blue-500 dark:bg-blue-900/30`;
+      return `${baseClasses} z-50 border-l-blue-500 border-blue-400 bg-blue-50 shadow-lg dark:border-blue-500 dark:bg-blue-900/30 ${selectionClasses}`;
     }
 
     if (isDropped) {
-      return `${baseClasses} border-red-200 bg-red-50/50 opacity-60 dark:border-red-800 dark:bg-red-900/20`;
+      return `${baseClasses} border-l-red-500 border-red-200 bg-red-50/50 opacity-60 dark:border-l-red-400 dark:border-red-800 dark:bg-red-900/20 ${selectionClasses}`;
     }
 
     if (isSquashOrFixup) {
-      return `${baseClasses} border-purple-200 bg-purple-50/50 dark:border-purple-700 dark:bg-purple-900/20`;
+      return `${baseClasses} border-l-purple-500 border-purple-200 bg-purple-50/50 dark:border-l-purple-400 dark:border-purple-700 dark:bg-purple-900/20 ${selectionClasses}`;
     }
 
-    if (isSelected) {
-      return `${baseClasses} border-blue-300 bg-blue-50/50 dark:border-blue-600 dark:bg-blue-900/20`;
-    }
+    // Normal state (pick, reword, edit)
+    const normalClasses = isSelected
+      ? `${baseClasses} border-l-blue-500 border-gray-200 bg-gray-50 dark:border-l-blue-400 dark:border-gray-700 dark:bg-gray-800`
+      : `${baseClasses} border-l-gray-300 border-gray-200 bg-white hover:border-gray-300 hover:bg-gray-50 dark:border-l-gray-600 dark:border-gray-700 dark:bg-gray-800 dark:hover:border-gray-600 dark:hover:bg-gray-750`;
 
-    return `${baseClasses} border-gray-200 bg-white hover:border-gray-300 hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-800 dark:hover:border-gray-600 dark:hover:bg-gray-750`;
+    return `${normalClasses} ${selectionClasses}`;
   };
 
   return (
