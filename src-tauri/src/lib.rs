@@ -4,8 +4,8 @@ mod parser;
 
 use commands::{
     check_backup_exists, create_backup, delete_backup, exit_app, generate_commit_message,
-    parse_commit_msg, parse_rebase_todo, read_file, restore_backup, serialize_commit_msg,
-    serialize_rebase_todo, validate_commit_msg, write_file,
+    generate_commit_message_from_staged, parse_commit_msg, parse_rebase_todo, read_file,
+    restore_backup, serialize_commit_msg, serialize_rebase_todo, validate_commit_msg, write_file,
 };
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -38,6 +38,7 @@ pub fn run() {
             parse_rebase_todo,
             serialize_rebase_todo,
             generate_commit_message,
+            generate_commit_message_from_staged,
             parse_commit_msg,
             serialize_commit_msg,
             validate_commit_msg,

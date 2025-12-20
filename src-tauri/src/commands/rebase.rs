@@ -36,10 +36,27 @@ pub async fn generate_commit_message(
         args.push("--body".to_string());
     }
 
+    run_git_sc(&args).await
+}
+
+/// Generate commit message using git-sc for staged changes
+#[tauri::command]
+pub async fn generate_commit_message_from_staged(with_body: bool) -> Result<String, AppError> {
+    let mut args = vec!["--generate".to_string()];
+
+    if with_body {
+        args.push("--body".to_string());
+    }
+
+    run_git_sc(&args).await
+}
+
+/// Run git-sc with the given arguments
+async fn run_git_sc(args: &[String]) -> Result<String, AppError> {
     log::debug!("[CMD] git-sc {}", args.join(" "));
 
     let output = Command::new("git-sc")
-        .args(&args)
+        .args(args)
         .output()
         .await
         .map_err(|e| AppError::CommandError {
