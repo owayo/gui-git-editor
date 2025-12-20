@@ -82,10 +82,10 @@ export async function generateCommitMessage(
   hashes: string[],
   withBody: boolean = false
 ): Promise<IpcResult<string>> {
-  console.log("[IPC] generate_commit_message", { hashes, with_body: withBody });
+  console.log("[IPC] generate_commit_message", { hashes, withBody });
   const result = await safeInvoke<string>("generate_commit_message", {
     hashes,
-    with_body: withBody,
+    withBody,
   });
   console.log("[IPC] generate_commit_message result:", result);
   return result;
