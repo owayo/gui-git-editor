@@ -17,6 +17,7 @@ interface ActionBarProps {
   canRedo?: boolean;
   isSaving?: boolean;
   isDirty?: boolean;
+  saveLabel?: string;
 }
 
 export function ActionBar({
@@ -28,6 +29,7 @@ export function ActionBar({
   canRedo = false,
   isSaving = false,
   isDirty = false,
+  saveLabel = "保存",
 }: ActionBarProps) {
   const { resolvedTheme, toggleTheme } = useThemeStore();
 
@@ -111,13 +113,13 @@ export function ActionBar({
           type="button"
           onClick={onSave}
           disabled={isSaving || !isDirty}
-          aria-label={isSaving ? "保存中" : "保存して終了"}
+          aria-label={isSaving ? "処理中" : saveLabel}
           aria-busy={isSaving}
           className="flex items-center gap-1.5 rounded-md bg-green-600 px-3 py-1.5 text-white transition-colors hover:bg-green-700 disabled:cursor-not-allowed disabled:opacity-50"
           title="保存して終了 (Ctrl+S)"
         >
           <CheckIcon className="h-4 w-4" aria-hidden="true" />
-          <span className="text-sm">{isSaving ? "保存中..." : "保存"}</span>
+          <span className="text-sm">{isSaving ? "処理中..." : saveLabel}</span>
         </button>
       </div>
     </div>

@@ -11,10 +11,12 @@ import * as ipc from "../types/ipc";
 interface RebaseState {
   // State
   entries: RebaseEntry[];
+  originalEntries: RebaseEntry[];
   comments: string[];
   selectedEntryId: string | null;
   isLoading: boolean;
   error: AppError | null;
+  isDirty: boolean;
 
   // Derived state helpers
   getEntry: (id: string) => RebaseEntry | undefined;
@@ -37,10 +39,12 @@ interface RebaseState {
 
 const initialState = {
   entries: [] as RebaseEntry[],
+  originalEntries: [] as RebaseEntry[],
   comments: [] as string[],
   selectedEntryId: null as string | null,
   isLoading: false,
   error: null as AppError | null,
+  isDirty: false,
 };
 
 export const useRebaseStore = create<RebaseState>((set, get) => ({
@@ -64,8 +68,10 @@ export const useRebaseStore = create<RebaseState>((set, get) => ({
       const file: RebaseTodoFile = result.data;
       set({
         entries: file.entries,
+        originalEntries: file.entries,
         comments: file.comments,
         isLoading: false,
+        isDirty: false,
       });
       return true;
     } else {
@@ -91,13 +97,14 @@ export const useRebaseStore = create<RebaseState>((set, get) => ({
     }
   },
 
-  setEntries: (entries: RebaseEntry[]) => set({ entries }),
+  setEntries: (entries: RebaseEntry[]) => set({ entries, isDirty: true }),
 
   updateEntryCommand: (id: string, command: RebaseCommandType) => {
     set((state) => ({
       entries: state.entries.map((entry) =>
         entry.id === id ? { ...entry, command } : entry
       ),
+      isDirty: true,
     }));
   },
 
@@ -106,6 +113,7 @@ export const useRebaseStore = create<RebaseState>((set, get) => ({
       entries: state.entries.map((entry) =>
         entry.id === id ? { ...entry, message } : entry
       ),
+      isDirty: true,
     }));
   },
 
@@ -114,7 +122,7 @@ export const useRebaseStore = create<RebaseState>((set, get) => ({
       const newEntries = [...state.entries];
       const [removed] = newEntries.splice(fromIndex, 1);
       newEntries.splice(toIndex, 0, removed);
-      return { entries: newEntries };
+      return { entries: newEntries, isDirty: true };
     });
   },
 

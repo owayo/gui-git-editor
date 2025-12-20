@@ -42,6 +42,7 @@ function App() {
     entries,
     isLoading: rebaseLoading,
     error: rebaseError,
+    isDirty: rebaseIsDirty,
     parseContent,
     serialize,
     setEntries,
@@ -266,7 +267,8 @@ function App() {
         canUndo={canUndo()}
         canRedo={canRedo()}
         isSaving={isSaving}
-        isDirty={isDirty}
+        isDirty={fileType === "rebase_todo" ? rebaseIsDirty : isDirty}
+        saveLabel={fileType === "rebase_todo" ? "Rebaseを開始" : "保存"}
       />
 
       {error && (

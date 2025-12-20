@@ -12,6 +12,29 @@ const COMMAND_SHORTCUTS: Record<string, SimpleCommand> = {
   d: "drop",
 };
 
+/**
+ * Check if an entry can be squashed/fixup'd.
+ * An entry can only be squash/fixup if there's a valid target commit before it
+ * (i.e., a commit that is not drop).
+ */
+function canSquashOrFixupEntry(
+  entries: { id: string; command: { type: string } }[],
+  entryId: string
+): boolean {
+  const index = entries.findIndex((e) => e.id === entryId);
+  if (index <= 0) return false;
+
+  // Check all entries before this one
+  for (let i = 0; i < index; i++) {
+    const entry = entries[i];
+    // A valid target is any command that's not drop
+    if (entry.command.type !== "drop") {
+      return true;
+    }
+  }
+  return false;
+}
+
 export function RebaseEditor() {
   const {
     entries,
@@ -38,6 +61,13 @@ export function RebaseEditor() {
 
       const command = COMMAND_SHORTCUTS[event.key.toLowerCase()];
       if (command && selectedEntryId) {
+        // Check if squash/fixup is allowed for this entry
+        if (
+          (command === "squash" || command === "fixup") &&
+          !canSquashOrFixupEntry(entries, selectedEntryId)
+        ) {
+          return; // Don't allow squash/fixup if no valid target before it
+        }
         event.preventDefault();
         setSimpleCommand(selectedEntryId, command);
       }
