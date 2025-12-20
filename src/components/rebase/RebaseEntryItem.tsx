@@ -70,9 +70,9 @@ export function RebaseEntryItem({
     const baseClasses =
       "group flex flex-col rounded-lg border p-3 transition-all";
 
-    // Selection indicator - left border + background highlight
+    // Selection indicator - prominent left border + ring + background highlight
     const selectionClasses = isSelected
-      ? "border-l-4 border-l-blue-500 bg-blue-50/50 dark:bg-blue-900/20 -translate-y-0.5 shadow-sm"
+      ? "border-l-[6px] border-l-blue-500 bg-gradient-to-r from-blue-100/80 via-blue-50/60 to-transparent dark:from-blue-900/40 dark:via-blue-900/20 dark:to-transparent ring-2 ring-blue-400/50 dark:ring-blue-400/40 shadow-md -translate-y-0.5"
       : "border-l-4 border-l-transparent";
 
     if (isDragging) {
