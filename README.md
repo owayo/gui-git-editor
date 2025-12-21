@@ -1,197 +1,141 @@
-# GUI Git Editor
+<p align="center">
+  <img src="docs/images/icon.png" width="128" alt="GUI Git Editor">
+</p>
 
-Git操作（rebase、コミットメッセージ編集など）をGUIで行えるTauriアプリ。
+<h1 align="center">GUI Git Editor</h1>
+
+<p align="center">
+  Git操作（rebase、コミットメッセージ編集）をGUIで直感的に
+</p>
+
+<p align="center">
+  <a href="https://github.com/owayo/gui-git-editor/actions/workflows/release.yml">
+    <img alt="Release" src="https://github.com/owayo/gui-git-editor/actions/workflows/release.yml/badge.svg">
+  </a>
+  <a href="https://github.com/owayo/gui-git-editor/releases/latest">
+    <img alt="Version" src="https://img.shields.io/github/v/release/owayo/gui-git-editor">
+  </a>
+  <a href="LICENSE">
+    <img alt="License" src="https://img.shields.io/github/license/owayo/gui-git-editor">
+  </a>
+</p>
+
+---
 
 ## 概要
 
-`git config --global core.editor`で設定して使用可能なGUIエディタです。
-core.editorで行える操作（interactive rebase、commit message編集、squash、rewordなど）をすべてサポートします。
+`git config --global core.editor` で設定して使用可能なGUIエディタ。
+Interactive rebase、commit message編集、squash、rewordなどをすべてサポート。
 
-## 機能
+## Features
 
-- **Interactive Rebase**
-  - ドラッグ&ドロップでコミットの並び替え
-  - キーボードでコミットの並び替え（⌘+↑↓）
-  - コマンド変更（pick, reword, edit, squash, fixup, drop）
-  - キーボードショートカットでコマンド変更（p, r, e, s, f, d）
-  - 矢印キーでコミット選択（↑↓）
-  - Undo/Redo対応
-  - squash/fixup制限（先頭コミットや、前が全てdropの場合は選択不可）
-  - squash/fixup時の統合先コミット表示（サブ行で視覚的に確認可能）
-  - 先頭squash/fixupのバリデーション（エラー表示＋保存ボタン無効化）
-  - rewordで複数行メッセージをサポート（本文付きメッセージも適用可能）
-  - 先頭コミットの自動選択（画面表示時）
-- **UX改善**
-  - 選択中コミットの視覚的強調（左ボーダー＋グラデーション背景＋リング効果）
-  - 未保存状態のステータス表示
-  - OS別ショートカット表示（macOS: ⌘、その他: Ctrl）
-  - アクセシビリティ対応（ARIA属性、フォーカス管理）
-  - バックアップ復元ダイアログ（前回の未保存変更を復元可能）
-- **コミットメッセージ編集**: COMMIT_EDITMSG, MERGE_MSG, SQUASH_MSG, TAG_EDITMSGのサポート
-- **AIコミットメッセージ生成**: git-scを使用したAIによるコミットメッセージ自動生成
-  - タイトルのみ生成
-  - 本文付きで生成
-  - Rebaseのrewordモーダルでも利用可能
-- **ダークモード対応**: システムテーマに自動追従
+- ✨ **Interactive Rebase** - ドラッグ&ドロップでコミットの並び替え
+- ⌨️ **キーボード操作** - ショートカットで高速なコマンド変更（p/r/e/s/f/d）
+- 🤖 **AIコミットメッセージ** - [git-smart-commit](https://github.com/owayo/git-smart-commit) 連携で自動生成
+- 🔄 **Undo/Redo** - 操作の取り消し・やり直し
+- 🌙 **ダークモード** - システムテーマに自動追従
+- ♿ **アクセシビリティ** - ARIA属性、フォーカス管理対応
 
-## 技術スタック
+## Download
 
-- **フロントエンド**: React 19, TypeScript, Tailwind CSS v4, Zustand, dnd-kit
-- **バックエンド**: Rust, Tauri v2
-- **ビルドツール**: Vite
+| Platform | Download |
+|----------|----------|
+| macOS (Apple Silicon) | [.dmg](https://github.com/owayo/gui-git-editor/releases/latest) |
+| macOS (Intel) | [.dmg](https://github.com/owayo/gui-git-editor/releases/latest) |
+| Windows | [.msi](https://github.com/owayo/gui-git-editor/releases/latest) |
 
-## 開発
+## Installation
 
-### 必要環境
+### macOS
 
-- Node.js 18+
-- Rust 1.70+
-- npm または pnpm
-- [git-smart-commit](https://github.com/owayo/git-smart-commit)（AIコミットメッセージ生成機能を使用する場合）
-
-### セットアップ
-
-```bash
-# 依存関係のインストール
-pnpm install
-
-# 開発サーバー起動
-pnpm tauri dev
-```
-
-### ビルド
-
-```bash
-# リリースビルド
-pnpm tauri:build
-
-# デバッグビルド（開発用）
-pnpm tauri:build:debug
-```
-
-### バイナリ更新について
-
-| コマンド | バイナリ更新 |
-|----------|--------------|
-| `pnpm tauri dev` | ❌ ホットリロードで動作、バイナリ更新なし |
-| `cd src-tauri && cargo build` | ✅ debug バイナリを更新 |
-| `pnpm tauri:build:debug` | ✅ debug バイナリを更新 |
-
-> **Note**: `tauri dev` は開発サーバーとホットリロードを使用するため、`target/debug/` のバイナリは更新されません。
-> Git エディタとして使用する場合は `pnpm tauri:build:debug` でビルドしてください。
-
-### インストール（macOS）
-
-リリースページからダウンロードした `.dmg` ファイルを開き、アプリを `/Applications` にコピーします。
-
-初回起動時に「開発元を確認できない」エラーが表示される場合は、以下のコマンドで検疫属性を解除してください：
+1. [Releases](https://github.com/owayo/gui-git-editor/releases/latest) から `.dmg` をダウンロード
+2. アプリを `/Applications` にコピー
+3. 初回起動時に「開発元を確認できない」エラーが出る場合:
 
 ```bash
 xattr -d com.apple.quarantine /Applications/gui-git-editor.app
 ```
 
-## 使用方法
+### Windows
+
+1. [Releases](https://github.com/owayo/gui-git-editor/releases/latest) から `.msi` をダウンロード
+2. インストーラーを実行
+
+## Usage
 
 ### Git エディタとして設定
 
-ビルド後、`git config --global core.editor` でGitのデフォルトエディタとして設定します。
-
-#### スクリプトで設定（macOS）
-
 ```bash
-# VS Code に設定
-./scripts/set-editor-vscode.sh
-
-# GUI Git Editor（デバッグビルド）に設定
-./scripts/set-editor-dev.sh
-
-# GUI Git Editor（リリースビルド、/Applications にインストール済み）に設定
-./scripts/set-editor-release.sh
-```
-
-#### 手動で設定
-
-##### macOS
-
-```bash
-# DMGからApplicationsにインストールした場合
+# macOS（/Applications にインストール済み）
 git config --global core.editor '"/Applications/gui-git-editor.app/Contents/MacOS/gui-git-editor"'
 
-# 開発ビルドの場合
-git config --global core.editor '"/path/to/gui-git-editor/src-tauri/target/release/gui-git-editor"'
-```
-
-##### Linux
-
-```bash
-git config --global core.editor '/usr/local/bin/gui-git-editor'
-```
-
-##### Windows
-
-```bash
+# Windows
 git config --global core.editor '"C:/Program Files/gui-git-editor/gui-git-editor.exe"'
 ```
 
-### 設定の確認
+### 設定スクリプト（macOS）
 
 ```bash
-git config --global core.editor
+./scripts/set-editor-release.sh   # リリースビルド
+./scripts/set-editor-dev.sh       # デバッグビルド
+./scripts/set-editor-vscode.sh    # VS Code に戻す
 ```
 
 ### 動作確認
 
-設定後、以下のコマンドでGUI エディタが起動することを確認できます：
-
 ```bash
-# コミットメッセージ編集
-git commit
-
-# Interactive Rebase
-git rebase -i HEAD~3
-
-# コミットメッセージの修正
-git commit --amend
+git commit                # コミットメッセージ編集
+git rebase -i HEAD~3      # Interactive Rebase
+git commit --amend        # コミットメッセージ修正
 ```
 
-### 元に戻す
-
-```bash
-# vim に戻す
-git config --global core.editor "vim"
-
-# VS Code に戻す
-git config --global core.editor "code --wait"
-
-# 設定を削除（システムデフォルトに戻す）
-git config --global --unset core.editor
-```
-
-## キーボードショートカット
+## Keyboard Shortcuts
 
 ### 共通
 
 | キー | 動作 |
 |------|------|
-| `⌘ + S` / `Ctrl + S` | 保存して終了 |
-| `Escape` | キャンセル（変更を破棄） |
+| `⌘/Ctrl + S` | 保存して終了 |
+| `Escape` | キャンセル |
 
 ### Interactive Rebase
 
 | キー | 動作 |
 |------|------|
 | `↑` / `↓` | コミット選択 |
-| `⌘ + ↑` / `⌘ + ↓` (macOS) | コミットの順序変更 |
-| `Ctrl + ↑` / `Ctrl + ↓` (Windows/Linux) | コミットの順序変更 |
-| `p` | pick |
-| `r` | reword（モーダルでメッセージ編集） |
-| `e` | edit |
-| `s` | squash |
-| `f` | fixup |
-| `d` | drop |
-| `⌘ + Z` / `Ctrl + Z` | 元に戻す |
-| `⌘ + Shift + Z` / `Ctrl + Shift + Z` | やり直す |
+| `⌘/Ctrl + ↑↓` | 順序変更 |
+| `p` `r` `e` `s` `f` `d` | コマンド変更 |
+| `⌘/Ctrl + Z` | Undo |
+| `⌘/Ctrl + Shift + Z` | Redo |
 
-## ライセンス
+## Development
 
-MIT
+### Requirements
+
+- Node.js 18+
+- Rust 1.70+
+- pnpm
+
+### Setup
+
+```bash
+pnpm install
+pnpm tauri dev
+```
+
+### Build
+
+```bash
+pnpm tauri:build          # リリースビルド
+pnpm tauri:build:debug    # デバッグビルド
+```
+
+### Tech Stack
+
+- **Frontend**: React 19, TypeScript, Tailwind CSS v4, Zustand, dnd-kit
+- **Backend**: Rust, Tauri v2
+- **Build**: Vite
+
+## License
+
+[MIT](LICENSE)
