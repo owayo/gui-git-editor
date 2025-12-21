@@ -47,7 +47,7 @@ core.editorで行える操作（interactive rebase、commit message編集、squa
 - Node.js 18+
 - Rust 1.70+
 - npm または pnpm
-- [git-sc](https://github.com/owa/git-sc)（AIコミットメッセージ生成機能を使用する場合）
+- [git-smart-commit](https://github.com/owayo/git-smart-commit)（AIコミットメッセージ生成機能を使用する場合）
 
 ### セットアップ
 
