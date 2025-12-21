@@ -6,8 +6,8 @@
  * Check if the current platform is macOS
  */
 export function isMac(): boolean {
-  if (typeof navigator === "undefined") return false;
-  return navigator.platform.toUpperCase().includes("MAC");
+	if (typeof navigator === "undefined") return false;
+	return navigator.platform.toUpperCase().includes("MAC");
 }
 
 /**
@@ -15,7 +15,7 @@ export function isMac(): boolean {
  * @returns "⌘" for Mac, "Ctrl" for other platforms
  */
 export function getModifierKey(): string {
-  return isMac() ? "⌘" : "Ctrl";
+	return isMac() ? "⌘" : "Ctrl";
 }
 
 /**
@@ -25,9 +25,9 @@ export function getModifierKey(): string {
  * @returns Formatted shortcut (e.g., "⌘+S" or "Ctrl+S")
  */
 export function getShortcut(key: string, withShift = false): string {
-  const modifier = getModifierKey();
-  if (withShift) {
-    return isMac() ? `⇧${modifier}+${key}` : `${modifier}+Shift+${key}`;
-  }
-  return `${modifier}+${key}`;
+	const modifier = getModifierKey();
+	if (withShift) {
+		return isMac() ? `⇧${modifier}+${key}` : `${modifier}+Shift+${key}`;
+	}
+	return `${modifier}+${key}`;
 }

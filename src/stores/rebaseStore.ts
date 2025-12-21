@@ -1,170 +1,170 @@
 import { create } from "zustand";
-import type {
-  RebaseEntry,
-  RebaseTodoFile,
-  SimpleCommand,
-  RebaseCommandType,
-} from "../types/git";
 import type { AppError } from "../types/errors";
+import type {
+	RebaseCommandType,
+	RebaseEntry,
+	RebaseTodoFile,
+	SimpleCommand,
+} from "../types/git";
 import * as ipc from "../types/ipc";
 
 interface RebaseState {
-  // State
-  entries: RebaseEntry[];
-  originalEntries: RebaseEntry[];
-  comments: string[];
-  selectedEntryId: string | null;
-  isLoading: boolean;
-  error: AppError | null;
-  isDirty: boolean;
+	// State
+	entries: RebaseEntry[];
+	originalEntries: RebaseEntry[];
+	comments: string[];
+	selectedEntryId: string | null;
+	isLoading: boolean;
+	error: AppError | null;
+	isDirty: boolean;
 
-  // Derived state helpers
-  getEntry: (id: string) => RebaseEntry | undefined;
-  getSelectedEntry: () => RebaseEntry | undefined;
-  /** Returns validation error message if entries are invalid, null otherwise */
-  getValidationError: () => string | null;
+	// Derived state helpers
+	getEntry: (id: string) => RebaseEntry | undefined;
+	getSelectedEntry: () => RebaseEntry | undefined;
+	/** Returns validation error message if entries are invalid, null otherwise */
+	getValidationError: () => string | null;
 
-  // Actions
-  parseContent: (content: string) => Promise<boolean>;
-  serialize: () => Promise<string | null>;
-  setEntries: (entries: RebaseEntry[]) => void;
-  updateEntryCommand: (id: string, command: RebaseCommandType) => void;
-  updateEntryMessage: (id: string, message: string) => void;
-  moveEntry: (fromIndex: number, toIndex: number) => void;
-  selectEntry: (id: string | null) => void;
-  setSimpleCommand: (id: string, command: SimpleCommand) => void;
-  dropEntry: (id: string) => void;
-  undropEntry: (id: string) => void;
-  clearError: () => void;
-  reset: () => void;
+	// Actions
+	parseContent: (content: string) => Promise<boolean>;
+	serialize: () => Promise<string | null>;
+	setEntries: (entries: RebaseEntry[]) => void;
+	updateEntryCommand: (id: string, command: RebaseCommandType) => void;
+	updateEntryMessage: (id: string, message: string) => void;
+	moveEntry: (fromIndex: number, toIndex: number) => void;
+	selectEntry: (id: string | null) => void;
+	setSimpleCommand: (id: string, command: SimpleCommand) => void;
+	dropEntry: (id: string) => void;
+	undropEntry: (id: string) => void;
+	clearError: () => void;
+	reset: () => void;
 }
 
 const initialState = {
-  entries: [] as RebaseEntry[],
-  originalEntries: [] as RebaseEntry[],
-  comments: [] as string[],
-  selectedEntryId: null as string | null,
-  isLoading: false,
-  error: null as AppError | null,
-  isDirty: false,
+	entries: [] as RebaseEntry[],
+	originalEntries: [] as RebaseEntry[],
+	comments: [] as string[],
+	selectedEntryId: null as string | null,
+	isLoading: false,
+	error: null as AppError | null,
+	isDirty: false,
 };
 
 export const useRebaseStore = create<RebaseState>((set, get) => ({
-  ...initialState,
+	...initialState,
 
-  getEntry: (id: string) => get().entries.find((e) => e.id === id),
+	getEntry: (id: string) => get().entries.find((e) => e.id === id),
 
-  getSelectedEntry: () => {
-    const { entries, selectedEntryId } = get();
-    return selectedEntryId
-      ? entries.find((e) => e.id === selectedEntryId)
-      : undefined;
-  },
+	getSelectedEntry: () => {
+		const { entries, selectedEntryId } = get();
+		return selectedEntryId
+			? entries.find((e) => e.id === selectedEntryId)
+			: undefined;
+	},
 
-  getValidationError: () => {
-    const { entries } = get();
-    if (entries.length === 0) return null;
+	getValidationError: () => {
+		const { entries } = get();
+		if (entries.length === 0) return null;
 
-    // Find the first non-drop entry
-    for (const entry of entries) {
-      const cmdType = entry.command.type;
-      if (cmdType === "drop") continue;
+		// Find the first non-drop entry
+		for (const entry of entries) {
+			const cmdType = entry.command.type;
+			if (cmdType === "drop") continue;
 
-      // If the first non-drop entry is squash or fixup, it's invalid
-      if (cmdType === "squash" || cmdType === "fixup") {
-        return "先頭のコミットにsquash/fixupは使用できません。統合先のコミットがありません。";
-      }
-      // First non-drop entry is valid (pick, reword, edit, etc.)
-      break;
-    }
-    return null;
-  },
+			// If the first non-drop entry is squash or fixup, it's invalid
+			if (cmdType === "squash" || cmdType === "fixup") {
+				return "先頭のコミットにsquash/fixupは使用できません。統合先のコミットがありません。";
+			}
+			// First non-drop entry is valid (pick, reword, edit, etc.)
+			break;
+		}
+		return null;
+	},
 
-  parseContent: async (content: string) => {
-    set({ isLoading: true, error: null });
+	parseContent: async (content: string) => {
+		set({ isLoading: true, error: null });
 
-    const result = await ipc.parseRebaseTodo(content);
+		const result = await ipc.parseRebaseTodo(content);
 
-    if (result.ok) {
-      const file: RebaseTodoFile = result.data;
-      set({
-        entries: file.entries,
-        originalEntries: file.entries,
-        comments: file.comments,
-        isLoading: false,
-        isDirty: false,
-        // Auto-select the first entry
-        selectedEntryId: file.entries.length > 0 ? file.entries[0].id : null,
-      });
-      return true;
-    } else {
-      set({
-        error: result.error,
-        isLoading: false,
-      });
-      return false;
-    }
-  },
+		if (result.ok) {
+			const file: RebaseTodoFile = result.data;
+			set({
+				entries: file.entries,
+				originalEntries: file.entries,
+				comments: file.comments,
+				isLoading: false,
+				isDirty: false,
+				// Auto-select the first entry
+				selectedEntryId: file.entries.length > 0 ? file.entries[0].id : null,
+			});
+			return true;
+		} else {
+			set({
+				error: result.error,
+				isLoading: false,
+			});
+			return false;
+		}
+	},
 
-  serialize: async () => {
-    const { entries, comments } = get();
-    const file: RebaseTodoFile = { entries, comments };
+	serialize: async () => {
+		const { entries, comments } = get();
+		const file: RebaseTodoFile = { entries, comments };
 
-    const result = await ipc.serializeRebaseTodo(file);
+		const result = await ipc.serializeRebaseTodo(file);
 
-    if (result.ok) {
-      return result.data;
-    } else {
-      set({ error: result.error });
-      return null;
-    }
-  },
+		if (result.ok) {
+			return result.data;
+		} else {
+			set({ error: result.error });
+			return null;
+		}
+	},
 
-  setEntries: (entries: RebaseEntry[]) => set({ entries, isDirty: true }),
+	setEntries: (entries: RebaseEntry[]) => set({ entries, isDirty: true }),
 
-  updateEntryCommand: (id: string, command: RebaseCommandType) => {
-    set((state) => ({
-      entries: state.entries.map((entry) =>
-        entry.id === id ? { ...entry, command } : entry
-      ),
-      isDirty: true,
-    }));
-  },
+	updateEntryCommand: (id: string, command: RebaseCommandType) => {
+		set((state) => ({
+			entries: state.entries.map((entry) =>
+				entry.id === id ? { ...entry, command } : entry,
+			),
+			isDirty: true,
+		}));
+	},
 
-  updateEntryMessage: (id: string, message: string) => {
-    set((state) => ({
-      entries: state.entries.map((entry) =>
-        entry.id === id ? { ...entry, message } : entry
-      ),
-      isDirty: true,
-    }));
-  },
+	updateEntryMessage: (id: string, message: string) => {
+		set((state) => ({
+			entries: state.entries.map((entry) =>
+				entry.id === id ? { ...entry, message } : entry,
+			),
+			isDirty: true,
+		}));
+	},
 
-  moveEntry: (fromIndex: number, toIndex: number) => {
-    set((state) => {
-      const newEntries = [...state.entries];
-      const [removed] = newEntries.splice(fromIndex, 1);
-      newEntries.splice(toIndex, 0, removed);
-      return { entries: newEntries, isDirty: true };
-    });
-  },
+	moveEntry: (fromIndex: number, toIndex: number) => {
+		set((state) => {
+			const newEntries = [...state.entries];
+			const [removed] = newEntries.splice(fromIndex, 1);
+			newEntries.splice(toIndex, 0, removed);
+			return { entries: newEntries, isDirty: true };
+		});
+	},
 
-  selectEntry: (id: string | null) => set({ selectedEntryId: id }),
+	selectEntry: (id: string | null) => set({ selectedEntryId: id }),
 
-  setSimpleCommand: (id: string, command: SimpleCommand) => {
-    const commandType: RebaseCommandType = { type: command };
-    get().updateEntryCommand(id, commandType);
-  },
+	setSimpleCommand: (id: string, command: SimpleCommand) => {
+		const commandType: RebaseCommandType = { type: command };
+		get().updateEntryCommand(id, commandType);
+	},
 
-  dropEntry: (id: string) => {
-    get().updateEntryCommand(id, { type: "drop" });
-  },
+	dropEntry: (id: string) => {
+		get().updateEntryCommand(id, { type: "drop" });
+	},
 
-  undropEntry: (id: string) => {
-    get().updateEntryCommand(id, { type: "pick" });
-  },
+	undropEntry: (id: string) => {
+		get().updateEntryCommand(id, { type: "pick" });
+	},
 
-  clearError: () => set({ error: null }),
+	clearError: () => set({ error: null }),
 
-  reset: () => set(initialState),
+	reset: () => set(initialState),
 }));

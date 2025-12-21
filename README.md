@@ -50,7 +50,11 @@ Interactive rebase、commit message編集、squash、rewordなどをすべてサ
 
 1. [Releases](https://github.com/owayo/gui-git-editor/releases/latest) から `.dmg` をダウンロード
 2. アプリを `/Applications` にコピー
-3. 初回起動時に「開発元を確認できない」エラーが出る場合:
+
+#### 初回起動時の注意
+
+macOS では、署名されていないアプリは Gatekeeper によってブロックされます。
+「開発元を確認できない」エラーが表示される場合は、初回起動前に以下のコマンドで隔離属性を削除してください:
 
 ```bash
 xattr -d com.apple.quarantine /Applications/gui-git-editor.app

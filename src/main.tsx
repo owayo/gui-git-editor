@@ -1,6 +1,6 @@
+import { attachConsole } from "@tauri-apps/plugin-log";
 import React from "react";
 import ReactDOM from "react-dom/client";
-import { attachConsole } from "@tauri-apps/plugin-log";
 import App from "./App";
 import "./index.css";
 
@@ -8,7 +8,7 @@ import "./index.css";
 attachConsole();
 
 ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(
-  <React.StrictMode>
-    <App />
-  </React.StrictMode>
+	<React.StrictMode>
+		<App />
+	</React.StrictMode>,
 );

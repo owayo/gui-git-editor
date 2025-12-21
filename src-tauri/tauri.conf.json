@@ -1,74 +1,74 @@
 {
-  "$schema": "https://schema.tauri.app/config/2",
-  "productName": "gui-git-editor",
-  "version": "25.12.104",
-  "identifier": "com.owa.gui-git-editor",
-  "build": {
-    "beforeDevCommand": "npm run dev",
-    "devUrl": "http://localhost:1420",
-    "beforeBuildCommand": "npm run build",
-    "frontendDist": "../dist"
-  },
-  "app": {
-    "windows": [
-      {
-        "title": "Git Editor",
-        "width": 1100,
-        "height": 800,
-        "minWidth": 600,
-        "minHeight": 400,
-        "center": true,
-        "resizable": true
-      }
-    ],
-    "security": {
-      "csp": null
-    }
-  },
-  "bundle": {
-    "active": true,
-    "targets": "all",
-    "icon": [
-      "icons/32x32.png",
-      "icons/128x128.png",
-      "icons/128x128@2x.png",
-      "icons/icon.icns",
-      "icons/icon.ico"
-    ],
-    "category": "DeveloperTool",
-    "shortDescription": "GUI Git Editor",
-    "longDescription": "A visual editor for Git operations including interactive rebase and commit message editing",
-    "macOS": {
-      "minimumSystemVersion": "10.15",
-      "exceptionDomain": null,
-      "signingIdentity": null,
-      "entitlements": null
-    },
-    "windows": {
-      "certificateThumbprint": null,
-      "digestAlgorithm": "sha256",
-      "timestampUrl": ""
-    },
-    "linux": {
-      "deb": {
-        "depends": []
-      },
-      "rpm": {
-        "release": "1"
-      }
-    }
-  },
-  "plugins": {
-    "cli": {
-      "description": "GUI Git Editor - A visual editor for Git operations",
-      "args": [
-        {
-          "name": "file",
-          "index": 1,
-          "takesValue": true,
-          "required": false
-        }
-      ]
-    }
-  }
+	"$schema": "https://schema.tauri.app/config/2",
+	"productName": "gui-git-editor",
+	"version": "25.12.104",
+	"identifier": "com.owa.gui-git-editor",
+	"build": {
+		"beforeDevCommand": "npm run dev",
+		"devUrl": "http://localhost:1420",
+		"beforeBuildCommand": "npm run build",
+		"frontendDist": "../dist"
+	},
+	"app": {
+		"windows": [
+			{
+				"title": "Git Editor",
+				"width": 1100,
+				"height": 800,
+				"minWidth": 600,
+				"minHeight": 400,
+				"center": true,
+				"resizable": true
+			}
+		],
+		"security": {
+			"csp": null
+		}
+	},
+	"bundle": {
+		"active": true,
+		"targets": "all",
+		"icon": [
+			"icons/32x32.png",
+			"icons/128x128.png",
+			"icons/128x128@2x.png",
+			"icons/icon.icns",
+			"icons/icon.ico"
+		],
+		"category": "DeveloperTool",
+		"shortDescription": "GUI Git Editor",
+		"longDescription": "A visual editor for Git operations including interactive rebase and commit message editing",
+		"macOS": {
+			"minimumSystemVersion": "10.15",
+			"exceptionDomain": null,
+			"signingIdentity": null,
+			"entitlements": null
+		},
+		"windows": {
+			"certificateThumbprint": null,
+			"digestAlgorithm": "sha256",
+			"timestampUrl": ""
+		},
+		"linux": {
+			"deb": {
+				"depends": []
+			},
+			"rpm": {
+				"release": "1"
+			}
+		}
+	},
+	"plugins": {
+		"cli": {
+			"description": "GUI Git Editor - A visual editor for Git operations",
+			"args": [
+				{
+					"name": "file",
+					"index": 1,
+					"takesValue": true,
+					"required": false
+				}
+			]
+		}
+	}
 }

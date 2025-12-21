@@ -206,12 +206,10 @@ fn parse_merge_args(args: &str) -> (Option<String>, String, Option<String>) {
     while i < parts.len() {
         let part = parts[i];
 
-        if part == "-C" || part == "-c" {
-            if i + 1 < parts.len() {
-                commit = Some(parts[i + 1].to_string());
-                i += 2;
-                continue;
-            }
+        if (part == "-C" || part == "-c") && i + 1 < parts.len() {
+            commit = Some(parts[i + 1].to_string());
+            i += 2;
+            continue;
         }
 
         if part.starts_with('#') {

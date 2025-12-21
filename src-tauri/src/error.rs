@@ -46,6 +46,7 @@ impl serde::ser::Serialize for AppErrorWrapper {
     }
 }
 
+#[allow(dead_code)]
 pub struct AppErrorWrapper(pub AppError);
 
 impl From<AppError> for AppErrorWrapper {
