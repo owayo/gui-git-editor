@@ -31,17 +31,20 @@ jobs:
       - name: Bump version
         id: bump
         run: |
-          YEAR=$(date +%Y)
-          MONTH=$(date +%m)
+          # Use 2-digit year (YY) for Windows MSI compatibility (major version must be <= 255)
+          YEAR=$(date +%y)
+          MONTH=$(date +%-m)
 
           CURRENT=$(grep '"version"' src-tauri/tauri.conf.json | head -1 | sed 's/.*"\([0-9][^"]*\)".*/\1/')
           echo "Current version: ${CURRENT}"
 
-          if echo "${CURRENT}" | grep -qE '^[0-9]{4}\.[0-9]{1,2}\.[0-9]+$'; then
+          if echo "${CURRENT}" | grep -qE '^[0-9]{2,4}\.[0-9]{1,2}\.[0-9]+$'; then
             OLD_YEAR=$(echo "${CURRENT}" | cut -d. -f1)
             OLD_MONTH=$(echo "${CURRENT}" | cut -d. -f2)
             OLD_COUNTER=$(echo "${CURRENT}" | cut -d. -f3)
-            if [ "${OLD_YEAR}" = "${YEAR}" ] && [ "${OLD_MONTH}" = "${MONTH}" ]; then
+            # Handle both 2-digit and 4-digit year formats
+            OLD_YEAR_2DIGIT=$(echo "${OLD_YEAR}" | sed 's/^20//')
+            if [ "${OLD_YEAR_2DIGIT}" = "${YEAR}" ] && [ "${OLD_MONTH}" = "${MONTH}" ]; then
               NEW_COUNTER=$((OLD_COUNTER + 1))
             else
               NEW_COUNTER=100

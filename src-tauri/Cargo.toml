@@ -1,6 +1,6 @@
 [package]
 name = "gui-git-editor"
-version = "2025.12.103"
+version = "25.12.103"
 description = "GUI Git Editor - A visual editor for Git operations"
 authors = ["owa"]
 edition = "2021"

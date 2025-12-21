@@ -1,7 +1,7 @@
 {
   "name": "gui-git-editor",
   "private": true,
-  "version": "2025.12.103",
+  "version": "25.12.103",
   "type": "module",
   "scripts": {
     "dev": "vite",
