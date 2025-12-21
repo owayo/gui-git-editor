@@ -80,6 +80,16 @@ pnpm tauri:build:debug
 > **Note**: `tauri dev` は開発サーバーとホットリロードを使用するため、`target/debug/` のバイナリは更新されません。
 > Git エディタとして使用する場合は `pnpm tauri:build:debug` でビルドしてください。
 
+### インストール（macOS）
+
+リリースページからダウンロードした `.dmg` ファイルを開き、アプリを `/Applications` にコピーします。
+
+初回起動時に「開発元を確認できない」エラーが表示される場合は、以下のコマンドで検疫属性を解除してください：
+
+```bash
+xattr -d com.apple.quarantine /Applications/gui-git-editor.app
+```
+
 ## 使用方法
 
 ### Git エディタとして設定
