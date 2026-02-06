@@ -58,3 +58,36 @@ body {
 		transition-duration: 0.01ms !important;
 	}
 }
+
+/* Conflict marker decorations for Monaco Editor */
+.conflict-marker-line {
+	background-color: rgba(239, 68, 68, 0.15) !important;
+}
+
+.conflict-local-bg {
+	background-color: rgba(34, 197, 94, 0.12) !important;
+}
+
+.conflict-remote-bg {
+	background-color: rgba(59, 130, 246, 0.12) !important;
+}
+
+.conflict-glyph-marker {
+	background-color: rgba(239, 68, 68, 0.6);
+	border-radius: 2px;
+	width: 4px !important;
+	margin-left: 3px;
+}
+
+/* Dark mode adjustments for conflict decorations */
+.dark .conflict-marker-line {
+	background-color: rgba(239, 68, 68, 0.2) !important;
+}
+
+.dark .conflict-local-bg {
+	background-color: rgba(34, 197, 94, 0.15) !important;
+}
+
+.dark .conflict-remote-bg {
+	background-color: rgba(59, 130, 246, 0.15) !important;
+}

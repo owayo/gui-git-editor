@@ -8,7 +8,10 @@ import {
 import { useMergeStore } from "../../stores";
 import type { MergeFilePaths } from "../../types/git";
 import { ErrorDisplay, Loading } from "../common";
+import { ConflictActions } from "./ConflictActions";
+import { ConflictNavigator } from "./ConflictNavigator";
 import { MonacoPanel } from "./MonacoPanel";
+import { useConflictDecorations } from "./useConflictDecorations";
 import type * as MonacoEditor from "monaco-editor";
 
 interface MergeEditorProps {
@@ -22,6 +25,7 @@ export function MergeEditor({ filePaths }: MergeEditorProps) {
 		baseContent,
 		mergedContent,
 		language,
+		conflicts,
 		isLoading,
 		error,
 		initMerge,
@@ -45,6 +49,9 @@ export function MergeEditor({ filePaths }: MergeEditorProps) {
 
 	// Scroll sync lock to prevent infinite loops
 	const isScrollSyncing = useRef(false);
+
+	// Apply conflict decorations to MERGED editor
+	useConflictDecorations(mergedEditorRef, conflicts);
 
 	// Initialize merge on mount
 	useEffect(() => {
@@ -173,7 +180,23 @@ export function MergeEditor({ filePaths }: MergeEditorProps) {
 				>
 					BASE {showBase ? "▼" : "▶"}
 				</button>
+				<div className="mx-2 h-4 w-px bg-gray-300 dark:bg-gray-600" />
+				<ConflictNavigator editorRef={mergedEditorRef} />
 			</div>
+
+			{/* Conflict actions list */}
+			{conflicts.filter((c) => !c.resolved).length > 0 && (
+				<div className="flex flex-wrap items-center gap-2 border-b border-gray-200 px-3 py-1 dark:border-gray-700">
+					{conflicts.map((conflict) => (
+						<div key={conflict.id} className="flex items-center gap-1">
+							<span className="text-xs text-gray-500 dark:text-gray-400">
+								#{conflict.id + 1}:
+							</span>
+							<ConflictActions conflict={conflict} />
+						</div>
+					))}
+				</div>
+			)}
 
 			{/* BASE panel (togglable) */}
 			{showBase && baseContent !== null && (
