@@ -5,7 +5,7 @@
 <h1 align="center">GUI Git Editor</h1>
 
 <p align="center">
-  Git操作（rebase、コミットメッセージ編集）をGUIで直感的に
+  Git操作（rebase、コミットメッセージ編集、マージコンフリクト解決）をGUIで直感的に
 </p>
 
 <p align="center">
@@ -26,6 +26,7 @@
 
 `git config --global core.editor` で設定して使用可能なGUIエディタ。
 Interactive rebase、commit message編集、squash、rewordなどをすべてサポート。
+`git mergetool` としても使用可能で、Monaco Editor ベースの3パネルマージビューでコンフリクトを直感的に解決できます。
 
 ## Features
 
@@ -34,6 +35,8 @@ Interactive rebase、commit message編集、squash、rewordなどをすべてサ
 - 🤖 **AIコミットメッセージ** - [git-smart-commit](https://github.com/owayo/git-smart-commit) 連携で自動生成
 - 🔄 **Undo/Redo** - 操作の取り消し・やり直し
 - 🌙 **ダークモード** - システムテーマに自動追従
+- 🔀 **Merge Tool** - 3パネルビューでコンフリクト解決（LOCAL / MERGED / REMOTE）
+- 🤖 **Codex 連携** - [Codex CLI](https://github.com/openai/codex) でコンフリクトを自動解決
 - ♿ **アクセシビリティ** - ARIA属性、フォーカス管理対応
 
 ## Download
@@ -85,12 +88,45 @@ git config --global core.editor '"C:/Program Files/gui-git-editor/gui-git-editor
 ./scripts/set-editor-vscode.sh    # VS Code に戻す
 ```
 
+### Git マージツールとして設定
+
+```bash
+# macOS
+git config --global mergetool.gui-git-editor.cmd \
+  '"/Applications/gui-git-editor.app/Contents/MacOS/gui-git-editor" --merge --local "$LOCAL" --remote "$REMOTE" --base "$BASE" --merged "$MERGED"'
+git config --global mergetool.gui-git-editor.trustExitCode true
+git config --global merge.tool gui-git-editor
+
+# Windows
+git config --global mergetool.gui-git-editor.cmd \
+  '"C:/Program Files/gui-git-editor/gui-git-editor.exe" --merge --local "$LOCAL" --remote "$REMOTE" --base "$BASE" --merged "$MERGED"'
+git config --global mergetool.gui-git-editor.trustExitCode true
+git config --global merge.tool gui-git-editor
+```
+
+コンフリクト発生時に `git mergetool` を実行すると、3パネルのマージビューが起動します:
+
+- **左パネル (LOCAL)**: 現在のブランチの変更内容（読み取り専用）
+- **中央パネル (MERGED)**: 解決結果を編集するエディタ
+- **右パネル (REMOTE)**: マージ元ブランチの変更内容（読み取り専用）
+
+BASE パネルはツールバーの「BASE」ボタンで表示/非表示を切り替えられます。
+
+#### Codex CLI による自動解決
+
+[Codex CLI](https://github.com/openai/codex) がインストールされている場合、ツールバーの「Codex で解決」ボタンでコンフリクトを自動解決できます。
+
+```bash
+npm install -g @openai/codex
+```
+
 ### 動作確認
 
 ```bash
 git commit                # コミットメッセージ編集
 git rebase -i HEAD~3      # Interactive Rebase
 git commit --amend        # コミットメッセージ修正
+git mergetool             # マージコンフリクト解決
 ```
 
 ## Keyboard Shortcuts
@@ -109,6 +145,17 @@ git commit --amend        # コミットメッセージ修正
 | `↑` / `↓` | コミット選択 |
 | `⌘/Ctrl + ↑↓` | 順序変更 |
 | `p` `r` `e` `s` `f` `d` | コマンド変更 |
+| `⌘/Ctrl + Z` | Undo |
+| `⌘/Ctrl + Shift + Z` | Redo |
+
+### Merge Tool
+
+| キー | 動作 |
+|------|------|
+| `⌘/Ctrl + S` | 保存して終了 |
+| `Escape` | キャンセル |
+| `Alt + ↓` | 次のコンフリクトへ移動 |
+| `Alt + ↑` | 前のコンフリクトへ移動 |
 | `⌘/Ctrl + Z` | Undo |
 | `⌘/Ctrl + Shift + Z` | Redo |
 
@@ -136,7 +183,7 @@ pnpm tauri:build:debug    # デバッグビルド
 
 ### Tech Stack
 
-- **Frontend**: React 19, TypeScript, Tailwind CSS v4, Zustand, dnd-kit
+- **Frontend**: React 19, TypeScript, Tailwind CSS v4, Zustand, Monaco Editor, dnd-kit
 - **Backend**: Rust, Tauri v2
 - **Build**: Vite
 
