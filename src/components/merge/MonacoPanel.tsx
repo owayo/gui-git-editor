@@ -7,6 +7,7 @@ export type PanelLabel = "LOCAL" | "MERGED" | "REMOTE" | "BASE";
 
 interface MonacoPanelProps {
 	label: PanelLabel;
+	displayLabel?: string;
 	content: string;
 	language: string;
 	readOnly?: boolean;
@@ -24,6 +25,7 @@ const LABEL_COLORS: Record<PanelLabel, string> = {
 
 export function MonacoPanel({
 	label,
+	displayLabel,
 	content,
 	language,
 	readOnly = false,
@@ -66,7 +68,7 @@ export function MonacoPanel({
 			<div
 				className={`flex items-center px-3 py-1.5 ${LABEL_COLORS[label]} text-xs font-semibold text-white`}
 			>
-				{label}
+				{displayLabel ?? label}
 			</div>
 			<div className="flex-1 overflow-hidden">
 				<Editor

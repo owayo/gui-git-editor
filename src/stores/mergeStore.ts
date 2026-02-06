@@ -23,6 +23,10 @@ interface MergeState {
 	error: AppError | null;
 	isDirty: boolean;
 
+	// Branch labels
+	localLabel: string;
+	remoteLabel: string;
+
 	// Codex state
 	codexAvailable: boolean | null;
 
@@ -60,6 +64,8 @@ const initialState = {
 	isSaving: false,
 	error: null,
 	isDirty: false,
+	localLabel: "LOCAL",
+	remoteLabel: "REMOTE",
 	codexAvailable: null,
 };
 
@@ -110,6 +116,8 @@ export const useMergeStore = create<MergeState>((set, get) => ({
 			mergedContent: files.merged.content,
 			mergedPath: files.merged.path,
 			language: files.language,
+			localLabel: files.localLabel,
+			remoteLabel: files.remoteLabel,
 			conflicts: parseResult.data.conflicts,
 			currentConflictIndex: 0,
 			allResolved: !parseResult.data.hasConflicts,

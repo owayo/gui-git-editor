@@ -75,6 +75,8 @@ export interface MergeFiles {
 	base: MergeFileContent | null;
 	merged: MergeFileContent;
 	language: string;
+	localLabel: string;
+	remoteLabel: string;
 }
 
 // A single conflict region parsed from conflict markers

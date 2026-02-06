@@ -1,3 +1,4 @@
+import { getCurrentWindow } from "@tauri-apps/api/window";
 import type * as MonacoEditor from "monaco-editor";
 import {
 	type MouseEvent as ReactMouseEvent,
@@ -28,6 +29,8 @@ export function MergeEditor({ filePaths }: MergeEditorProps) {
 		baseContent,
 		mergedContent,
 		language,
+		localLabel,
+		remoteLabel,
 		conflicts,
 		allResolved,
 		isLoading,
@@ -112,6 +115,17 @@ export function MergeEditor({ filePaths }: MergeEditorProps) {
 			filePaths.merged,
 		);
 	}, [filePaths, initMerge]);
+
+	// Update window title with branch names
+	useEffect(() => {
+		const mergedFileName =
+			filePaths.merged.split("/").pop() ?? filePaths.merged;
+		const title =
+			localLabel !== "LOCAL" || remoteLabel !== "REMOTE"
+				? `マージ: ${mergedFileName} (${localLabel} ← ${remoteLabel})`
+				: `マージ: ${mergedFileName}`;
+		getCurrentWindow().setTitle(title);
+	}, [localLabel, remoteLabel, filePaths.merged]);
 
 	// Scroll sync handler
 	const handleScrollChange = useCallback(
@@ -277,6 +291,7 @@ export function MergeEditor({ filePaths }: MergeEditorProps) {
 				>
 					<MonacoPanel
 						label="LOCAL"
+						displayLabel={localLabel}
 						content={localContent}
 						language={language}
 						readOnly
@@ -333,6 +348,7 @@ export function MergeEditor({ filePaths }: MergeEditorProps) {
 				>
 					<MonacoPanel
 						label="REMOTE"
+						displayLabel={remoteLabel}
 						content={remoteContent}
 						language={language}
 						readOnly
