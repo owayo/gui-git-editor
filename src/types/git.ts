@@ -5,7 +5,16 @@ export type GitFileType =
 	| "merge_msg"
 	| "squash_msg"
 	| "tag_msg"
+	| "merge"
 	| "unknown";
+
+// Merge file paths from CLI arguments
+export interface MergeFilePaths {
+	local: string;
+	remote: string;
+	base: string | null;
+	merged: string;
+}
 
 // Rebase command types
 export type RebaseCommandType =

@@ -9,6 +9,7 @@ pub enum GitFileType {
     MergeMsg,
     SquashMsg,
     TagMsg,
+    Merge,
     Unknown,
 }
 
@@ -64,5 +65,18 @@ mod tests {
     fn test_detect_unknown() {
         let path = Path::new("/path/to/some/random/file.txt");
         assert_eq!(detect_file_type(path), GitFileType::Unknown);
+    }
+
+    #[test]
+    fn test_merge_variant_serializes_to_snake_case() {
+        let merge = GitFileType::Merge;
+        let serialized = serde_json::to_string(&merge).unwrap();
+        assert_eq!(serialized, "\"merge\"");
+    }
+
+    #[test]
+    fn test_merge_variant_deserializes_from_snake_case() {
+        let deserialized: GitFileType = serde_json::from_str("\"merge\"").unwrap();
+        assert_eq!(deserialized, GitFileType::Merge);
     }
 }
