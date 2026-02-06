@@ -31,7 +31,7 @@ jobs:
       - name: Bump version
         id: bump
         run: |
-          # Use 2-digit year (YY) for Windows MSI compatibility (major version must be <= 255)
+          # Use 2-digit year (YY) for CalVer format
           YEAR=$(date +%y)
           MONTH=$(date +%-m)
 
@@ -121,8 +121,6 @@ jobs:
             args: --target aarch64-apple-darwin
           - platform: macos-latest
             args: --target x86_64-apple-darwin
-          - platform: windows-latest
-            args: ""
 
     runs-on: ${{ matrix.platform }}
     steps:
@@ -143,7 +141,7 @@ jobs:
       - name: Install Rust stable
         uses: dtolnay/rust-toolchain@stable
         with:
-          targets: ${{ matrix.platform == 'macos-latest' && 'aarch64-apple-darwin,x86_64-apple-darwin' || '' }}
+          targets: aarch64-apple-darwin,x86_64-apple-darwin
 
       - name: Install frontend dependencies
         run: pnpm install

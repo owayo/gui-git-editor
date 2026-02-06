@@ -1,24 +1,48 @@
 use crate::error::AppError;
-use std::process::Command;
 
 /// Check if the `codex` CLI is available on the system.
+/// Returns `false` on non-macOS platforms since the terminal integration requires iTerm2.
 #[tauri::command]
 pub async fn check_codex_available() -> Result<bool, AppError> {
-    let output = Command::new("which").arg("codex").output();
+    #[cfg(target_os = "macos")]
+    {
+        let output = std::process::Command::new("which").arg("codex").output();
+        match output {
+            Ok(result) => Ok(result.status.success()),
+            Err(_) => Ok(false),
+        }
+    }
 
-    match output {
-        Ok(result) => Ok(result.status.success()),
-        Err(_) => Ok(false),
+    #[cfg(not(target_os = "macos"))]
+    {
+        Ok(false)
     }
 }
 
-/// Open a new iTerm2 window running the codex command to resolve merge conflicts.
+/// Open an iTerm2 tab/window running the codex command to resolve merge conflicts.
 ///
 /// Uses `osascript` (AppleScript) on macOS to open iTerm2 with the codex command.
-/// The `--cd` flag requires a directory, so we resolve the git repository root
-/// from the merged file path using `git rev-parse --show-toplevel`.
+/// Only available on macOS.
 #[tauri::command]
 pub async fn open_codex_terminal(merged_path: String) -> Result<(), AppError> {
+    #[cfg(target_os = "macos")]
+    {
+        open_codex_terminal_macos(merged_path).await
+    }
+
+    #[cfg(not(target_os = "macos"))]
+    {
+        let _ = merged_path;
+        Err(AppError::IoError {
+            message: "Codex terminal integration is only available on macOS".to_string(),
+        })
+    }
+}
+
+#[cfg(target_os = "macos")]
+async fn open_codex_terminal_macos(merged_path: String) -> Result<(), AppError> {
+    use std::process::Command;
+
     // Resolve the git repository root directory for --cd
     let file_dir = std::path::Path::new(&merged_path)
         .parent()
@@ -79,8 +103,9 @@ pub async fn open_codex_terminal(merged_path: String) -> Result<(), AppError> {
 }
 
 /// Resolve the git repository root from a directory path.
+#[cfg(target_os = "macos")]
 fn resolve_git_root(dir: &str) -> Option<String> {
-    let output = Command::new("git")
+    let output = std::process::Command::new("git")
         .args(["-C", dir, "rev-parse", "--show-toplevel"])
         .output()
         .ok()?;
@@ -95,6 +120,7 @@ fn resolve_git_root(dir: &str) -> Option<String> {
 }
 
 /// Escape a string for use inside a double-quoted shell argument.
+#[cfg(target_os = "macos")]
 fn shell_escape(s: &str) -> String {
     s.replace('\\', "\\\\")
         .replace('"', "\\\"")
@@ -103,6 +129,7 @@ fn shell_escape(s: &str) -> String {
 }
 
 /// Escape a string for use inside an AppleScript double-quoted string.
+#[cfg(target_os = "macos")]
 fn escape_applescript(s: &str) -> String {
     s.replace('\\', "\\\\").replace('"', "\\\"")
 }
@@ -112,11 +139,13 @@ mod tests {
     use super::*;
 
     #[test]
+    #[cfg(target_os = "macos")]
     fn test_shell_escape_basic() {
         assert_eq!(shell_escape("hello world"), "hello world");
     }
 
     #[test]
+    #[cfg(target_os = "macos")]
     fn test_shell_escape_special_chars() {
         assert_eq!(shell_escape("he\"llo"), "he\\\"llo");
         assert_eq!(shell_escape("$HOME"), "\\$HOME");
@@ -124,11 +153,13 @@ mod tests {
     }
 
     #[test]
+    #[cfg(target_os = "macos")]
     fn test_escape_applescript_quotes() {
         assert_eq!(escape_applescript("say \"hi\""), "say \\\"hi\\\"");
     }
 
     #[test]
+    #[cfg(target_os = "macos")]
     fn test_escape_applescript_backslash() {
         assert_eq!(escape_applescript("path\\to"), "path\\\\to");
     }

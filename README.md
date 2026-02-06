@@ -36,7 +36,7 @@ Interactive rebase、commit message編集、squash、rewordなどをすべてサ
 - 🔄 **Undo/Redo** - 操作の取り消し・やり直し
 - 🌙 **ダークモード** - システムテーマに自動追従
 - 🔀 **Merge Tool** - 3パネルビューでコンフリクト解決（LOCAL / MERGED / REMOTE）
-- 🤖 **Codex 連携** - [Codex CLI](https://github.com/openai/codex) でコンフリクトを自動解決
+- 🤖 **Codex 連携** - [Codex CLI](https://github.com/openai/codex) + iTerm2 でコンフリクトを自動解決
 - ♿ **アクセシビリティ** - ARIA属性、フォーカス管理対応
 
 ## Download
@@ -45,11 +45,8 @@ Interactive rebase、commit message編集、squash、rewordなどをすべてサ
 |----------|----------|
 | macOS (Apple Silicon) | [.dmg](https://github.com/owayo/gui-git-editor/releases/latest) |
 | macOS (Intel) | [.dmg](https://github.com/owayo/gui-git-editor/releases/latest) |
-| Windows | [.msi](https://github.com/owayo/gui-git-editor/releases/latest) |
 
 ## Installation
-
-### macOS
 
 1. [Releases](https://github.com/owayo/gui-git-editor/releases/latest) から `.dmg` をダウンロード
 2. アプリを `/Applications` にコピー
@@ -63,24 +60,15 @@ macOS では、署名されていないアプリは Gatekeeper によってブ�
 xattr -d com.apple.quarantine /Applications/gui-git-editor.app
 ```
 
-### Windows
-
-1. [Releases](https://github.com/owayo/gui-git-editor/releases/latest) から `.msi` をダウンロード
-2. インストーラーを実行
-
 ## Usage
 
 ### Git エディタとして設定
 
 ```bash
-# macOS（/Applications にインストール済み）
 git config --global core.editor '"/Applications/gui-git-editor.app/Contents/MacOS/gui-git-editor"'
-
-# Windows
-git config --global core.editor '"C:/Program Files/gui-git-editor/gui-git-editor.exe"'
 ```
 
-### 設定スクリプト（macOS）
+### 設定スクリプト
 
 ```bash
 ./scripts/set-editor-release.sh   # リリースビルド
@@ -91,15 +79,8 @@ git config --global core.editor '"C:/Program Files/gui-git-editor/gui-git-editor
 ### Git マージツールとして設定
 
 ```bash
-# macOS
 git config --global mergetool.gui-git-editor.cmd \
   '"/Applications/gui-git-editor.app/Contents/MacOS/gui-git-editor" --merge --local "$LOCAL" --remote "$REMOTE" --base "$BASE" --merged "$MERGED"'
-git config --global mergetool.gui-git-editor.trustExitCode true
-git config --global merge.tool gui-git-editor
-
-# Windows
-git config --global mergetool.gui-git-editor.cmd \
-  '"C:/Program Files/gui-git-editor/gui-git-editor.exe" --merge --local "$LOCAL" --remote "$REMOTE" --base "$BASE" --merged "$MERGED"'
 git config --global mergetool.gui-git-editor.trustExitCode true
 git config --global merge.tool gui-git-editor
 ```
@@ -114,10 +95,12 @@ BASE パネルはツールバーの「BASE」ボタンで表示/非表示を切�
 
 #### Codex CLI による自動解決
 
-[Codex CLI](https://github.com/openai/codex) がインストールされている場合、ツールバーの「Codex で解決」ボタンでコンフリクトを自動解決できます。
+[Codex CLI](https://github.com/openai/codex) と [iTerm2](https://iterm2.com/) がインストールされている場合、ツールバーの「Codex で解決」ボタンでコンフリクトを自動解決できます。
+iTerm2 が起動中であれば新規タブで、未起動の場合は新規ウィンドウで Codex が開きます。
 
 ```bash
 npm install -g @openai/codex
+brew install --cask iterm2  # 未インストールの場合
 ```
 
 ### 動作確認
@@ -135,7 +118,7 @@ git mergetool             # マージコンフリクト解決
 
 | キー | 動作 |
 |------|------|
-| `⌘/Ctrl + S` | 保存して終了 |
+| `⌘S` | 保存して終了 |
 | `Escape` | キャンセル |
 
 ### Interactive Rebase
@@ -143,21 +126,21 @@ git mergetool             # マージコンフリクト解決
 | キー | 動作 |
 |------|------|
 | `↑` / `↓` | コミット選択 |
-| `⌘/Ctrl + ↑↓` | 順序変更 |
+| `⌘↑↓` | 順序変更 |
 | `p` `r` `e` `s` `f` `d` | コマンド変更 |
-| `⌘/Ctrl + Z` | Undo |
-| `⌘/Ctrl + Shift + Z` | Redo |
+| `⌘Z` | Undo |
+| `⌘⇧Z` | Redo |
 
 ### Merge Tool
 
 | キー | 動作 |
 |------|------|
-| `⌘/Ctrl + S` | 保存して終了 |
+| `⌘S` | 保存して終了 |
 | `Escape` | キャンセル |
-| `Alt + ↓` | 次のコンフリクトへ移動 |
-| `Alt + ↑` | 前のコンフリクトへ移動 |
-| `⌘/Ctrl + Z` | Undo |
-| `⌘/Ctrl + Shift + Z` | Redo |
+| `⌥↓` | 次のコンフリクトへ移動 |
+| `⌥↑` | 前のコンフリクトへ移動 |
+| `⌘Z` | Undo |
+| `⌘⇧Z` | Redo |
 
 ## Development
 
