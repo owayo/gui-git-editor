@@ -117,12 +117,15 @@ pub fn run() {
         .build(tauri::generate_context!())
         .expect("error while building tauri application");
 
-    app.run(|_app_handle, event| {
+    app.run(|app_handle, event| {
         // マージモードでウィンドウが閉じられた場合（明示的なexit_appなし）、
-        // exit code 1 で終了して git mergetool にキャンセルとして扱わせる
-        if let tauri::RunEvent::ExitRequested { code, .. } = &event {
+        // exit code 1 で終了して git mergetool にキャンセルとして扱わせる。
+        // prevent_exit + app_handle.exit(1) でグレースフルにシャットダウンし、
+        // macOS の NSApplication 登録を正しくクリーンアップする。
+        if let tauri::RunEvent::ExitRequested { code, api, .. } = event {
             if code.is_none() && IS_MERGE_MODE.load(Ordering::SeqCst) {
-                std::process::exit(1);
+                api.prevent_exit();
+                app_handle.exit(1);
             }
         }
     });
