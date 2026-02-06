@@ -184,10 +184,7 @@ async fn detect_remote_label(git_dir: &Path, git_root: &str) -> String {
         if let Ok(content) = fs::read_to_string(&head_name) {
             let name = content.trim();
             // Strip "refs/heads/" prefix
-            return name
-                .strip_prefix("refs/heads/")
-                .unwrap_or(name)
-                .to_string();
+            return name.strip_prefix("refs/heads/").unwrap_or(name).to_string();
         }
     }
 
@@ -197,10 +194,7 @@ async fn detect_remote_label(git_dir: &Path, git_root: &str) -> String {
         let head_name = rebase_apply.join("head-name");
         if let Ok(content) = fs::read_to_string(&head_name) {
             let name = content.trim();
-            return name
-                .strip_prefix("refs/heads/")
-                .unwrap_or(name)
-                .to_string();
+            return name.strip_prefix("refs/heads/").unwrap_or(name).to_string();
         }
     }
 
