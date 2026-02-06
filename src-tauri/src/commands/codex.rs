@@ -12,16 +12,20 @@ pub async fn check_codex_available() -> Result<bool, AppError> {
     }
 }
 
-/// Open a new Terminal.app window running the codex command to resolve merge conflicts.
+/// Open a new iTerm2 window running the codex command to resolve merge conflicts.
 ///
-/// Uses `osascript` (AppleScript) on macOS to open Terminal.app with the codex command.
+/// Uses `osascript` (AppleScript) on macOS to open iTerm2 with the codex command.
+/// The `--cd` flag requires a directory, so we resolve the git repository root
+/// from the merged file path using `git rev-parse --show-toplevel`.
 #[tauri::command]
 pub async fn open_codex_terminal(merged_path: String) -> Result<(), AppError> {
-    // Determine the project directory from the merged file path
-    let project_dir = std::path::Path::new(&merged_path)
+    // Resolve the git repository root directory for --cd
+    let file_dir = std::path::Path::new(&merged_path)
         .parent()
         .map(|p| p.to_string_lossy().to_string())
         .unwrap_or_else(|| ".".to_string());
+
+    let project_dir = resolve_git_root(&file_dir).unwrap_or(file_dir);
 
     let request = format!(
         "ファイル {} のコンフリクトマーカーをすべて解決してください。\
@@ -37,9 +41,9 @@ pub async fn open_codex_terminal(merged_path: String) -> Result<(), AppError> {
     );
 
     let apple_script = format!(
-        "tell application \"Terminal\"\n\
+        "tell application \"iTerm2\"\n\
             activate\n\
-            do script \"{}\"\n\
+            create window with default profile command \"{}\"\n\
         end tell",
         escape_applescript(&codex_cmd),
     );
@@ -49,7 +53,7 @@ pub async fn open_codex_terminal(merged_path: String) -> Result<(), AppError> {
         .arg(&apple_script)
         .output()
         .map_err(|e| AppError::IoError {
-            message: format!("Failed to launch Terminal.app: {}", e),
+            message: format!("Failed to launch iTerm2: {}", e),
         })?;
 
     if !output.status.success() {
@@ -60,6 +64,22 @@ pub async fn open_codex_terminal(merged_path: String) -> Result<(), AppError> {
     }
 
     Ok(())
+}
+
+/// Resolve the git repository root from a directory path.
+fn resolve_git_root(dir: &str) -> Option<String> {
+    let output = Command::new("git")
+        .args(["-C", dir, "rev-parse", "--show-toplevel"])
+        .output()
+        .ok()?;
+
+    if output.status.success() {
+        let root = String::from_utf8_lossy(&output.stdout).trim().to_string();
+        if !root.is_empty() {
+            return Some(root);
+        }
+    }
+    None
 }
 
 /// Escape a string for use inside a double-quoted shell argument.
