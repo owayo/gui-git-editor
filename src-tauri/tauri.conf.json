@@ -66,6 +66,27 @@
 					"index": 1,
 					"takesValue": true,
 					"required": false
+				},
+				{
+					"name": "merge",
+					"short": "m",
+					"takesValue": false
+				},
+				{
+					"name": "local",
+					"takesValue": true
+				},
+				{
+					"name": "remote",
+					"takesValue": true
+				},
+				{
+					"name": "base",
+					"takesValue": true
+				},
+				{
+					"name": "merged",
+					"takesValue": true
 				}
 			]
 		}
