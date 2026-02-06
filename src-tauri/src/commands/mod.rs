@@ -1,8 +1,10 @@
+pub mod codex;
 pub mod commit;
 pub mod file;
 pub mod merge;
 pub mod rebase;
 
+pub use codex::{check_codex_available, open_codex_terminal};
 pub use commit::{parse_commit_msg, serialize_commit_msg, validate_commit_msg};
 pub use file::{
     check_backup_exists, create_backup, delete_backup, exit_app, read_file, restore_backup,

@@ -146,3 +146,14 @@ export async function parseConflicts(
 ): Promise<IpcResult<ParseConflictsResult>> {
 	return safeInvoke<ParseConflictsResult>("parse_conflicts", { content });
 }
+
+// Codex CLI operations
+export async function checkCodexAvailable(): Promise<IpcResult<boolean>> {
+	return safeInvoke<boolean>("check_codex_available");
+}
+
+export async function openCodexTerminal(
+	mergedPath: string,
+): Promise<IpcResult<void>> {
+	return safeInvoke<void>("open_codex_terminal", { mergedPath });
+}
