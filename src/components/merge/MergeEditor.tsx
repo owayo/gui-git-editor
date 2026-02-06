@@ -65,15 +65,7 @@ export function MergeEditor({ filePaths }: MergeEditorProps) {
 
 	// Keyboard shortcut handlers
 	const handleShortcutSave = useCallback(async () => {
-		if (!allResolved) {
-			// Let MergeActionBar handle warning dialog for unresolved conflicts
-			// Just trigger save directly for keyboard shortcut
-			const success = await save();
-			if (success) {
-				await exitApp(0);
-			}
-			return;
-		}
+		if (!allResolved) return;
 		const success = await save();
 		if (success) {
 			await exitApp(0);

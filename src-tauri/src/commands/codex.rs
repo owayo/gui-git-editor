@@ -43,12 +43,21 @@ pub async fn open_codex_terminal(merged_path: String) -> Result<(), AppError> {
     let apple_script = format!(
         "tell application id \"com.googlecode.iterm2\"\n\
             activate\n\
-            set newWindow to (create window with default profile)\n\
-            tell current session of newWindow\n\
-                write text \"{}\"\n\
-            end tell\n\
+            if (count of windows) > 0 then\n\
+                tell current window\n\
+                    set newTab to (create tab with default profile)\n\
+                    tell current session of newTab\n\
+                        write text \"{cmd}\"\n\
+                    end tell\n\
+                end tell\n\
+            else\n\
+                set newWindow to (create window with default profile)\n\
+                tell current session of newWindow\n\
+                    write text \"{cmd}\"\n\
+                end tell\n\
+            end if\n\
         end tell",
-        escape_applescript(&codex_cmd),
+        cmd = escape_applescript(&codex_cmd),
     );
 
     let output = Command::new("osascript")

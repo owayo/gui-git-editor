@@ -1,26 +1,13 @@
 import { CheckIcon, XMarkIcon } from "@heroicons/react/24/outline";
-import { useCallback, useState } from "react";
+import { useCallback } from "react";
 import { useMergeStore } from "../../stores";
 import { exitApp } from "../../types/ipc";
 import { getShortcut } from "../../utils/platform";
 
 export function MergeActionBar() {
 	const { allResolved, isDirty, isSaving, save } = useMergeStore();
-	const [showWarning, setShowWarning] = useState(false);
 
 	const handleSave = useCallback(async () => {
-		if (!allResolved) {
-			setShowWarning(true);
-			return;
-		}
-		const success = await save();
-		if (success) {
-			await exitApp(0);
-		}
-	}, [allResolved, save]);
-
-	const handleForceSave = useCallback(async () => {
-		setShowWarning(false);
 		const success = await save();
 		if (success) {
 			await exitApp(0);
@@ -60,27 +47,6 @@ export function MergeActionBar() {
 				) : null}
 			</output>
 
-			{/* Warning dialog */}
-			{showWarning && (
-				<div className="flex items-center gap-2 rounded bg-yellow-100 px-3 py-1 text-sm text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200">
-					<span>未解決のコンフリクトがあります。保存しますか？</span>
-					<button
-						type="button"
-						onClick={handleForceSave}
-						className="rounded bg-yellow-600 px-2 py-0.5 text-xs font-medium text-white hover:bg-yellow-700"
-					>
-						保存
-					</button>
-					<button
-						type="button"
-						onClick={() => setShowWarning(false)}
-						className="rounded bg-gray-300 px-2 py-0.5 text-xs font-medium text-gray-700 hover:bg-gray-400"
-					>
-						戻る
-					</button>
-				</div>
-			)}
-
 			{/* Right: actions */}
 			<div className="flex items-center gap-2">
 				<button
@@ -97,11 +63,15 @@ export function MergeActionBar() {
 				<button
 					type="button"
 					onClick={handleSave}
-					disabled={isSaving}
+					disabled={isSaving || !allResolved}
 					aria-label={isSaving ? "処理中" : "保存して終了"}
 					aria-busy={isSaving}
 					className="flex items-center gap-1.5 rounded-md bg-green-600 px-3 py-1.5 text-white transition-colors hover:bg-green-700 disabled:cursor-not-allowed disabled:opacity-50"
-					title={`保存して終了 (${getShortcut("S")})`}
+					title={
+						!allResolved
+							? "すべてのコンフリクトを解決してください"
+							: `保存して終了 (${getShortcut("S")})`
+					}
 				>
 					<CheckIcon className="h-4 w-4" aria-hidden="true" />
 					<span className="text-sm">
