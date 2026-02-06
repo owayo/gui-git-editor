@@ -1,9 +1,10 @@
+import type * as MonacoEditor from "monaco-editor";
 import {
+	type MouseEvent as ReactMouseEvent,
 	useCallback,
 	useEffect,
 	useRef,
 	useState,
-	type MouseEvent as ReactMouseEvent,
 } from "react";
 import { useMergeKeyboardShortcuts } from "../../hooks";
 import { useMergeStore } from "../../stores";
@@ -15,7 +16,6 @@ import { ConflictActions } from "./ConflictActions";
 import { ConflictNavigator } from "./ConflictNavigator";
 import { MonacoPanel } from "./MonacoPanel";
 import { useConflictDecorations } from "./useConflictDecorations";
-import type * as MonacoEditor from "monaco-editor";
 
 interface MergeEditorProps {
 	filePaths: MergeFilePaths;

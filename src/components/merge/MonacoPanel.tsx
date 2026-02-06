@@ -1,7 +1,7 @@
 import Editor, { type OnMount } from "@monaco-editor/react";
+import type * as MonacoEditor from "monaco-editor";
 import { useCallback, useRef } from "react";
 import { useThemeStore } from "../../stores";
-import type * as MonacoEditor from "monaco-editor";
 
 export type PanelLabel = "LOCAL" | "MERGED" | "REMOTE" | "BASE";
 

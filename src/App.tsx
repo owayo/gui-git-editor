@@ -1,5 +1,5 @@
-import { getMatches } from "@tauri-apps/plugin-cli";
 import { getCurrentWindow } from "@tauri-apps/api/window";
+import { getMatches } from "@tauri-apps/plugin-cli";
 import { useCallback, useEffect, useState } from "react";
 import { CommitEditor } from "./components/commit";
 import { ActionBar, ErrorDisplay, Loading } from "./components/common";

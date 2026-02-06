@@ -1,6 +1,6 @@
+import type * as MonacoEditor from "monaco-editor";
 import { useCallback } from "react";
 import { useMergeStore } from "../../stores";
-import type * as MonacoEditor from "monaco-editor";
 
 interface ConflictNavigatorProps {
 	editorRef: React.RefObject<MonacoEditor.editor.IStandaloneCodeEditor | null>;

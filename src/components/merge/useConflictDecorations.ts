@@ -1,6 +1,6 @@
+import type * as MonacoEditor from "monaco-editor";
 import { useEffect, useRef } from "react";
 import type { ConflictRegion } from "../../types/git";
-import type * as MonacoEditor from "monaco-editor";
 
 /**
  * Apply conflict-related decorations to a Monaco editor instance.
