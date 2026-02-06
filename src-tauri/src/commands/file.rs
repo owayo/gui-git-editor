@@ -115,8 +115,10 @@ pub async fn delete_backup(path: String) -> Result<(), AppError> {
     Ok(())
 }
 
-/// Exit the application with specified code
+/// Exit the application with specified code.
+/// Uses `std::process::exit` directly to guarantee the exit code is propagated
+/// to the parent process (critical for `git mergetool --trustExitCode`).
 #[tauri::command]
-pub fn exit_app(code: i32, app_handle: tauri::AppHandle) {
-    app_handle.exit(code);
+pub fn exit_app(code: i32) {
+    std::process::exit(code);
 }
