@@ -23,6 +23,9 @@ interface MergeState {
 	error: AppError | null;
 	isDirty: boolean;
 
+	// Codex state
+	codexAvailable: boolean | null;
+
 	// Actions
 	initMerge: (
 		local: string,
@@ -38,6 +41,8 @@ interface MergeState {
 	goToPrevConflict: () => number | null;
 	save: () => Promise<boolean>;
 	reloadMergedFile: () => Promise<void>;
+	checkCodexAvailable: () => Promise<void>;
+	openCodexResolve: () => Promise<void>;
 	clearError: () => void;
 }
 
@@ -55,6 +60,7 @@ const initialState = {
 	isSaving: false,
 	error: null,
 	isDirty: false,
+	codexAvailable: null,
 };
 
 /**
@@ -274,6 +280,25 @@ export const useMergeStore = create<MergeState>((set, get) => ({
 	},
 
 	clearError: () => set({ error: null }),
+
+	checkCodexAvailable: async () => {
+		const result = await ipc.checkCodexAvailable();
+		if (result.ok) {
+			set({ codexAvailable: result.data });
+		} else {
+			set({ codexAvailable: false });
+		}
+	},
+
+	openCodexResolve: async () => {
+		const { mergedPath } = get();
+		if (!mergedPath) return;
+
+		const result = await ipc.openCodexTerminal(mergedPath);
+		if (!result.ok) {
+			set({ error: result.error });
+		}
+	},
 }));
 
 /**

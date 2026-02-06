@@ -10,6 +10,7 @@ import { useMergeStore } from "../../stores";
 import type { MergeFilePaths } from "../../types/git";
 import { exitApp } from "../../types/ipc";
 import { ErrorDisplay, Loading } from "../common";
+import { CodexResolveButton } from "./CodexResolveButton";
 import { ConflictActions } from "./ConflictActions";
 import { ConflictNavigator } from "./ConflictNavigator";
 import { MonacoPanel } from "./MonacoPanel";
@@ -231,6 +232,8 @@ export function MergeEditor({ filePaths }: MergeEditorProps) {
 				</button>
 				<div className="mx-2 h-4 w-px bg-gray-300 dark:bg-gray-600" />
 				<ConflictNavigator editorRef={mergedEditorRef} />
+				<div className="mx-2 h-4 w-px bg-gray-300 dark:bg-gray-600" />
+				<CodexResolveButton />
 			</div>
 
 			{/* Conflict actions list */}

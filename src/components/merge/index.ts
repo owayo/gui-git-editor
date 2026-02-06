@@ -1,3 +1,4 @@
+export { CodexResolveButton } from "./CodexResolveButton";
 export { ConflictActions } from "./ConflictActions";
 export { ConflictNavigator } from "./ConflictNavigator";
 export { MergeActionBar } from "./MergeActionBar";
