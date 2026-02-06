@@ -4,7 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import { CommitEditor } from "./components/commit";
 import { ActionBar, ErrorDisplay, Loading } from "./components/common";
 import { FallbackEditor } from "./components/fallback";
-import { MergeEditor } from "./components/merge";
+import { MergeActionBar, MergeEditor } from "./components/merge";
 import { RebaseEditor } from "./components/rebase";
 import { useKeyboardShortcuts } from "./hooks";
 import {
@@ -230,7 +230,10 @@ function App() {
 	if (isMergeMode && mergeFilePaths) {
 		return (
 			<div className="flex h-screen flex-col bg-white dark:bg-gray-900">
-				<MergeEditor filePaths={mergeFilePaths} />
+				<main className="flex-1 overflow-hidden">
+					<MergeEditor filePaths={mergeFilePaths} />
+				</main>
+				<MergeActionBar />
 			</div>
 		);
 	}
