@@ -42,6 +42,7 @@ export function MergeEditor({ filePaths }: MergeEditorProps) {
 		goToPrevConflict,
 		save,
 		clearError,
+		resolvedReplacements,
 	} = useMergeStore();
 
 	const [showBase, setShowBase] = useState(false);
@@ -67,7 +68,13 @@ export function MergeEditor({ filePaths }: MergeEditorProps) {
 	const isScrollSyncing = useRef(false);
 
 	// Apply conflict decorations to all editors
-	useConflictDecorations(mergedEditorRef, conflicts, mergedReady);
+	useConflictDecorations(
+		mergedEditorRef,
+		conflicts,
+		mergedReady,
+		mergedContent,
+		resolvedReplacements,
+	);
 	useSidePanelConflictDecorations(
 		localEditorRef,
 		localContent,
