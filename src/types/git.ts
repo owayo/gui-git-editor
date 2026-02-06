@@ -62,6 +62,45 @@ export interface CommitMessage {
 	diff_content: string | null;
 }
 
+// Merge file content from backend
+export interface MergeFileContent {
+	path: string;
+	content: string;
+}
+
+// All merge files returned from backend
+export interface MergeFiles {
+	local: MergeFileContent;
+	remote: MergeFileContent;
+	base: MergeFileContent | null;
+	merged: MergeFileContent;
+	language: string;
+}
+
+// A single conflict region parsed from conflict markers
+export interface ConflictRegion {
+	id: number;
+	startLine: number;
+	localStartLine: number;
+	localEndLine: number;
+	baseStartLine: number | null;
+	baseEndLine: number | null;
+	remoteStartLine: number;
+	remoteEndLine: number;
+	endLine: number;
+	localContent: string;
+	baseContent: string | null;
+	remoteContent: string;
+	resolved: boolean;
+}
+
+// Result of parsing conflict markers
+export interface ParseConflictsResult {
+	conflicts: ConflictRegion[];
+	hasConflicts: boolean;
+	totalConflicts: number;
+}
+
 // Commit validation result
 export interface CommitValidation {
 	is_valid: boolean;

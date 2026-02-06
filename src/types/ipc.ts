@@ -4,6 +4,8 @@ import type {
 	CommitMessage,
 	CommitValidation,
 	FileContent,
+	MergeFiles,
+	ParseConflictsResult,
 	RebaseTodoFile,
 } from "./git";
 
@@ -122,4 +124,25 @@ export async function validateCommitMsg(
 	message: CommitMessage,
 ): Promise<IpcResult<CommitValidation>> {
 	return safeInvoke<CommitValidation>("validate_commit_msg", { message });
+}
+
+// Merge operations
+export async function readMergeFiles(
+	local: string,
+	remote: string,
+	base: string | null,
+	merged: string,
+): Promise<IpcResult<MergeFiles>> {
+	return safeInvoke<MergeFiles>("read_merge_files", {
+		local,
+		remote,
+		base,
+		merged,
+	});
+}
+
+export async function parseConflicts(
+	content: string,
+): Promise<IpcResult<ParseConflictsResult>> {
+	return safeInvoke<ParseConflictsResult>("parse_conflicts", { content });
 }
