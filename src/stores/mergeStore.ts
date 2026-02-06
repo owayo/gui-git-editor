@@ -332,7 +332,7 @@ export const useMergeStore = create<MergeState>((set, get) => ({
 	},
 
 	reloadMergedFile: async () => {
-		const { mergedPath } = get();
+		const { mergedPath, conflicts: oldConflicts, resolvedReplacements } = get();
 		if (!mergedPath) return;
 
 		set({ isLoading: true, error: null });
@@ -349,13 +349,23 @@ export const useMergeStore = create<MergeState>((set, get) => ({
 			return;
 		}
 
+		// Preserve previously resolved conflicts so their red background persists.
+		// Fresh parse only returns unresolved conflicts (those still with markers).
+		const oldResolved = oldConflicts.filter((c) => c.resolved);
+		const mergedConflicts = [...parseResult.data.conflicts, ...oldResolved];
+		const hasUnresolved = parseResult.data.hasConflicts;
+
 		set({
 			mergedContent: fileResult.data.content,
-			conflicts: parseResult.data.conflicts,
+			conflicts: mergedConflicts,
 			currentConflictIndex: 0,
-			allResolved: !parseResult.data.hasConflicts,
+			allResolved:
+				!hasUnresolved && oldResolved.length > 0
+					? checkAllResolved(mergedConflicts)
+					: !hasUnresolved,
 			isLoading: false,
 			isDirty: false,
+			resolvedReplacements,
 		});
 	},
 
