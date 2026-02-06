@@ -7,7 +7,8 @@ interface ConflictActionsProps {
 }
 
 export function ConflictActions({ conflict }: ConflictActionsProps) {
-	const { acceptLocal, acceptRemote, acceptBoth } = useMergeStore();
+	const { acceptLocal, acceptRemote, acceptBoth, revertConflict } =
+		useMergeStore();
 
 	const handleAcceptLocal = useCallback(() => {
 		acceptLocal(conflict.id);
@@ -21,11 +22,24 @@ export function ConflictActions({ conflict }: ConflictActionsProps) {
 		acceptBoth(conflict.id);
 	}, [acceptBoth, conflict.id]);
 
+	const handleRevert = useCallback(() => {
+		revertConflict(conflict.id);
+	}, [revertConflict, conflict.id]);
+
 	if (conflict.resolved) {
 		return (
-			<span className="text-xs text-green-600 dark:text-green-400">
-				解決済み
-			</span>
+			<div className="flex items-center gap-1">
+				<span className="text-xs text-green-600 dark:text-green-400">
+					解決済み
+				</span>
+				<button
+					type="button"
+					onClick={handleRevert}
+					className="rounded bg-gray-500 px-2 py-0.5 text-xs font-medium text-white hover:bg-gray-600"
+				>
+					戻す
+				</button>
+			</div>
 		);
 	}
 

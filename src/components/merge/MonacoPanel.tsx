@@ -14,6 +14,7 @@ interface MonacoPanelProps {
 	onChange?: (value: string) => void;
 	onScrollChange?: (scrollTop: number) => void;
 	editorRef?: React.MutableRefObject<MonacoEditor.editor.IStandaloneCodeEditor | null>;
+	onEditorReady?: () => void;
 }
 
 const LABEL_COLORS: Record<PanelLabel, string> = {
@@ -32,6 +33,7 @@ export function MonacoPanel({
 	onChange,
 	onScrollChange,
 	editorRef,
+	onEditorReady,
 }: MonacoPanelProps) {
 	const resolvedTheme = useThemeStore((s) => s.resolvedTheme);
 	const internalRef = useRef<MonacoEditor.editor.IStandaloneCodeEditor | null>(
@@ -50,8 +52,10 @@ export function MonacoPanel({
 					onScrollChange(e.scrollTop);
 				});
 			}
+
+			onEditorReady?.();
 		},
-		[editorRef, onScrollChange],
+		[editorRef, onScrollChange, onEditorReady],
 	);
 
 	const handleChange = useCallback(

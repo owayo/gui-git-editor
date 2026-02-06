@@ -48,6 +48,11 @@ export function MergeEditor({ filePaths }: MergeEditorProps) {
 	const [panelSizes, setPanelSizes] = useState([1, 1, 1]);
 	const [isResizing, setIsResizing] = useState(false);
 	const [resizeIndex, setResizeIndex] = useState<number | null>(null);
+
+	// Track editor mount state for decoration hooks
+	const [localReady, setLocalReady] = useState(false);
+	const [mergedReady, setMergedReady] = useState(false);
+	const [remoteReady, setRemoteReady] = useState(false);
 	const containerRef = useRef<HTMLDivElement>(null);
 
 	// Editor refs for scroll sync
@@ -62,18 +67,20 @@ export function MergeEditor({ filePaths }: MergeEditorProps) {
 	const isScrollSyncing = useRef(false);
 
 	// Apply conflict decorations to all editors
-	useConflictDecorations(mergedEditorRef, conflicts);
+	useConflictDecorations(mergedEditorRef, conflicts, mergedReady);
 	useSidePanelConflictDecorations(
 		localEditorRef,
 		localContent,
 		conflicts,
 		"local",
+		localReady,
 	);
 	useSidePanelConflictDecorations(
 		remoteEditorRef,
 		remoteContent,
 		conflicts,
 		"remote",
+		remoteReady,
 	);
 
 	// Keyboard shortcut handlers
@@ -302,6 +309,7 @@ export function MergeEditor({ filePaths }: MergeEditorProps) {
 						readOnly
 						editorRef={localEditorRef}
 						onScrollChange={handleScrollChange("local")}
+						onEditorReady={() => setLocalReady(true)}
 					/>
 				</div>
 
@@ -329,6 +337,7 @@ export function MergeEditor({ filePaths }: MergeEditorProps) {
 						onChange={updateMergedContent}
 						editorRef={mergedEditorRef}
 						onScrollChange={handleScrollChange("merged")}
+						onEditorReady={() => setMergedReady(true)}
 					/>
 				</div>
 
@@ -359,6 +368,7 @@ export function MergeEditor({ filePaths }: MergeEditorProps) {
 						readOnly
 						editorRef={remoteEditorRef}
 						onScrollChange={handleScrollChange("remote")}
+						onEditorReady={() => setRemoteReady(true)}
 					/>
 				</div>
 			</div>

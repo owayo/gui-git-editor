@@ -9,9 +9,11 @@ import type { ConflictRegion } from "../../types/git";
 export function useConflictDecorations(
 	editorRef: React.RefObject<MonacoEditor.editor.IStandaloneCodeEditor | null>,
 	conflicts: ConflictRegion[],
+	editorReady: boolean,
 ) {
 	const decorationIds = useRef<string[]>([]);
 
+	// biome-ignore lint/correctness/useExhaustiveDependencies: editorReady triggers re-run when editor mounts (editorRef.current is null until then)
 	useEffect(() => {
 		const editor = editorRef.current;
 		if (!editor) return;
@@ -40,7 +42,7 @@ export function useConflictDecorations(
 				},
 			});
 
-			// LOCAL content lines (green)
+			// LOCAL content lines
 			if (conflict.localEndLine > conflict.localStartLine) {
 				decorations.push({
 					range: new monaco.Range(
@@ -56,7 +58,7 @@ export function useConflictDecorations(
 				});
 			}
 
-			// REMOTE content lines (blue)
+			// REMOTE content lines
 			if (conflict.remoteEndLine > conflict.remoteStartLine) {
 				decorations.push({
 					range: new monaco.Range(
@@ -112,5 +114,5 @@ export function useConflictDecorations(
 				);
 			}
 		};
-	}, [editorRef, conflicts]);
+	}, [editorRef, conflicts, editorReady]);
 }

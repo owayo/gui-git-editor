@@ -61,9 +61,11 @@ export function useSidePanelConflictDecorations(
 	fileContent: string | null,
 	conflicts: ConflictRegion[],
 	side: "local" | "remote",
+	editorReady: boolean,
 ) {
 	const decorationIds = useRef<string[]>([]);
 
+	// biome-ignore lint/correctness/useExhaustiveDependencies: editorReady triggers re-run when editor mounts (editorRef.current is null until then)
 	useEffect(() => {
 		const editor = editorRef.current;
 		if (!editor || !fileContent) return;
@@ -98,5 +100,5 @@ export function useSidePanelConflictDecorations(
 				);
 			}
 		};
-	}, [editorRef, fileContent, conflicts, side]);
+	}, [editorRef, fileContent, conflicts, side, editorReady]);
 }

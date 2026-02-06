@@ -65,15 +65,15 @@ body {
 }
 
 .conflict-local-bg {
-	background-color: rgba(239, 68, 68, 0.12) !important;
+	background-color: rgba(239, 68, 68, 0.2) !important;
 }
 
 .conflict-remote-bg {
-	background-color: rgba(239, 68, 68, 0.12) !important;
+	background-color: rgba(239, 68, 68, 0.2) !important;
 }
 
 .conflict-region-bg {
-	background-color: rgba(239, 68, 68, 0.12) !important;
+	background-color: rgba(239, 68, 68, 0.2) !important;
 }
 
 .conflict-glyph-marker {
@@ -89,13 +89,13 @@ body {
 }
 
 .dark .conflict-local-bg {
-	background-color: rgba(239, 68, 68, 0.15) !important;
+	background-color: rgba(239, 68, 68, 0.25) !important;
 }
 
 .dark .conflict-remote-bg {
-	background-color: rgba(239, 68, 68, 0.15) !important;
+	background-color: rgba(239, 68, 68, 0.25) !important;
 }
 
 .dark .conflict-region-bg {
-	background-color: rgba(239, 68, 68, 0.15) !important;
+	background-color: rgba(239, 68, 68, 0.25) !important;
 }

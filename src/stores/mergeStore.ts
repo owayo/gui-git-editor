@@ -30,6 +30,9 @@ interface MergeState {
 	// Codex state
 	codexAvailable: boolean | null;
 
+	// Stores replacement text per conflict for revert support
+	resolvedReplacements: Record<number, string>;
+
 	// Actions
 	initMerge: (
 		local: string,
@@ -40,6 +43,7 @@ interface MergeState {
 	acceptLocal: (conflictId: number) => void;
 	acceptRemote: (conflictId: number) => void;
 	acceptBoth: (conflictId: number) => void;
+	revertConflict: (conflictId: number) => void;
 	updateMergedContent: (content: string) => void;
 	goToNextConflict: () => number | null;
 	goToPrevConflict: () => number | null;
@@ -67,6 +71,7 @@ const initialState = {
 	localLabel: "LOCAL",
 	remoteLabel: "REMOTE",
 	codexAvailable: null,
+	resolvedReplacements: {} as Record<number, string>,
 };
 
 /**
@@ -127,19 +132,19 @@ export const useMergeStore = create<MergeState>((set, get) => ({
 	},
 
 	acceptLocal: (conflictId) => {
-		const { mergedContent, conflicts } = get();
+		const { mergedContent, conflicts, resolvedReplacements } = get();
 		if (!mergedContent) return;
 
 		const conflict = conflicts.find((c) => c.id === conflictId);
 		if (!conflict || conflict.resolved) return;
 
+		const replacement = conflict.localContent;
 		const newContent = resolveConflictInContent(
 			mergedContent,
 			conflict,
-			conflict.localContent,
+			replacement,
 		);
 
-		// Re-parse conflicts from the updated content to get correct line numbers
 		const updatedConflicts = reParseAndPreserveResolved(
 			newContent,
 			conflicts,
@@ -151,20 +156,25 @@ export const useMergeStore = create<MergeState>((set, get) => ({
 			conflicts: updatedConflicts,
 			allResolved: checkAllResolved(updatedConflicts),
 			isDirty: true,
+			resolvedReplacements: {
+				...resolvedReplacements,
+				[conflictId]: replacement,
+			},
 		});
 	},
 
 	acceptRemote: (conflictId) => {
-		const { mergedContent, conflicts } = get();
+		const { mergedContent, conflicts, resolvedReplacements } = get();
 		if (!mergedContent) return;
 
 		const conflict = conflicts.find((c) => c.id === conflictId);
 		if (!conflict || conflict.resolved) return;
 
+		const replacement = conflict.remoteContent;
 		const newContent = resolveConflictInContent(
 			mergedContent,
 			conflict,
-			conflict.remoteContent,
+			replacement,
 		);
 
 		const updatedConflicts = reParseAndPreserveResolved(
@@ -178,23 +188,27 @@ export const useMergeStore = create<MergeState>((set, get) => ({
 			conflicts: updatedConflicts,
 			allResolved: checkAllResolved(updatedConflicts),
 			isDirty: true,
+			resolvedReplacements: {
+				...resolvedReplacements,
+				[conflictId]: replacement,
+			},
 		});
 	},
 
 	acceptBoth: (conflictId) => {
-		const { mergedContent, conflicts } = get();
+		const { mergedContent, conflicts, resolvedReplacements } = get();
 		if (!mergedContent) return;
 
 		const conflict = conflicts.find((c) => c.id === conflictId);
 		if (!conflict || conflict.resolved) return;
 
-		const bothContent = [conflict.localContent, conflict.remoteContent]
+		const replacement = [conflict.localContent, conflict.remoteContent]
 			.filter((c) => c.length > 0)
 			.join("\n");
 		const newContent = resolveConflictInContent(
 			mergedContent,
 			conflict,
-			bothContent,
+			replacement,
 		);
 
 		const updatedConflicts = reParseAndPreserveResolved(
@@ -206,6 +220,64 @@ export const useMergeStore = create<MergeState>((set, get) => ({
 		set({
 			mergedContent: newContent,
 			conflicts: updatedConflicts,
+			allResolved: checkAllResolved(updatedConflicts),
+			isDirty: true,
+			resolvedReplacements: {
+				...resolvedReplacements,
+				[conflictId]: replacement,
+			},
+		});
+	},
+
+	revertConflict: (conflictId) => {
+		const { mergedContent, conflicts, resolvedReplacements } = get();
+		if (!mergedContent) return;
+
+		const conflict = conflicts.find((c) => c.id === conflictId);
+		if (!conflict || !conflict.resolved) return;
+
+		const replacement = resolvedReplacements[conflictId];
+		if (replacement === undefined) return;
+
+		// Reconstruct conflict markers
+		const markerText = `<<<<<<< LOCAL\n${conflict.localContent}\n=======\n${conflict.remoteContent}\n>>>>>>> REMOTE`;
+
+		// Find the replacement text in content and replace with markers
+		const replacementLines = replacement.split("\n");
+		const markerLines = markerText.split("\n");
+		const contentLines = mergedContent.split("\n");
+
+		let newContent: string | null = null;
+
+		for (let i = 0; i <= contentLines.length - replacementLines.length; i++) {
+			let match = true;
+			for (let j = 0; j < replacementLines.length; j++) {
+				if (contentLines[i + j] !== replacementLines[j]) {
+					match = false;
+					break;
+				}
+			}
+			if (match) {
+				const before = contentLines.slice(0, i);
+				const after = contentLines.slice(i + replacementLines.length);
+				newContent = [...before, ...markerLines, ...after].join("\n");
+				break;
+			}
+		}
+
+		if (newContent === null) return;
+
+		// Remove from resolvedReplacements
+		const { [conflictId]: _, ...remainingReplacements } = resolvedReplacements;
+
+		const updatedConflicts = conflicts.map((c) =>
+			c.id === conflictId ? { ...c, resolved: false } : c,
+		);
+
+		set({
+			mergedContent: newContent,
+			conflicts: updatedConflicts,
+			resolvedReplacements: remainingReplacements,
 			allResolved: checkAllResolved(updatedConflicts),
 			isDirty: true,
 		});
