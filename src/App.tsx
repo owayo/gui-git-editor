@@ -1,8 +1,10 @@
 import { getMatches } from "@tauri-apps/plugin-cli";
-import { useCallback, useEffect } from "react";
+import { getCurrentWindow } from "@tauri-apps/api/window";
+import { useCallback, useEffect, useState } from "react";
 import { CommitEditor } from "./components/commit";
 import { ActionBar, ErrorDisplay, Loading } from "./components/common";
 import { FallbackEditor } from "./components/fallback";
+import { MergeEditor } from "./components/merge";
 import { RebaseEditor } from "./components/rebase";
 import { useKeyboardShortcuts } from "./hooks";
 import {
@@ -11,9 +13,15 @@ import {
 	useHistoryStore,
 	useRebaseStore,
 } from "./stores";
+import type { MergeFilePaths } from "./types/git";
 import { exitApp } from "./types/ipc";
 
 function App() {
+	const [isMergeMode, setIsMergeMode] = useState(false);
+	const [mergeFilePaths, setMergeFilePaths] = useState<MergeFilePaths | null>(
+		null,
+	);
+
 	const {
 		filePath,
 		fileType,
@@ -74,6 +82,34 @@ function App() {
 			try {
 				const matches = await getMatches();
 				const args = matches.args;
+
+				// Check for merge mode
+				if (args.merge?.occurrences && args.merge.occurrences > 0) {
+					const local = args.local?.value;
+					const remote = args.remote?.value;
+					const base = args.base?.value;
+					const merged = args.merged?.value;
+
+					if (
+						typeof local === "string" &&
+						typeof remote === "string" &&
+						typeof merged === "string"
+					) {
+						const paths: MergeFilePaths = {
+							local,
+							remote,
+							base: typeof base === "string" ? base : null,
+							merged,
+						};
+						setIsMergeMode(true);
+						setMergeFilePaths(paths);
+
+						// Set window title for merge mode
+						const mergedFileName = merged.split("/").pop() ?? merged;
+						await getCurrentWindow().setTitle(`マージ: ${mergedFileName}`);
+						return;
+					}
+				}
 
 				if (args.file && typeof args.file.value === "string") {
 					const targetPath = args.file.value;
@@ -186,6 +222,15 @@ function App() {
 		return (
 			<div className="flex h-screen flex-col bg-white dark:bg-gray-900">
 				<Loading message="ファイルを読み込み中..." />
+			</div>
+		);
+	}
+
+	// Render merge mode
+	if (isMergeMode && mergeFilePaths) {
+		return (
+			<div className="flex h-screen flex-col bg-white dark:bg-gray-900">
+				<MergeEditor filePaths={mergeFilePaths} />
 			</div>
 		);
 	}
