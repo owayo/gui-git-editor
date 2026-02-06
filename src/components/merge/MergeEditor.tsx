@@ -17,6 +17,7 @@ import { ConflictActions } from "./ConflictActions";
 import { ConflictNavigator } from "./ConflictNavigator";
 import { MonacoPanel } from "./MonacoPanel";
 import { useConflictDecorations } from "./useConflictDecorations";
+import { useSidePanelConflictDecorations } from "./useSidePanelConflictDecorations";
 
 interface MergeEditorProps {
 	filePaths: MergeFilePaths;
@@ -60,8 +61,20 @@ export function MergeEditor({ filePaths }: MergeEditorProps) {
 	// Scroll sync lock to prevent infinite loops
 	const isScrollSyncing = useRef(false);
 
-	// Apply conflict decorations to MERGED editor
+	// Apply conflict decorations to all editors
 	useConflictDecorations(mergedEditorRef, conflicts);
+	useSidePanelConflictDecorations(
+		localEditorRef,
+		localContent,
+		conflicts,
+		"local",
+	);
+	useSidePanelConflictDecorations(
+		remoteEditorRef,
+		remoteContent,
+		conflicts,
+		"remote",
+	);
 
 	// Keyboard shortcut handlers
 	const handleShortcutSave = useCallback(async () => {
