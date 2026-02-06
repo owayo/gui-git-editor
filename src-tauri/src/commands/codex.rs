@@ -41,9 +41,12 @@ pub async fn open_codex_terminal(merged_path: String) -> Result<(), AppError> {
     );
 
     let apple_script = format!(
-        "tell application \"iTerm2\"\n\
+        "tell application id \"com.googlecode.iterm2\"\n\
             activate\n\
-            create window with default profile command \"{}\"\n\
+            set newWindow to (create window with default profile)\n\
+            tell current session of newWindow\n\
+                write text \"{}\"\n\
+            end tell\n\
         end tell",
         escape_applescript(&codex_cmd),
     );
