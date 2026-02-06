@@ -5,8 +5,10 @@ import {
 	useState,
 	type MouseEvent as ReactMouseEvent,
 } from "react";
+import { useMergeKeyboardShortcuts } from "../../hooks";
 import { useMergeStore } from "../../stores";
 import type { MergeFilePaths } from "../../types/git";
+import { exitApp } from "../../types/ipc";
 import { ErrorDisplay, Loading } from "../common";
 import { ConflictActions } from "./ConflictActions";
 import { ConflictNavigator } from "./ConflictNavigator";
@@ -26,10 +28,14 @@ export function MergeEditor({ filePaths }: MergeEditorProps) {
 		mergedContent,
 		language,
 		conflicts,
+		allResolved,
 		isLoading,
 		error,
 		initMerge,
 		updateMergedContent,
+		goToNextConflict,
+		goToPrevConflict,
+		save,
 		clearError,
 	} = useMergeStore();
 
@@ -52,6 +58,49 @@ export function MergeEditor({ filePaths }: MergeEditorProps) {
 
 	// Apply conflict decorations to MERGED editor
 	useConflictDecorations(mergedEditorRef, conflicts);
+
+	// Keyboard shortcut handlers
+	const handleShortcutSave = useCallback(async () => {
+		if (!allResolved) {
+			// Let MergeActionBar handle warning dialog for unresolved conflicts
+			// Just trigger save directly for keyboard shortcut
+			const success = await save();
+			if (success) {
+				await exitApp(0);
+			}
+			return;
+		}
+		const success = await save();
+		if (success) {
+			await exitApp(0);
+		}
+	}, [allResolved, save]);
+
+	const handleShortcutCancel = useCallback(async () => {
+		await exitApp(1);
+	}, []);
+
+	const handleNextConflict = useCallback(() => {
+		const line = goToNextConflict();
+		if (line !== null && mergedEditorRef.current) {
+			mergedEditorRef.current.revealLineInCenter(line + 1);
+		}
+	}, [goToNextConflict]);
+
+	const handlePrevConflict = useCallback(() => {
+		const line = goToPrevConflict();
+		if (line !== null && mergedEditorRef.current) {
+			mergedEditorRef.current.revealLineInCenter(line + 1);
+		}
+	}, [goToPrevConflict]);
+
+	// Register merge keyboard shortcuts
+	useMergeKeyboardShortcuts({
+		onSave: handleShortcutSave,
+		onCancel: handleShortcutCancel,
+		onNextConflict: handleNextConflict,
+		onPrevConflict: handlePrevConflict,
+	});
 
 	// Initialize merge on mount
 	useEffect(() => {
