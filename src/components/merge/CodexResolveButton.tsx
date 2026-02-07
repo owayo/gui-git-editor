@@ -54,14 +54,14 @@ export function CodexResolveButton() {
 				type="button"
 				onClick={handleOpenCodex}
 				disabled={!codexAvailable}
-				className="flex items-center gap-1 rounded px-2 py-1 text-xs font-medium transition-colors enabled:bg-purple-100 enabled:text-purple-700 enabled:hover:bg-purple-200 disabled:cursor-not-allowed disabled:text-gray-400 dark:enabled:bg-purple-900 dark:enabled:text-purple-300 dark:enabled:hover:bg-purple-800 dark:disabled:text-gray-600"
+				className="flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm font-medium transition-colors enabled:bg-purple-100 enabled:text-purple-700 enabled:hover:bg-purple-200 disabled:cursor-not-allowed disabled:text-gray-400 dark:enabled:bg-purple-900 dark:enabled:text-purple-300 dark:enabled:hover:bg-purple-800 dark:disabled:text-gray-600"
 				title={
 					codexAvailable
 						? "Codex CLI でコンフリクトを自動解決"
 						: "codex がインストールされていません (npm i -g @openai/codex)"
 				}
 			>
-				<OpenAIIcon className="h-3.5 w-3.5" />
+				<OpenAIIcon className="h-4 w-4" />
 				Codex で解決
 			</button>
 
