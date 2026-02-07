@@ -367,17 +367,21 @@ export const useMergeStore = create<MergeState>((set, get) => ({
 		const { mergedPath, conflicts: oldConflicts, resolvedReplacements } = get();
 		if (!mergedPath) return;
 
-		set({ isLoading: true, error: null });
+		// NOTE: isLoading is intentionally NOT set here.
+		// Setting isLoading unmounts editors, which breaks decoration refs
+		// and blame tooltips on remount. File reads are fast enough to skip
+		// the loading screen.
+		set({ error: null });
 
 		const fileResult = await ipc.readFile(mergedPath);
 		if (!fileResult.ok) {
-			set({ error: fileResult.error, isLoading: false });
+			set({ error: fileResult.error });
 			return;
 		}
 
 		const parseResult = await ipc.parseConflicts(fileResult.data.content);
 		if (!parseResult.ok) {
-			set({ error: parseResult.error, isLoading: false });
+			set({ error: parseResult.error });
 			return;
 		}
 
@@ -407,7 +411,6 @@ export const useMergeStore = create<MergeState>((set, get) => ({
 				!hasUnresolved && mergedConflicts.length > 0
 					? checkAllResolved(mergedConflicts)
 					: !hasUnresolved,
-			isLoading: false,
 			isDirty: false,
 			resolvedReplacements,
 		});
