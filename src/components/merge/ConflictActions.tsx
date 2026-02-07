@@ -7,8 +7,14 @@ interface ConflictActionsProps {
 }
 
 export function ConflictActions({ conflict }: ConflictActionsProps) {
-	const { acceptLocal, acceptRemote, acceptBoth, revertConflict } =
-		useMergeStore();
+	const {
+		acceptLocal,
+		acceptRemote,
+		acceptBoth,
+		revertConflict,
+		localLabel,
+		remoteLabel,
+	} = useMergeStore();
 
 	const handleAcceptLocal = useCallback(() => {
 		acceptLocal(conflict.id);
@@ -50,14 +56,14 @@ export function ConflictActions({ conflict }: ConflictActionsProps) {
 				onClick={handleAcceptLocal}
 				className="rounded bg-green-600 px-2 py-0.5 text-xs font-medium text-white hover:bg-green-700"
 			>
-				LOCAL
+				{localLabel}
 			</button>
 			<button
 				type="button"
 				onClick={handleAcceptRemote}
 				className="rounded bg-blue-600 px-2 py-0.5 text-xs font-medium text-white hover:bg-blue-700"
 			>
-				REMOTE
+				{remoteLabel}
 			</button>
 			<button
 				type="button"
