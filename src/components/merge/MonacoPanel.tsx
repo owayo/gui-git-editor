@@ -93,6 +93,7 @@ export function MonacoPanel({
 						folding: true,
 						glyphMargin: true,
 						lineDecorationsWidth: 5,
+						fixedOverflowWidgets: true,
 					}}
 				/>
 			</div>
