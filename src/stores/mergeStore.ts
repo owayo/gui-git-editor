@@ -381,10 +381,22 @@ export const useMergeStore = create<MergeState>((set, get) => ({
 			return;
 		}
 
-		// Preserve previously resolved conflicts so their red background persists.
-		// Fresh parse only returns unresolved conflicts (those still with markers).
-		const oldResolved = oldConflicts.filter((c) => c.resolved);
-		const mergedConflicts = [...parseResult.data.conflicts, ...oldResolved];
+		// Preserve resolved conflicts so their red background persists.
+		// Also detect externally resolved conflicts (e.g. by Codex):
+		// old unresolved conflicts whose markers are no longer in the file.
+		const newUnresolvedIds = new Set(
+			parseResult.data.conflicts.map((c) => c.id),
+		);
+		const alreadyResolved = oldConflicts.filter((c) => c.resolved);
+		const externallyResolved = oldConflicts
+			.filter((c) => !c.resolved && !newUnresolvedIds.has(c.id))
+			.map((c) => ({ ...c, resolved: true }));
+
+		const mergedConflicts = [
+			...parseResult.data.conflicts,
+			...alreadyResolved,
+			...externallyResolved,
+		];
 		const hasUnresolved = parseResult.data.hasConflicts;
 
 		set({
@@ -392,7 +404,7 @@ export const useMergeStore = create<MergeState>((set, get) => ({
 			conflicts: mergedConflicts,
 			currentConflictIndex: 0,
 			allResolved:
-				!hasUnresolved && oldResolved.length > 0
+				!hasUnresolved && mergedConflicts.length > 0
 					? checkAllResolved(mergedConflicts)
 					: !hasUnresolved,
 			isLoading: false,
