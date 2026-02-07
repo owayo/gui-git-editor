@@ -21,7 +21,7 @@ export function SubjectInput({
 					htmlFor="commit-subject"
 					className="text-sm font-medium text-gray-700 dark:text-gray-300"
 				>
-					件名 (Subject)
+					Commit subject
 				</label>
 				<span
 					className={`text-xs ${
@@ -50,7 +50,7 @@ export function SubjectInput({
 			{isTooLong && (
 				<div className="flex items-center gap-1.5 text-xs text-amber-600 dark:text-amber-400">
 					<ExclamationTriangleIcon className="h-4 w-4" />
-					<span>件名は{maxLength}文字以内が推奨されています</span>
+					<span>Subject は {maxLength} 文字以内を推奨</span>
 				</div>
 			)}
 		</div>

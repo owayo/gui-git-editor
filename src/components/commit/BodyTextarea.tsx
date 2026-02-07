@@ -28,7 +28,7 @@ export function BodyTextarea({
 					htmlFor="commit-body"
 					className="text-sm font-medium text-gray-700 dark:text-gray-300"
 				>
-					本文 (Body)
+					Description
 				</label>
 				{hasLongLines && (
 					<span className="text-xs text-amber-600 dark:text-amber-400">

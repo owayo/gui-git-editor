@@ -73,7 +73,7 @@ export function CommitEditor() {
 								className="flex items-center gap-1.5 rounded-md bg-purple-600 px-3 py-1.5 text-sm text-white hover:bg-purple-700 disabled:cursor-not-allowed disabled:opacity-50"
 							>
 								<SparklesIcon className="h-4 w-4" />
-								{isGenerating ? "生成中..." : "タイトルのみ"}
+								{isGenerating ? "生成中..." : "Subject のみ"}
 							</button>
 							<button
 								type="button"
@@ -82,7 +82,7 @@ export function CommitEditor() {
 								className="flex items-center gap-1.5 rounded-md bg-purple-700 px-3 py-1.5 text-sm text-white hover:bg-purple-800 disabled:cursor-not-allowed disabled:opacity-50"
 							>
 								<SparklesIcon className="h-4 w-4" />
-								{isGenerating ? "生成中..." : "本文も生成"}
+								{isGenerating ? "生成中..." : "Subject + Description"}
 							</button>
 						</div>
 					)}
@@ -97,7 +97,7 @@ export function CommitEditor() {
 
 				{/* Instructions */}
 				<div className="rounded-lg bg-blue-50 p-3 text-sm text-blue-700 dark:bg-blue-900/20 dark:text-blue-300">
-					<p>件名は50文字以内、本文は各行72文字以内が推奨されています。</p>
+					<p>Subject は 50 文字以内、Description は各行 72 文字以内を推奨</p>
 				</div>
 
 				{/* Subject input */}

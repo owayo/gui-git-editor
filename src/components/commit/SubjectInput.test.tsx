@@ -11,7 +11,7 @@ describe("SubjectInput", () => {
 	it("renders input with label", () => {
 		render(<SubjectInput {...defaultProps} />);
 
-		expect(screen.getByLabelText("件名 (Subject)")).toBeInTheDocument();
+		expect(screen.getByLabelText("Commit subject")).toBeInTheDocument();
 	});
 
 	it("displays character count", () => {
@@ -36,7 +36,7 @@ describe("SubjectInput", () => {
 		render(<SubjectInput {...defaultProps} value={longText} />);
 
 		expect(
-			screen.getByText("件名は50文字以内が推奨されています"),
+			screen.getByText("Subject は 50 文字以内を推奨"),
 		).toBeInTheDocument();
 	});
 
