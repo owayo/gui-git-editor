@@ -73,7 +73,7 @@ export function CommitEditor() {
 								className="flex items-center gap-1.5 rounded-md bg-purple-600 px-3 py-1.5 text-sm text-white hover:bg-purple-700 disabled:cursor-not-allowed disabled:opacity-50"
 							>
 								<SparklesIcon className="h-4 w-4" />
-								{isGenerating ? "生成中..." : "Subject のみ"}
+								{isGenerating ? "生成中..." : "Commit subject のみを生成"}
 							</button>
 							<button
 								type="button"
@@ -82,7 +82,7 @@ export function CommitEditor() {
 								className="flex items-center gap-1.5 rounded-md bg-purple-700 px-3 py-1.5 text-sm text-white hover:bg-purple-800 disabled:cursor-not-allowed disabled:opacity-50"
 							>
 								<SparklesIcon className="h-4 w-4" />
-								{isGenerating ? "生成中..." : "Subject + Description"}
+								{isGenerating ? "生成中..." : "Description も生成"}
 							</button>
 						</div>
 					)}
