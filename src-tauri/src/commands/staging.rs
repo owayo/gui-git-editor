@@ -24,18 +24,32 @@ pub struct GitStatusResult {
     pub branch_name: String,
 }
 
-/// Resolve git repository root from a file path (e.g. COMMIT_EDITMSG path).
+/// Resolve git repository root from a file path (e.g. .git/COMMIT_EDITMSG).
+/// Handles the case where the file is inside the .git directory, where
+/// `git rev-parse --show-toplevel` would fail with "this operation must be run in a work tree".
 async fn resolve_git_root(file_path: &str) -> Result<String, AppError> {
-    let work_dir = Path::new(file_path)
+    let path = Path::new(file_path);
+
+    // Walk up ancestors; if any component is ".git", use its parent as work dir
+    let mut work_dir = path
         .parent()
         .ok_or_else(|| AppError::CommandError {
             message: "Cannot determine parent directory".to_string(),
-        })?
-        .to_string_lossy()
-        .to_string();
+        })?;
+
+    for ancestor in path.ancestors() {
+        if ancestor.file_name().map(|n| n == ".git").unwrap_or(false) {
+            work_dir = ancestor.parent().ok_or_else(|| AppError::CommandError {
+                message: "Cannot determine repository root".to_string(),
+            })?;
+            break;
+        }
+    }
+
+    let work_dir_str = work_dir.to_string_lossy().to_string();
 
     let output = Command::new("git")
-        .args(["-C", &work_dir, "rev-parse", "--show-toplevel"])
+        .args(["-C", &work_dir_str, "rev-parse", "--show-toplevel"])
         .output()
         .await
         .map_err(|e| AppError::CommandError {
@@ -59,9 +73,7 @@ async fn get_branch_name(git_root: &str) -> String {
         .await;
 
     match output {
-        Ok(o) if o.status.success() => {
-            String::from_utf8_lossy(&o.stdout).trim().to_string()
-        }
+        Ok(o) if o.status.success() => String::from_utf8_lossy(&o.stdout).trim().to_string(),
         _ => "HEAD".to_string(),
     }
 }
