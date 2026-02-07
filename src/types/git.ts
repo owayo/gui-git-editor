@@ -103,6 +103,15 @@ export interface ParseConflictsResult {
 	totalConflicts: number;
 }
 
+// A single line's git blame information
+export interface BlameLine {
+	lineNumber: number;
+	hash: string;
+	author: string;
+	date: string;
+	summary: string;
+}
+
 // Commit validation result
 export interface CommitValidation {
 	is_valid: boolean;

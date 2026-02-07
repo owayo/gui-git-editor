@@ -1,6 +1,6 @@
 import { create } from "zustand";
 import type { AppError } from "../types/errors";
-import type { ConflictRegion } from "../types/git";
+import type { BlameLine, ConflictRegion } from "../types/git";
 import * as ipc from "../types/ipc";
 
 interface MergeState {
@@ -30,6 +30,10 @@ interface MergeState {
 	// Codex state
 	codexAvailable: boolean | null;
 
+	// Blame data for side panels
+	localBlame: BlameLine[] | null;
+	remoteBlame: BlameLine[] | null;
+
 	// Stores replacement text per conflict for revert support
 	resolvedReplacements: Record<number, string>;
 
@@ -48,6 +52,7 @@ interface MergeState {
 	goToNextConflict: () => number | null;
 	goToPrevConflict: () => number | null;
 	save: () => Promise<boolean>;
+	fetchBlame: () => Promise<void>;
 	reloadMergedFile: () => Promise<void>;
 	checkCodexAvailable: () => Promise<void>;
 	openCodexResolve: () => Promise<void>;
@@ -71,6 +76,8 @@ const initialState = {
 	localLabel: "LOCAL",
 	remoteLabel: "REMOTE",
 	codexAvailable: null,
+	localBlame: null,
+	remoteBlame: null,
 	resolvedReplacements: {} as Record<number, string>,
 };
 
@@ -129,6 +136,9 @@ export const useMergeStore = create<MergeState>((set, get) => ({
 			isLoading: false,
 			isDirty: false,
 		});
+
+		// Fetch blame data in background (non-blocking)
+		get().fetchBlame();
 	},
 
 	acceptLocal: (conflictId) => {
@@ -329,6 +339,21 @@ export const useMergeStore = create<MergeState>((set, get) => ({
 		}
 		set({ error: result.error, isSaving: false });
 		return false;
+	},
+
+	fetchBlame: async () => {
+		const { mergedPath } = get();
+		if (!mergedPath) return;
+
+		const [localResult, remoteResult] = await Promise.all([
+			ipc.gitBlameForMerge(mergedPath, "local"),
+			ipc.gitBlameForMerge(mergedPath, "remote"),
+		]);
+
+		set({
+			localBlame: localResult.ok ? localResult.data : null,
+			remoteBlame: remoteResult.ok ? remoteResult.data : null,
+		});
 	},
 
 	reloadMergedFile: async () => {

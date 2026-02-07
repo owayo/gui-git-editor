@@ -5,6 +5,17 @@ use std::fs;
 use std::path::Path;
 use tokio::process::Command;
 
+/// A single line's git blame information.
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct BlameLine {
+    pub line_number: usize, // 1-based
+    pub hash: String,       // short hash (7 chars)
+    pub author: String,
+    pub date: String,    // YYYY-MM-DD
+    pub summary: String, // first line of commit message
+}
+
 /// A single file's content with its path.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -237,6 +248,175 @@ pub async fn parse_conflicts(content: String) -> Result<ParseConflictsResult, Ap
     Ok(parse_conflict_markers(&content))
 }
 
+/// Parse `git blame --line-porcelain` output into BlameLine entries.
+fn parse_line_porcelain(output: &str) -> Vec<BlameLine> {
+    let mut results: Vec<BlameLine> = Vec::new();
+    let mut current_hash = String::new();
+    let mut current_author = String::new();
+    let mut current_time: i64 = 0;
+    let mut current_summary = String::new();
+    let mut current_line: usize = 0;
+
+    for line in output.lines() {
+        if line.starts_with('\t') {
+            // Content line marks end of a block
+            let date = format_unix_timestamp(current_time);
+            results.push(BlameLine {
+                line_number: current_line,
+                hash: if current_hash.len() >= 7 {
+                    current_hash[..7].to_string()
+                } else {
+                    current_hash.clone()
+                },
+                author: current_author.clone(),
+                date,
+                summary: current_summary.clone(),
+            });
+        } else if let Some(rest) = line.strip_prefix("author ") {
+            current_author = rest.to_string();
+        } else if let Some(rest) = line.strip_prefix("author-time ") {
+            current_time = rest.parse::<i64>().unwrap_or(0);
+        } else if let Some(rest) = line.strip_prefix("summary ") {
+            current_summary = rest.to_string();
+        } else {
+            // Hash line: "<hash> <orig_line> <final_line> [<num_lines>]"
+            let parts: Vec<&str> = line.split_whitespace().collect();
+            if parts.len() >= 3 && parts[0].len() >= 7 {
+                // Validate that first part looks like a hex hash
+                if parts[0].chars().all(|c| c.is_ascii_hexdigit()) {
+                    current_hash = parts[0].to_string();
+                    current_line = parts[2].parse::<usize>().unwrap_or(0);
+                }
+            }
+        }
+    }
+
+    results
+}
+
+/// Format a Unix timestamp to YYYY-MM-DD without external crates.
+fn format_unix_timestamp(timestamp: i64) -> String {
+    if timestamp == 0 {
+        return "unknown".to_string();
+    }
+
+    // Simple days-based calculation
+    let secs_per_day: i64 = 86400;
+    let mut days = timestamp / secs_per_day;
+    // Shift epoch from 1970-01-01 to 0000-03-01 for easier month calculation
+    days += 719468;
+
+    let era = if days >= 0 { days } else { days - 146096 } / 146097;
+    let doe = (days - era * 146097) as u32; // day of era [0, 146096]
+    let yoe = (doe - doe / 1460 + doe / 36524 - doe / 146096) / 365; // year of era [0, 399]
+    let y = (yoe as i64) + era * 400;
+    let doy = doe - (365 * yoe + yoe / 4 - yoe / 100); // day of year [0, 365]
+    let mp = (5 * doy + 2) / 153; // month index [0, 11]
+    let d = doy - (153 * mp + 2) / 5 + 1; // day [1, 31]
+    let m = if mp < 10 { mp + 3 } else { mp - 9 }; // month [1, 12]
+    let y = if m <= 2 { y + 1 } else { y };
+
+    format!("{:04}-{:02}-{:02}", y, m, d)
+}
+
+/// Determine the git ref for the given side of a merge.
+async fn determine_merge_ref(git_dir: &Path, side: &str) -> String {
+    if side == "local" {
+        return "HEAD".to_string();
+    }
+
+    // remote side: try MERGE_HEAD, then REBASE_HEAD, then CHERRY_PICK_HEAD
+    for ref_name in &["MERGE_HEAD", "REBASE_HEAD", "CHERRY_PICK_HEAD"] {
+        if git_dir.join(ref_name).exists() {
+            return ref_name.to_string();
+        }
+    }
+
+    // Fallback
+    "HEAD".to_string()
+}
+
+/// Get git blame information for a merge file on the given side.
+#[tauri::command]
+pub async fn git_blame_for_merge(
+    merged_path: String,
+    side: String,
+) -> Result<Vec<BlameLine>, AppError> {
+    // Get working directory from merged path
+    let work_dir = Path::new(&merged_path)
+        .parent()
+        .ok_or_else(|| AppError::CommandError {
+            message: "Cannot determine parent directory".to_string(),
+        })?
+        .to_string_lossy()
+        .to_string();
+
+    // Get git repo root
+    let root_output = Command::new("git")
+        .args(["-C", &work_dir, "rev-parse", "--show-toplevel"])
+        .output()
+        .await
+        .map_err(|e| AppError::CommandError {
+            message: format!("Failed to run git rev-parse: {}", e),
+        })?;
+
+    if !root_output.status.success() {
+        return Err(AppError::CommandError {
+            message: "Not a git repository".to_string(),
+        });
+    }
+
+    let git_root = String::from_utf8_lossy(&root_output.stdout)
+        .trim()
+        .to_string();
+
+    // Calculate relative path from git root
+    let abs_merged = fs::canonicalize(&merged_path).map_err(|e| AppError::CommandError {
+        message: format!("Failed to canonicalize path: {}", e),
+    })?;
+    let abs_root = fs::canonicalize(&git_root).map_err(|e| AppError::CommandError {
+        message: format!("Failed to canonicalize git root: {}", e),
+    })?;
+    let relative_path = abs_merged
+        .strip_prefix(&abs_root)
+        .map_err(|_| AppError::CommandError {
+            message: "Merged path is not inside git repository".to_string(),
+        })?
+        .to_string_lossy()
+        .to_string();
+
+    // Determine ref based on side
+    let git_dir = Path::new(&git_root).join(".git");
+    let git_ref = determine_merge_ref(&git_dir, &side).await;
+
+    // Run git blame
+    let blame_output = Command::new("git")
+        .args([
+            "-C",
+            &git_root,
+            "blame",
+            "--line-porcelain",
+            &git_ref,
+            "--",
+            &relative_path,
+        ])
+        .output()
+        .await
+        .map_err(|e| AppError::CommandError {
+            message: format!("Failed to run git blame: {}", e),
+        })?;
+
+    if !blame_output.status.success() {
+        let stderr = String::from_utf8_lossy(&blame_output.stderr);
+        return Err(AppError::CommandError {
+            message: format!("git blame failed: {}", stderr),
+        });
+    }
+
+    let stdout = String::from_utf8_lossy(&blame_output.stdout);
+    Ok(parse_line_porcelain(&stdout))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -268,6 +448,61 @@ mod tests {
     fn test_detect_language_case_insensitive() {
         assert_eq!(detect_language("File.RS"), "rust");
         assert_eq!(detect_language("App.TSX"), "typescript");
+    }
+
+    #[test]
+    fn test_parse_line_porcelain_basic() {
+        let output = "\
+abc1234def5678901234567890123456789012345 1 1 1
+author Alice
+author-mail <alice@example.com>
+author-time 1700000000
+author-tz +0900
+committer Alice
+committer-mail <alice@example.com>
+committer-time 1700000000
+committer-tz +0900
+summary Initial commit
+filename src/main.rs
+\tuse std::io;
+def5678abc1234901234567890123456789012345 2 2 1
+author Bob
+author-mail <bob@example.com>
+author-time 1700086400
+author-tz +0000
+committer Bob
+committer-mail <bob@example.com>
+committer-time 1700086400
+committer-tz +0000
+summary Add feature X
+filename src/main.rs
+\tfn main() {}
+";
+        let result = parse_line_porcelain(output);
+        assert_eq!(result.len(), 2);
+
+        assert_eq!(result[0].line_number, 1);
+        assert_eq!(result[0].hash, "abc1234");
+        assert_eq!(result[0].author, "Alice");
+        assert_eq!(result[0].summary, "Initial commit");
+
+        assert_eq!(result[1].line_number, 2);
+        assert_eq!(result[1].hash, "def5678");
+        assert_eq!(result[1].author, "Bob");
+        assert_eq!(result[1].summary, "Add feature X");
+    }
+
+    #[test]
+    fn test_parse_line_porcelain_empty() {
+        let result = parse_line_porcelain("");
+        assert!(result.is_empty());
+    }
+
+    #[test]
+    fn test_format_unix_timestamp() {
+        assert_eq!(format_unix_timestamp(0), "unknown");
+        assert_eq!(format_unix_timestamp(1700000000), "2023-11-14");
+        assert_eq!(format_unix_timestamp(1000000000), "2001-09-09");
     }
 
     #[test]

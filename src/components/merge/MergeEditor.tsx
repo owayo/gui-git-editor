@@ -16,6 +16,7 @@ import { CodexResolveButton } from "./CodexResolveButton";
 import { ConflictActions } from "./ConflictActions";
 import { ConflictNavigator } from "./ConflictNavigator";
 import { MonacoPanel } from "./MonacoPanel";
+import { useBlameDecorations } from "./useBlameDecorations";
 import { useConflictDecorations } from "./useConflictDecorations";
 import { useSidePanelConflictDecorations } from "./useSidePanelConflictDecorations";
 
@@ -36,6 +37,8 @@ export function MergeEditor({ filePaths }: MergeEditorProps) {
 		allResolved,
 		isLoading,
 		error,
+		localBlame,
+		remoteBlame,
 		initMerge,
 		updateMergedContent,
 		goToNextConflict,
@@ -89,6 +92,10 @@ export function MergeEditor({ filePaths }: MergeEditorProps) {
 		"remote",
 		remoteReady,
 	);
+
+	// Apply blame tooltips to side panels
+	useBlameDecorations(localEditorRef, localBlame, localReady);
+	useBlameDecorations(remoteEditorRef, remoteBlame, remoteReady);
 
 	// Keyboard shortcut handlers
 	const handleShortcutSave = useCallback(async () => {

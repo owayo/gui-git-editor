@@ -4,9 +4,10 @@ mod parser;
 
 use commands::{
     check_backup_exists, check_codex_available, create_backup, delete_backup, exit_app,
-    generate_commit_message, generate_commit_message_from_staged, open_codex_terminal,
-    parse_commit_msg, parse_conflicts, parse_rebase_todo, read_file, read_merge_files,
-    restore_backup, serialize_commit_msg, serialize_rebase_todo, validate_commit_msg, write_file,
+    generate_commit_message, generate_commit_message_from_staged, git_blame_for_merge,
+    open_codex_terminal, parse_commit_msg, parse_conflicts, parse_rebase_todo, read_file,
+    read_merge_files, restore_backup, serialize_commit_msg, serialize_rebase_todo,
+    validate_commit_msg, write_file,
 };
 use std::sync::atomic::{AtomicBool, Ordering};
 use tauri::Manager;
@@ -111,6 +112,7 @@ pub fn run() {
             validate_commit_msg,
             read_merge_files,
             parse_conflicts,
+            git_blame_for_merge,
             check_codex_available,
             open_codex_terminal,
         ])

@@ -1,6 +1,7 @@
 import { invoke } from "@tauri-apps/api/core";
 import type { AppError } from "./errors";
 import type {
+	BlameLine,
 	CommitMessage,
 	CommitValidation,
 	FileContent,
@@ -145,6 +146,14 @@ export async function parseConflicts(
 	content: string,
 ): Promise<IpcResult<ParseConflictsResult>> {
 	return safeInvoke<ParseConflictsResult>("parse_conflicts", { content });
+}
+
+// Git blame for merge
+export async function gitBlameForMerge(
+	mergedPath: string,
+	side: "local" | "remote",
+): Promise<IpcResult<BlameLine[]>> {
+	return safeInvoke<BlameLine[]>("git_blame_for_merge", { mergedPath, side });
 }
 
 // Codex CLI operations
