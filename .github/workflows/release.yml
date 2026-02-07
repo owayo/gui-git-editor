@@ -100,14 +100,17 @@ jobs:
 
       - name: Create Release
         id: create_release
-        uses: actions/create-release@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          tag_name: ${{ needs.prepare-release.outputs.tag }}
-          release_name: Release ${{ needs.prepare-release.outputs.tag }}
-          draft: true
-          prerelease: false
+        run: |
+          release_id=$(gh api repos/${{ github.repository }}/releases \
+            --method POST \
+            -f tag_name="${{ needs.prepare-release.outputs.tag }}" \
+            -f name="Release ${{ needs.prepare-release.outputs.tag }}" \
+            -F draft=true \
+            -F prerelease=false \
+            --jq '.id')
+          echo "id=${release_id}" >> $GITHUB_OUTPUT
 
   build-tauri:
     name: Build Tauri App
