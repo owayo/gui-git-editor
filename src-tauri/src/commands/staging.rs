@@ -31,11 +31,9 @@ async fn resolve_git_root(file_path: &str) -> Result<String, AppError> {
     let path = Path::new(file_path);
 
     // Walk up ancestors; if any component is ".git", use its parent as work dir
-    let mut work_dir = path
-        .parent()
-        .ok_or_else(|| AppError::CommandError {
-            message: "Cannot determine parent directory".to_string(),
-        })?;
+    let mut work_dir = path.parent().ok_or_else(|| AppError::CommandError {
+        message: "Cannot determine parent directory".to_string(),
+    })?;
 
     for ancestor in path.ancestors() {
         if ancestor.file_name().map(|n| n == ".git").unwrap_or(false) {
