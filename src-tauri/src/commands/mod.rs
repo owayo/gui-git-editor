@@ -12,6 +12,6 @@ pub use file::{
 };
 pub use merge::{git_blame_for_merge, parse_conflicts, read_merge_files};
 pub use rebase::{
-    generate_commit_message, generate_commit_message_from_staged, parse_rebase_todo,
-    serialize_rebase_todo,
+    check_git_sc_available, generate_commit_message, generate_commit_message_from_staged,
+    parse_rebase_todo, serialize_rebase_todo,
 };

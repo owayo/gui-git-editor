@@ -156,6 +156,11 @@ export async function gitBlameForMerge(
 	return safeInvoke<BlameLine[]>("git_blame_for_merge", { mergedPath, side });
 }
 
+// git-sc availability check
+export async function checkGitScAvailable(): Promise<IpcResult<boolean>> {
+	return safeInvoke<boolean>("check_git_sc_available");
+}
+
 // Codex CLI operations
 export async function checkCodexAvailable(): Promise<IpcResult<boolean>> {
 	return safeInvoke<boolean>("check_codex_available");

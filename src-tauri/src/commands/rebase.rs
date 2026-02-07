@@ -17,6 +17,19 @@ pub fn serialize_rebase_todo(file: RebaseTodoFile) -> String {
     serialize_todo(&file)
 }
 
+/// Check if git-sc is available on the system.
+#[tauri::command]
+pub async fn check_git_sc_available() -> Result<bool, AppError> {
+    let output = Command::new("which")
+        .arg("git-sc")
+        .output()
+        .await
+        .map_err(|_| AppError::CommandError {
+            message: "Failed to run which".to_string(),
+        })?;
+    Ok(output.status.success())
+}
+
 /// Generate commit message using git-sc for specified commit hashes
 #[tauri::command]
 pub async fn generate_commit_message(

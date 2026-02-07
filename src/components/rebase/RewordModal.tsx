@@ -1,7 +1,7 @@
 import { SparklesIcon, XMarkIcon } from "@heroicons/react/24/outline";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { getErrorMessage } from "../../types/errors";
-import { generateCommitMessage } from "../../types/ipc";
+import { checkGitScAvailable, generateCommitMessage } from "../../types/ipc";
 import { getModifierKey } from "../../utils/platform";
 
 interface RewordModalProps {
@@ -25,7 +25,12 @@ export function RewordModal({
 	const [message, setMessage] = useState(initialMessage);
 	const [isGenerating, setIsGenerating] = useState(false);
 	const [generateError, setGenerateError] = useState<string | null>(null);
+	const [gitScAvailable, setGitScAvailable] = useState<boolean | null>(null);
 	const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+	useEffect(() => {
+		checkGitScAvailable().then((r) => setGitScAvailable(r.ok ? r.data : false));
+	}, []);
 
 	// Reset message when modal opens with new initial message
 	useEffect(() => {
@@ -141,26 +146,28 @@ export function RewordModal({
 
 				{/* Body */}
 				<div className="p-4">
-					<div className="mb-3 flex items-center justify-end gap-2">
-						<button
-							type="button"
-							onClick={() => handleGenerateWithAI(false)}
-							disabled={isGenerating}
-							className="flex items-center gap-1.5 rounded-md bg-purple-600 px-3 py-1.5 text-sm text-white hover:bg-purple-700 disabled:cursor-not-allowed disabled:opacity-50"
-						>
-							<SparklesIcon className="h-4 w-4" />
-							{isGenerating ? "生成中..." : "タイトルのみ"}
-						</button>
-						<button
-							type="button"
-							onClick={() => handleGenerateWithAI(true)}
-							disabled={isGenerating}
-							className="flex items-center gap-1.5 rounded-md bg-purple-700 px-3 py-1.5 text-sm text-white hover:bg-purple-800 disabled:cursor-not-allowed disabled:opacity-50"
-						>
-							<SparklesIcon className="h-4 w-4" />
-							{isGenerating ? "生成中..." : "本文も生成"}
-						</button>
-					</div>
+					{gitScAvailable && (
+						<div className="mb-3 flex items-center justify-end gap-2">
+							<button
+								type="button"
+								onClick={() => handleGenerateWithAI(false)}
+								disabled={isGenerating}
+								className="flex items-center gap-1.5 rounded-md bg-purple-600 px-3 py-1.5 text-sm text-white hover:bg-purple-700 disabled:cursor-not-allowed disabled:opacity-50"
+							>
+								<SparklesIcon className="h-4 w-4" />
+								{isGenerating ? "生成中..." : "タイトルのみ"}
+							</button>
+							<button
+								type="button"
+								onClick={() => handleGenerateWithAI(true)}
+								disabled={isGenerating}
+								className="flex items-center gap-1.5 rounded-md bg-purple-700 px-3 py-1.5 text-sm text-white hover:bg-purple-800 disabled:cursor-not-allowed disabled:opacity-50"
+							>
+								<SparklesIcon className="h-4 w-4" />
+								{isGenerating ? "生成中..." : "本文も生成"}
+							</button>
+						</div>
+					)}
 
 					{generateError && (
 						<div

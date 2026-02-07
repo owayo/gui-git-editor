@@ -62,19 +62,18 @@ xattr -d com.apple.quarantine /Applications/gui-git-editor.app
 
 ## Usage
 
-### Git エディタとして設定
+### Git commit 時のエディタとして設定
 
 ```bash
 git config --global core.editor '"/Applications/gui-git-editor.app/Contents/MacOS/gui-git-editor"'
 ```
 
-### 設定スクリプト
+### Git rebase -i 時のエディタとして設定
 
 ```bash
-./scripts/set-editor-release.sh   # リリースビルド
-./scripts/set-editor-dev.sh       # デバッグビルド
-./scripts/set-editor-vscode.sh    # VS Code に戻す
+git config --global sequence.editor '"/Applications/gui-git-editor.app/Contents/MacOS/gui-git-editor"'
 ```
+※ `sequence.editor` 未設定時は `rebase -i` 時、`core.editor` が使用されます。`rebase -i` 時だけ使いたい場合に設定してください。
 
 ### Git マージツールとして設定
 
