@@ -54,7 +54,7 @@ export function CodexResolveButton() {
 				type="button"
 				onClick={handleOpenCodex}
 				disabled={!codexAvailable}
-				className="flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm font-medium transition-colors enabled:bg-purple-100 enabled:text-purple-700 enabled:hover:bg-purple-200 disabled:cursor-not-allowed disabled:text-gray-400 dark:enabled:bg-purple-900 dark:enabled:text-purple-300 dark:enabled:hover:bg-purple-800 dark:disabled:text-gray-600"
+				className="flex items-center gap-1.5 rounded-md border border-gray-300 bg-white px-3 py-1.5 text-sm font-medium text-gray-900 transition-colors hover:bg-gray-100 disabled:cursor-not-allowed disabled:border-gray-200 disabled:text-gray-400 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100 dark:hover:bg-gray-700 dark:disabled:border-gray-700 dark:disabled:text-gray-600"
 				title={
 					codexAvailable
 						? "Codex CLI でコンフリクトを自動解決"
