@@ -54,7 +54,9 @@ async fn open_codex_terminal_macos(merged_path: String) -> Result<(), AppError> 
     let request = format!(
         "ファイル {} のコンフリクトマーカーをすべて解決してください。\
         コンフリクトマーカー（<<<<<<<, =======, >>>>>>>）を除去し、\
-        適切にマージされたコードに置き換えてください。",
+        適切にマージされたコードに置き換えてください。\
+        解決後、プロジェクトに設定されている linter や formatter を実行し、\
+        エラーや警告がないことを確認してください。",
         merged_path
     );
 
