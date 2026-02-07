@@ -39,6 +39,26 @@ Interactive rebase、commit message編集、squash、rewordなどをすべてサ
 - 🤖 **Codex 連携** - [Codex CLI](https://github.com/openai/codex) + iTerm2 でコンフリクトを自動解決
 - ♿ **アクセシビリティ** - ARIA属性、フォーカス管理対応
 
+## Screenshots
+
+### Commit Message Editor
+
+<p align="center">
+  <img src="docs/images/commit.png" width="720" alt="Commit Message Editor">
+</p>
+
+### Interactive Rebase
+
+<p align="center">
+  <img src="docs/images/rebase_i.png" width="720" alt="Interactive Rebase">
+</p>
+
+### Merge Tool
+
+<p align="center">
+  <img src="docs/images/mergetool.png" width="720" alt="Merge Tool">
+</p>
+
 ## Download
 
 | Platform | Download |
