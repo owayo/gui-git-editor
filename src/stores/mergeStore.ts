@@ -350,6 +350,13 @@ export const useMergeStore = create<MergeState>((set, get) => ({
 			ipc.gitBlameForMerge(mergedPath, "remote"),
 		]);
 
+		if (!localResult.ok) {
+			console.warn("[blame] local blame failed:", localResult.error);
+		}
+		if (!remoteResult.ok) {
+			console.warn("[blame] remote blame failed:", remoteResult.error);
+		}
+
 		set({
 			localBlame: localResult.ok ? localResult.data : null,
 			remoteBlame: remoteResult.ok ? remoteResult.data : null,

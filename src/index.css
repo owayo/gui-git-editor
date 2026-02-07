@@ -83,6 +83,12 @@ body {
 	margin-left: 3px;
 }
 
+/* Blame glyph margin indicator */
+.blame-glyph {
+	opacity: 0;
+	width: 2px !important;
+}
+
 /* Dark mode adjustments for conflict decorations */
 .dark .conflict-marker-line {
 	background-color: rgba(239, 68, 68, 0.2) !important;

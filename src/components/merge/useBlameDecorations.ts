@@ -3,7 +3,8 @@ import { useEffect, useRef } from "react";
 import type { BlameLine } from "../../types/git";
 
 /**
- * Apply git blame hover tooltips to the glyph margin of a Monaco editor.
+ * Apply git blame hover tooltips to a Monaco editor.
+ * Shows blame info when hovering over the glyph margin or line number area.
  * Groups consecutive lines with the same commit hash into a single decoration.
  */
 export function useBlameDecorations(
@@ -48,14 +49,20 @@ export function useBlameDecorations(
 			}
 		}
 
+		const hoverMsg = (
+			group: (typeof groups)[number],
+		): MonacoEditor.IMarkdownString => ({
+			value: `**${group.blame.hash}** ${group.blame.summary}  \n${group.blame.author} \u2014 ${group.blame.date}`,
+		});
+
 		const decorations: MonacoEditor.editor.IModelDeltaDecoration[] = groups.map(
 			(group) => ({
 				range: new monaco.Range(group.startLine, 1, group.endLine, 1),
 				options: {
 					isWholeLine: true,
-					glyphMarginHoverMessage: {
-						value: `**${group.blame.hash}** ${group.blame.summary}\n\n${group.blame.author} \u2014 ${group.blame.date}`,
-					},
+					glyphMarginClassName: "blame-glyph",
+					glyphMarginHoverMessage: hoverMsg(group),
+					hoverMessage: hoverMsg(group),
 				},
 			}),
 		);
