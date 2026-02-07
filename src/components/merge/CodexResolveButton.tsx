@@ -24,6 +24,7 @@ export function CodexResolveButton() {
 	} = useMergeStore();
 
 	const [codexLaunched, setCodexLaunched] = useState(false);
+	const [isLaunching, setIsLaunching] = useState(false);
 	const [isReloading, setIsReloading] = useState(false);
 
 	// Check codex availability on mount
@@ -32,9 +33,15 @@ export function CodexResolveButton() {
 	}, [checkCodexAvailable]);
 
 	const handleOpenCodex = useCallback(async () => {
-		await openCodexResolve();
-		setCodexLaunched(true);
-	}, [openCodexResolve]);
+		if (isLaunching || codexLaunched) return;
+		setIsLaunching(true);
+		try {
+			await openCodexResolve();
+			setCodexLaunched(true);
+		} finally {
+			setIsLaunching(false);
+		}
+	}, [openCodexResolve, isLaunching, codexLaunched]);
 
 	const handleReload = useCallback(async () => {
 		setIsReloading(true);
@@ -53,16 +60,24 @@ export function CodexResolveButton() {
 			<button
 				type="button"
 				onClick={handleOpenCodex}
-				disabled={!codexAvailable}
+				disabled={!codexAvailable || isLaunching || codexLaunched}
 				className="flex items-center gap-1.5 rounded-md border border-gray-300 bg-white px-3 py-1.5 text-sm font-medium text-gray-900 transition-colors hover:bg-gray-100 disabled:cursor-not-allowed disabled:border-gray-200 disabled:text-gray-400 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100 dark:hover:bg-gray-700 dark:disabled:border-gray-700 dark:disabled:text-gray-600"
 				title={
-					codexAvailable
-						? "Codex CLI でコンフリクトを自動解決"
-						: "codex がインストールされていません (npm i -g @openai/codex)"
+					isLaunching
+						? "Codex を起動中..."
+						: codexLaunched
+							? "Codex 起動済み — 再読み込みで結果を反映"
+							: codexAvailable
+								? "Codex CLI でコンフリクトを自動解決"
+								: "codex がインストールされていません (npm i -g @openai/codex)"
 				}
 			>
-				<OpenAIIcon className="h-4 w-4" />
-				Codex で解決
+				{isLaunching ? (
+					<ArrowPathIcon className="h-4 w-4 animate-spin" aria-hidden="true" />
+				) : (
+					<OpenAIIcon className="h-4 w-4" />
+				)}
+				{isLaunching ? "起動中..." : "Codex で解決"}
 			</button>
 
 			{codexLaunched && (
