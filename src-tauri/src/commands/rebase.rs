@@ -52,29 +52,10 @@ pub async fn generate_commit_message(
     run_git_sc(&args).await
 }
 
-/// Generate commit message using git-sc for staged changes (uses HEAD as reference)
+/// Generate commit message using git-sc for staged changes (dry run)
 #[tauri::command]
 pub async fn generate_commit_message_from_staged(with_body: bool) -> Result<String, AppError> {
-    // Get HEAD commit hash
-    let head_output = Command::new("git")
-        .args(["rev-parse", "HEAD"])
-        .output()
-        .await
-        .map_err(|e| AppError::CommandError {
-            message: format!("Failed to get HEAD: {}", e),
-        })?;
-
-    if !head_output.status.success() {
-        return Err(AppError::CommandError {
-            message: "No commits in repository yet".to_string(),
-        });
-    }
-
-    let head_hash = String::from_utf8_lossy(&head_output.stdout)
-        .trim()
-        .to_string();
-
-    let mut args = vec!["--generate-for".to_string(), head_hash];
+    let mut args = vec!["--dry-run".to_string()];
 
     if with_body {
         args.push("--body".to_string());

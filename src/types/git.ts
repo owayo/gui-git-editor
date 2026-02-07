@@ -112,6 +112,23 @@ export interface BlameLine {
 	summary: string;
 }
 
+// File status from git status --porcelain
+export interface FileStatus {
+	path: string;
+	originalPath: string | null;
+	indexStatus: string;
+	worktreeStatus: string;
+}
+
+// Git status result with categorized files
+export interface GitStatusResult {
+	staged: FileStatus[];
+	unstaged: FileStatus[];
+	untracked: FileStatus[];
+	repoRoot: string;
+	branchName: string;
+}
+
 // Commit validation result
 export interface CommitValidation {
 	is_valid: boolean;

@@ -5,6 +5,7 @@ import type {
 	CommitMessage,
 	CommitValidation,
 	FileContent,
+	GitStatusResult,
 	MergeFiles,
 	ParseConflictsResult,
 	RebaseTodoFile,
@@ -170,4 +171,37 @@ export async function openCodexTerminal(
 	mergedPath: string,
 ): Promise<IpcResult<void>> {
 	return safeInvoke<void>("open_codex_terminal", { mergedPath });
+}
+
+// Staging operations
+export async function gitStatus(
+	filePath: string,
+): Promise<IpcResult<GitStatusResult>> {
+	return safeInvoke<GitStatusResult>("git_status", { filePath });
+}
+
+export async function gitStageFile(
+	filePath: string,
+	target: string,
+): Promise<IpcResult<void>> {
+	return safeInvoke<void>("git_stage_file", { filePath, target });
+}
+
+export async function gitUnstageFile(
+	filePath: string,
+	target: string,
+): Promise<IpcResult<void>> {
+	return safeInvoke<void>("git_unstage_file", { filePath, target });
+}
+
+export async function gitStageAll(filePath: string): Promise<IpcResult<void>> {
+	return safeInvoke<void>("git_stage_all", { filePath });
+}
+
+export async function gitDiffFile(
+	filePath: string,
+	target: string,
+	staged: boolean,
+): Promise<IpcResult<string>> {
+	return safeInvoke<string>("git_diff_file", { filePath, target, staged });
 }
