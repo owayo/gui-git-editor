@@ -1563,7 +1563,7 @@ dependencies = [
 
 [[package]]
 name = "gui-git-editor"
-version = "26.2.100"
+version = "26.2.101"
 dependencies = [
  "base64 0.22.1",
  "log",
