@@ -83,6 +83,7 @@ export function RebaseEditor() {
 		updateEntryCommand,
 		setSimpleCommand,
 		updateEntryMessage,
+		squashAll,
 	} = useRebaseStore();
 
 	// State for reword modal
@@ -208,9 +209,20 @@ export function RebaseEditor() {
 				<h2 className="text-lg font-semibold text-gray-800 dark:text-gray-200">
 					Rebase エントリ
 				</h2>
-				<span className="rounded-full bg-gray-200 px-3 py-1 text-sm text-gray-600 dark:bg-gray-700 dark:text-gray-400">
-					{entries.length} 件
-				</span>
+				<div className="flex items-center gap-2">
+					{entries.length >= 2 && (
+						<button
+							type="button"
+							onClick={squashAll}
+							className="rounded-md bg-purple-100 px-3 py-1 text-sm font-medium text-purple-700 hover:bg-purple-200 dark:bg-purple-900/30 dark:text-purple-300 dark:hover:bg-purple-900/50"
+						>
+							すべて1つにまとめる
+						</button>
+					)}
+					<span className="rounded-full bg-gray-200 px-3 py-1 text-sm text-gray-600 dark:bg-gray-700 dark:text-gray-400">
+						{entries.length} 件
+					</span>
+				</div>
 			</div>
 
 			{/* Instructions */}

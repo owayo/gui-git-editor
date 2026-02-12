@@ -35,6 +35,7 @@ interface RebaseState {
 	setSimpleCommand: (id: string, command: SimpleCommand) => void;
 	dropEntry: (id: string) => void;
 	undropEntry: (id: string) => void;
+	squashAll: () => void;
 	clearError: () => void;
 	reset: () => void;
 }
@@ -162,6 +163,15 @@ export const useRebaseStore = create<RebaseState>((set, get) => ({
 
 	undropEntry: (id: string) => {
 		get().updateEntryCommand(id, { type: "pick" });
+	},
+
+	squashAll: () => {
+		set((state) => ({
+			entries: state.entries.map((entry, index) =>
+				index === 0 ? entry : { ...entry, command: { type: "fixup" as const } },
+			),
+			isDirty: true,
+		}));
 	},
 
 	clearError: () => set({ error: null }),
