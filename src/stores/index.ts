@@ -1,3 +1,4 @@
+export { useCommitDiffStore } from "./commitDiffStore";
 export { useCommitStore } from "./commitStore";
 export { useFileStore } from "./fileStore";
 export { useHistoryStore } from "./historyStore";

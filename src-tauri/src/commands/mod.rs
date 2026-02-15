@@ -1,5 +1,6 @@
 pub mod codex;
 pub mod commit;
+pub mod commit_diff;
 pub mod file;
 pub mod merge;
 pub mod rebase;
@@ -7,6 +8,7 @@ pub mod staging;
 
 pub use codex::{check_codex_available, open_codex_terminal};
 pub use commit::{parse_commit_msg, serialize_commit_msg, validate_commit_msg};
+pub use commit_diff::{git_commit_diff, git_commit_files};
 pub use file::{
     check_backup_exists, create_backup, delete_backup, exit_app, read_file, restore_backup,
     write_file,

@@ -129,6 +129,13 @@ export interface GitStatusResult {
 	branchName: string;
 }
 
+// File info from commit diff-tree
+export interface CommitFileInfo {
+	path: string;
+	originalPath: string | null;
+	status: string;
+}
+
 // Commit validation result
 export interface CommitValidation {
 	is_valid: boolean;

@@ -27,7 +27,7 @@ pub struct GitStatusResult {
 /// Resolve git repository root from a file path (e.g. .git/COMMIT_EDITMSG).
 /// Handles the case where the file is inside the .git directory, where
 /// `git rev-parse --show-toplevel` would fail with "this operation must be run in a work tree".
-async fn resolve_git_root(file_path: &str) -> Result<String, AppError> {
+pub(crate) async fn resolve_git_root(file_path: &str) -> Result<String, AppError> {
     let path = Path::new(file_path);
 
     // Walk up ancestors; if any component is ".git", use its parent as work dir

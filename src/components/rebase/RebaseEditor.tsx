@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useState } from "react";
-import { useRebaseStore } from "../../stores";
+import { useFileStore, useRebaseStore } from "../../stores";
 import type { RebaseEntry, SimpleCommand } from "../../types/git";
 import { getModifierKey, getShortcut } from "../../utils/platform";
+import { CommitChangeViewer } from "./CommitChangeViewer";
 import { RebaseEntryList } from "./RebaseEntryList";
 import { RewordModal } from "./RewordModal";
 
@@ -86,6 +87,13 @@ export function RebaseEditor() {
 		squashAll,
 	} = useRebaseStore();
 
+	const filePath = useFileStore((s) => s.filePath);
+
+	// Get selected entry for the change viewer
+	const selectedEntry = entries.find((e) => e.id === selectedEntryId);
+	const selectedCommitHash = selectedEntry?.commit_hash || null;
+	const selectedMessage = selectedEntry?.message || "";
+
 	// State for reword modal
 	const [rewordEntry, setRewordEntry] = useState<RebaseEntry | null>(null);
 
@@ -123,8 +131,24 @@ export function RebaseEditor() {
 				return;
 			}
 
+			// Shift+F: Squash all into one (fixup all except first)
+			if (
+				event.shiftKey &&
+				!event.ctrlKey &&
+				!event.metaKey &&
+				!event.altKey &&
+				event.key.toLowerCase() === "f"
+			) {
+				if (entries.length >= 2) {
+					event.preventDefault();
+					squashAll();
+				}
+				return;
+			}
+
 			// Ignore other shortcuts if modifier keys are pressed
-			if (event.ctrlKey || event.metaKey || event.altKey) return;
+			if (event.ctrlKey || event.metaKey || event.altKey || event.shiftKey)
+				return;
 
 			const command = COMMAND_SHORTCUTS[event.key.toLowerCase()];
 			if (command && selectedEntryId) {
@@ -163,7 +187,14 @@ export function RebaseEditor() {
 				}
 			}
 		},
-		[selectedEntryId, entries, setSimpleCommand, selectEntry, moveEntry],
+		[
+			selectedEntryId,
+			entries,
+			setSimpleCommand,
+			selectEntry,
+			moveEntry,
+			squashAll,
+		],
 	);
 
 	useEffect(() => {
@@ -203,123 +234,149 @@ export function RebaseEditor() {
 	);
 
 	return (
-		<div className="flex h-full flex-col gap-4">
-			{/* Header with entry count */}
-			<div className="flex items-center justify-between">
-				<h2 className="text-lg font-semibold text-gray-800 dark:text-gray-200">
-					Rebase エントリ
-				</h2>
-				<div className="flex items-center gap-2">
-					{entries.length >= 2 && (
-						<button
-							type="button"
-							onClick={squashAll}
-							className="rounded-md bg-purple-100 px-3 py-1 text-sm font-medium text-purple-700 hover:bg-purple-200 dark:bg-purple-900/30 dark:text-purple-300 dark:hover:bg-purple-900/50"
-						>
-							すべて1つにまとめる
-						</button>
-					)}
-					<span className="rounded-full bg-gray-200 px-3 py-1 text-sm text-gray-600 dark:bg-gray-700 dark:text-gray-400">
-						{entries.length} 件
+		<div className="flex h-full gap-0">
+			{/* Left: Entry list */}
+			<div className="flex min-w-0 flex-1 flex-col gap-4">
+				{/* Header with entry count */}
+				<div className="flex items-center justify-between">
+					<h2 className="text-lg font-semibold text-gray-800 dark:text-gray-200">
+						Rebase エントリ
+					</h2>
+					<div className="flex items-center gap-2">
+						{entries.length >= 2 && (
+							<button
+								type="button"
+								onClick={squashAll}
+								className="rounded-md bg-purple-100 px-3 py-1 text-sm font-medium text-purple-700 hover:bg-purple-200 dark:bg-purple-900/30 dark:text-purple-300 dark:hover:bg-purple-900/50"
+							>
+								すべて1つにまとめる
+								<kbd className="ml-1.5 rounded bg-purple-200 px-1 py-0.5 font-mono text-xs dark:bg-purple-800">
+									Shift+F
+								</kbd>
+							</button>
+						)}
+						<span className="rounded-full bg-gray-200 px-3 py-1 text-sm text-gray-600 dark:bg-gray-700 dark:text-gray-400">
+							{entries.length} 件
+						</span>
+					</div>
+				</div>
+
+				{/* Instructions */}
+				<div className="rounded-lg bg-blue-50 p-3 text-sm text-blue-700 dark:bg-blue-900/20 dark:text-blue-300">
+					<p>
+						ドラッグ&ドロップで順序を変更できます。コマンドを選択してアクションを変更してください。
+					</p>
+				</div>
+
+				{/* Entry list */}
+				<div className="flex-1 overflow-auto">
+					<RebaseEntryList
+						entries={entries}
+						selectedEntryId={selectedEntryId}
+						onSelectEntry={selectEntry}
+						onReorder={moveEntry}
+						onCommandChange={handleCommandChange}
+					/>
+				</div>
+
+				{/* Comments section (collapsed by default) */}
+				{comments.length > 0 && (
+					<details className="rounded-lg border border-gray-200 dark:border-gray-700">
+						<summary className="cursor-pointer px-4 py-2 text-sm font-medium text-gray-600 hover:bg-gray-50 dark:text-gray-400 dark:hover:bg-gray-800">
+							コメント ({comments.length} 行)
+						</summary>
+						<div className="border-t border-gray-200 bg-gray-50 p-4 dark:border-gray-700 dark:bg-gray-800/50">
+							<pre className="font-mono text-xs whitespace-pre-wrap text-gray-500 dark:text-gray-500">
+								{comments.join("\n")}
+							</pre>
+						</div>
+					</details>
+				)}
+
+				{/* Keyboard shortcuts help */}
+				<div className="flex flex-wrap gap-x-4 gap-y-1 border-t border-gray-200 pt-3 text-xs text-gray-500 dark:border-gray-700 dark:text-gray-500">
+					<span>
+						<kbd className="rounded bg-gray-200 px-1.5 py-0.5 font-mono dark:bg-gray-700">
+							p
+						</kbd>{" "}
+						pick
+					</span>
+					<span>
+						<kbd className="rounded bg-gray-200 px-1.5 py-0.5 font-mono dark:bg-gray-700">
+							r
+						</kbd>{" "}
+						reword
+					</span>
+					<span>
+						<kbd className="rounded bg-gray-200 px-1.5 py-0.5 font-mono dark:bg-gray-700">
+							e
+						</kbd>{" "}
+						edit
+					</span>
+					<span>
+						<kbd className="rounded bg-gray-200 px-1.5 py-0.5 font-mono dark:bg-gray-700">
+							s
+						</kbd>{" "}
+						squash
+					</span>
+					<span>
+						<kbd className="rounded bg-gray-200 px-1.5 py-0.5 font-mono dark:bg-gray-700">
+							f
+						</kbd>{" "}
+						fixup
+					</span>
+					<span>
+						<kbd className="rounded bg-gray-200 px-1.5 py-0.5 font-mono dark:bg-gray-700">
+							d
+						</kbd>{" "}
+						drop
+					</span>
+					<span>
+						<kbd className="rounded bg-gray-200 px-1.5 py-0.5 font-mono dark:bg-gray-700">
+							↑↓
+						</kbd>{" "}
+						選択
+					</span>
+					<span>
+						<kbd className="rounded bg-gray-200 px-1.5 py-0.5 font-mono dark:bg-gray-700">
+							{getModifierKey()}+↑↓
+						</kbd>{" "}
+						順序変更
+					</span>
+					<span>
+						<kbd className="rounded bg-gray-200 px-1.5 py-0.5 font-mono dark:bg-gray-700">
+							Shift+F
+						</kbd>{" "}
+						全まとめ
+					</span>
+					<span>
+						<kbd className="rounded bg-gray-200 px-1.5 py-0.5 font-mono dark:bg-gray-700">
+							{getShortcut("Z")}
+						</kbd>{" "}
+						戻す
+					</span>
+					<span>
+						<kbd className="rounded bg-gray-200 px-1.5 py-0.5 font-mono dark:bg-gray-700">
+							{getShortcut("S")}
+						</kbd>{" "}
+						保存
 					</span>
 				</div>
 			</div>
 
-			{/* Instructions */}
-			<div className="rounded-lg bg-blue-50 p-3 text-sm text-blue-700 dark:bg-blue-900/20 dark:text-blue-300">
-				<p>
-					ドラッグ&ドロップで順序を変更できます。コマンドを選択してアクションを変更してください。
-				</p>
-			</div>
+			{/* Divider */}
+			<div className="w-px bg-gray-200 dark:bg-gray-700" />
 
-			{/* Entry list */}
-			<div className="flex-1 overflow-auto">
-				<RebaseEntryList
-					entries={entries}
-					selectedEntryId={selectedEntryId}
-					onSelectEntry={selectEntry}
-					onReorder={moveEntry}
-					onCommandChange={handleCommandChange}
-				/>
-			</div>
-
-			{/* Comments section (collapsed by default) */}
-			{comments.length > 0 && (
-				<details className="rounded-lg border border-gray-200 dark:border-gray-700">
-					<summary className="cursor-pointer px-4 py-2 text-sm font-medium text-gray-600 hover:bg-gray-50 dark:text-gray-400 dark:hover:bg-gray-800">
-						コメント ({comments.length} 行)
-					</summary>
-					<div className="border-t border-gray-200 bg-gray-50 p-4 dark:border-gray-700 dark:bg-gray-800/50">
-						<pre className="font-mono text-xs whitespace-pre-wrap text-gray-500 dark:text-gray-500">
-							{comments.join("\n")}
-						</pre>
-					</div>
-				</details>
+			{/* Right: Commit change viewer */}
+			{filePath && selectedCommitHash && (
+				<div className="w-[460px] shrink-0 overflow-hidden pl-4">
+					<CommitChangeViewer
+						commitHash={selectedCommitHash}
+						message={selectedMessage}
+						filePath={filePath}
+					/>
+				</div>
 			)}
-
-			{/* Keyboard shortcuts help */}
-			<div className="flex flex-wrap gap-x-4 gap-y-1 border-t border-gray-200 pt-3 text-xs text-gray-500 dark:border-gray-700 dark:text-gray-500">
-				<span>
-					<kbd className="rounded bg-gray-200 px-1.5 py-0.5 font-mono dark:bg-gray-700">
-						p
-					</kbd>{" "}
-					pick
-				</span>
-				<span>
-					<kbd className="rounded bg-gray-200 px-1.5 py-0.5 font-mono dark:bg-gray-700">
-						r
-					</kbd>{" "}
-					reword
-				</span>
-				<span>
-					<kbd className="rounded bg-gray-200 px-1.5 py-0.5 font-mono dark:bg-gray-700">
-						e
-					</kbd>{" "}
-					edit
-				</span>
-				<span>
-					<kbd className="rounded bg-gray-200 px-1.5 py-0.5 font-mono dark:bg-gray-700">
-						s
-					</kbd>{" "}
-					squash
-				</span>
-				<span>
-					<kbd className="rounded bg-gray-200 px-1.5 py-0.5 font-mono dark:bg-gray-700">
-						f
-					</kbd>{" "}
-					fixup
-				</span>
-				<span>
-					<kbd className="rounded bg-gray-200 px-1.5 py-0.5 font-mono dark:bg-gray-700">
-						d
-					</kbd>{" "}
-					drop
-				</span>
-				<span>
-					<kbd className="rounded bg-gray-200 px-1.5 py-0.5 font-mono dark:bg-gray-700">
-						↑↓
-					</kbd>{" "}
-					選択
-				</span>
-				<span>
-					<kbd className="rounded bg-gray-200 px-1.5 py-0.5 font-mono dark:bg-gray-700">
-						{getModifierKey()}+↑↓
-					</kbd>{" "}
-					順序変更
-				</span>
-				<span>
-					<kbd className="rounded bg-gray-200 px-1.5 py-0.5 font-mono dark:bg-gray-700">
-						{getShortcut("Z")}
-					</kbd>{" "}
-					戻す
-				</span>
-				<span>
-					<kbd className="rounded bg-gray-200 px-1.5 py-0.5 font-mono dark:bg-gray-700">
-						{getShortcut("S")}
-					</kbd>{" "}
-					保存
-				</span>
-			</div>
 
 			{/* Reword modal */}
 			<RewordModal

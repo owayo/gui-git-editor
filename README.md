@@ -183,11 +183,23 @@ pnpm tauri:build          # リリースビルド
 pnpm tauri:build:debug    # デバッグビルド
 ```
 
+### Test & Lint
+
+```bash
+pnpm test                 # フロントエンドテスト (Vitest)
+pnpm test:rust            # バックエンドテスト (cargo test)
+pnpm test:all             # 全テスト
+pnpm check                # Biome lint + format
+pnpm typecheck            # TypeScript 型チェック
+```
+
 ### Tech Stack
 
-- **Frontend**: React 19, TypeScript, Tailwind CSS v4, Zustand, Monaco Editor, dnd-kit
+- **Frontend**: React 19, TypeScript 5.9, Tailwind CSS v4, Zustand 5, Monaco Editor, dnd-kit
 - **Backend**: Rust, Tauri v2
-- **Build**: Vite
+- **Build**: Vite 7
+- **Test**: Vitest, Testing Library
+- **Lint/Format**: Biome
 
 ## License
 

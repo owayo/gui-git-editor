@@ -5,10 +5,10 @@ mod parser;
 use commands::{
     check_backup_exists, check_codex_available, check_git_sc_available, create_backup,
     delete_backup, exit_app, generate_commit_message, generate_commit_message_from_staged,
-    git_blame_for_merge, git_diff_file, git_stage_all, git_stage_file, git_status,
-    git_unstage_file, open_codex_terminal, parse_commit_msg, parse_conflicts, parse_rebase_todo,
-    read_file, read_merge_files, restore_backup, serialize_commit_msg, serialize_rebase_todo,
-    validate_commit_msg, write_file,
+    git_blame_for_merge, git_commit_diff, git_commit_files, git_diff_file, git_stage_all,
+    git_stage_file, git_status, git_unstage_file, open_codex_terminal, parse_commit_msg,
+    parse_conflicts, parse_rebase_todo, read_file, read_merge_files, restore_backup,
+    serialize_commit_msg, serialize_rebase_todo, validate_commit_msg, write_file,
 };
 use std::sync::atomic::{AtomicBool, Ordering};
 use tauri::Manager;
@@ -122,6 +122,8 @@ pub fn run() {
             git_unstage_file,
             git_stage_all,
             git_diff_file,
+            git_commit_files,
+            git_commit_diff,
         ])
         .build(tauri::generate_context!())
         .expect("error while building tauri application");

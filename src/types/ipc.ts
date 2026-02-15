@@ -2,6 +2,7 @@ import { invoke } from "@tauri-apps/api/core";
 import type { AppError } from "./errors";
 import type {
 	BlameLine,
+	CommitFileInfo,
 	CommitMessage,
 	CommitValidation,
 	FileContent,
@@ -204,4 +205,27 @@ export async function gitDiffFile(
 	staged: boolean,
 ): Promise<IpcResult<string>> {
 	return safeInvoke<string>("git_diff_file", { filePath, target, staged });
+}
+
+// Commit diff operations
+export async function gitCommitFiles(
+	filePath: string,
+	commitHash: string,
+): Promise<IpcResult<CommitFileInfo[]>> {
+	return safeInvoke<CommitFileInfo[]>("git_commit_files", {
+		filePath,
+		commitHash,
+	});
+}
+
+export async function gitCommitDiff(
+	filePath: string,
+	commitHash: string,
+	targetFile: string,
+): Promise<IpcResult<string>> {
+	return safeInvoke<string>("git_commit_diff", {
+		filePath,
+		commitHash,
+		targetFile,
+	});
 }
