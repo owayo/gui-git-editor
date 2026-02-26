@@ -20,10 +20,14 @@ export function FileDiffViewer({ diff, isLoading }: FileDiffViewerProps) {
 		);
 	}
 
+	const lineOccurrences = new Map<string, number>();
+
 	return (
 		<div className="overflow-auto bg-gray-950 p-2">
 			<pre className="font-mono text-xs leading-relaxed">
-				{diff.split("\n").map((line, i) => {
+				{diff.split("\n").map((line) => {
+					const count = (lineOccurrences.get(line) ?? 0) + 1;
+					lineOccurrences.set(line, count);
 					let className = "text-gray-300";
 					let bgClassName = "";
 
@@ -46,7 +50,7 @@ export function FileDiffViewer({ diff, isLoading }: FileDiffViewerProps) {
 					}
 
 					return (
-						<div key={i} className={`${bgClassName} px-1`}>
+						<div key={`${line}-${count}`} className={`${bgClassName} px-1`}>
 							<span className={className}>{line}</span>
 						</div>
 					);

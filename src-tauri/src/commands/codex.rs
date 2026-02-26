@@ -65,7 +65,7 @@ async fn open_codex_terminal_macos(merged_path: String) -> Result<(), AppError> 
     );
 
     let codex_cmd = format!(
-        "codex exec --full-auto --cd {} \"{}\"",
+        "codex exec --full-auto --cd \"{}\" \"{}\"",
         shell_escape(&project_dir),
         shell_escape(&request),
     );

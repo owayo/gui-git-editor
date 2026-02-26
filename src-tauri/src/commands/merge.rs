@@ -254,13 +254,14 @@ fn parse_line_porcelain(output: &str) -> Vec<BlameLine> {
     let mut current_hash = String::new();
     let mut current_author = String::new();
     let mut current_time: i64 = 0;
+    let mut current_tz_offset: i64 = 0;
     let mut current_summary = String::new();
     let mut current_line: usize = 0;
 
     for line in output.lines() {
         if line.starts_with('\t') {
             // Content line marks end of a block
-            let date = format_unix_timestamp(current_time);
+            let date = format_unix_timestamp(current_time + current_tz_offset);
             results.push(BlameLine {
                 line_number: current_line,
                 hash: if current_hash.len() >= 7 {
@@ -276,6 +277,8 @@ fn parse_line_porcelain(output: &str) -> Vec<BlameLine> {
             current_author = rest.to_string();
         } else if let Some(rest) = line.strip_prefix("author-time ") {
             current_time = rest.parse::<i64>().unwrap_or(0);
+        } else if let Some(rest) = line.strip_prefix("author-tz ") {
+            current_tz_offset = parse_tz_offset(rest);
         } else if let Some(rest) = line.strip_prefix("summary ") {
             current_summary = rest.to_string();
         } else {
@@ -292,6 +295,23 @@ fn parse_line_porcelain(output: &str) -> Vec<BlameLine> {
     }
 
     results
+}
+
+/// Parse a timezone offset string (e.g., "+0900", "-0500") into seconds.
+fn parse_tz_offset(tz: &str) -> i64 {
+    let tz = tz.trim();
+    if tz.len() < 5 {
+        return 0;
+    }
+    let sign: i64 = if tz.starts_with('-') { -1 } else { 1 };
+    let digits = tz.trim_start_matches(['+', '-']);
+    if digits.len() >= 4 {
+        let hours: i64 = digits[..2].parse().unwrap_or(0);
+        let minutes: i64 = digits[2..4].parse().unwrap_or(0);
+        sign * (hours * 3600 + minutes * 60)
+    } else {
+        0
+    }
 }
 
 /// Format a Unix timestamp to YYYY-MM-DD without external crates.
@@ -484,11 +504,13 @@ filename src/main.rs
         assert_eq!(result[0].line_number, 1);
         assert_eq!(result[0].hash, "abc1234");
         assert_eq!(result[0].author, "Alice");
+        assert_eq!(result[0].date, "2023-11-15"); // 1700000000 UTC + 9h = JST 2023-11-15
         assert_eq!(result[0].summary, "Initial commit");
 
         assert_eq!(result[1].line_number, 2);
         assert_eq!(result[1].hash, "def5678");
         assert_eq!(result[1].author, "Bob");
+        assert_eq!(result[1].date, "2023-11-15"); // 1700086400 UTC+0000
         assert_eq!(result[1].summary, "Add feature X");
     }
 
@@ -532,5 +554,15 @@ filename src/main.rs
         assert!(json.contains("\"merged\""));
         assert!(json.contains("\"localLabel\":\"main\""));
         assert!(json.contains("\"remoteLabel\":\"feature-branch\""));
+    }
+
+    #[test]
+    fn test_parse_tz_offset() {
+        assert_eq!(parse_tz_offset("+0900"), 32400); // 9h
+        assert_eq!(parse_tz_offset("-0500"), -18000); // -5h
+        assert_eq!(parse_tz_offset("+0000"), 0);
+        assert_eq!(parse_tz_offset("+0530"), 19800); // 5h30m
+        assert_eq!(parse_tz_offset(""), 0);
+        assert_eq!(parse_tz_offset("abc"), 0);
     }
 }

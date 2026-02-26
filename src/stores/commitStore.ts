@@ -122,18 +122,21 @@ export const useCommitStore = create<CommitState>((set, get) => ({
 	addTrailer: (trailer: Trailer) => {
 		set((state) => ({
 			trailers: [...state.trailers, trailer],
+			isDirty: true,
 		}));
 	},
 
 	removeTrailer: (index: number) => {
 		set((state) => ({
 			trailers: state.trailers.filter((_, i) => i !== index),
+			isDirty: true,
 		}));
 	},
 
 	updateTrailer: (index: number, trailer: Trailer) => {
 		set((state) => ({
 			trailers: state.trailers.map((t, i) => (i === index ? trailer : t)),
+			isDirty: true,
 		}));
 	},
 

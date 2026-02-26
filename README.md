@@ -37,7 +37,7 @@ Interactive rebase、commit message編集、squash、rewordなどをすべてサ
 - 🌙 **ダークモード** - システムテーマに自動追従
 - 🔀 **Merge Tool** - 3パネルビューでコンフリクト解決（LOCAL / MERGED / REMOTE）
 - 🤖 **Codex 連携** - [Codex CLI](https://github.com/openai/codex) + iTerm2 でコンフリクトを自動解決
-- ♿ **アクセシビリティ** - ARIA属性、フォーカス管理対応
+- ♿ **アクセシビリティ** - ARIA属性、フォーカス管理対応（Rebase項目のTab/Enter選択を含む）
 
 ## Screenshots
 
@@ -111,6 +111,9 @@ git config --global merge.tool gui-git-editor
 - **右パネル (REMOTE)**: マージ元ブランチの変更内容（読み取り専用）— ヘッダーにブランチ名を表示
 
 BASE パネルはツールバーの「BASE」ボタンで表示/非表示を切り替えられます。
+連続解決後の `revert` でも、解決済み領域は行アンカーで追跡し、diff3 形式（`|||||||` 付き）を含めて元の競合ブロックを復元します。
+解決後に MERGED 側を手動編集して行位置がずれた場合も、`revert` 時に置換テキストを再特定して誤った位置を復元しないようにしています。
+Codex 実行後の再読み込みでは、コンフリクト内容ベースで外部解決を判定し、parser 側のID再採番が起きても整合性を維持しつつ、再出現した競合の stale な resolved 状態は保持しません。
 
 #### Codex CLI による自動解決
 
@@ -192,6 +195,8 @@ pnpm test:all             # 全テスト
 pnpm check                # Biome lint + format
 pnpm typecheck            # TypeScript 型チェック
 ```
+
+主要UIコンポーネント（`ActionBar`, `SubjectInput`, `FileDiffViewer`, `TrailersDisplay`, `RebaseEntryList`, `ConflictNavigator`）に加えて、`mergeStore` のコンフリクト解決/復元ロジック（diff3 revert 含む）もテストで検証しています。
 
 ### Tech Stack
 

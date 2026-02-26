@@ -16,6 +16,7 @@ export function TrailersDisplay({
 	const [showTrailers, setShowTrailers] = useState(trailers.length > 0);
 	const [showComments, setShowComments] = useState(false);
 	const [showDiff, setShowDiff] = useState(false);
+	const trailerOccurrences = new Map<string, number>();
 
 	const hasContent = trailers.length > 0 || comments.length > 0 || diffContent;
 
@@ -43,16 +44,25 @@ export function TrailersDisplay({
 					{showTrailers && (
 						<div className="border-t border-gray-200 bg-gray-50 p-3 dark:border-gray-700 dark:bg-gray-800/50">
 							<dl className="space-y-1">
-								{trailers.map((trailer, index) => (
-									<div key={index} className="flex gap-2 font-mono text-xs">
-										<dt className="font-medium text-blue-600 dark:text-blue-400">
-											{trailer.key}:
-										</dt>
-										<dd className="text-gray-600 dark:text-gray-400">
-											{trailer.value}
-										</dd>
-									</div>
-								))}
+								{trailers.map((trailer) => {
+									const trailerId = `${trailer.key}:${trailer.value}`;
+									const count = (trailerOccurrences.get(trailerId) ?? 0) + 1;
+									trailerOccurrences.set(trailerId, count);
+
+									return (
+										<div
+											key={`${trailerId}-${count}`}
+											className="flex gap-2 font-mono text-xs"
+										>
+											<dt className="font-medium text-blue-600 dark:text-blue-400">
+												{trailer.key}:
+											</dt>
+											<dd className="text-gray-600 dark:text-gray-400">
+												{trailer.value}
+											</dd>
+										</div>
+									);
+								})}
 							</dl>
 						</div>
 					)}

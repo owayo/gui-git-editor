@@ -15,19 +15,19 @@ export function ConflictNavigator({ editorRef }: ConflictNavigatorProps) {
 		goToPrevConflict,
 	} = useMergeStore();
 
-	const unresolvedCount = conflicts.filter((c) => !c.resolved).length;
+	const unresolvedIndices = conflicts
+		.map((conflict, index) => (!conflict.resolved ? index : -1))
+		.filter((index) => index >= 0);
+	const unresolvedCount = unresolvedIndices.length;
+	const firstVisibleUnresolvedIndex = unresolvedIndices.findIndex(
+		(index) => index >= currentConflictIndex,
+	);
 	const currentPosition =
-		unresolvedCount > 0
-			? conflicts
-					.filter((c) => !c.resolved)
-					.findIndex(
-						(_, i, arr) =>
-							arr[i] ===
-							conflicts.find(
-								(c, idx) => !c.resolved && idx >= currentConflictIndex,
-							),
-					) + 1
-			: 0;
+		unresolvedCount === 0
+			? 0
+			: firstVisibleUnresolvedIndex === -1
+				? unresolvedCount
+				: firstVisibleUnresolvedIndex + 1;
 
 	const scrollToLine = useCallback(
 		(line: number | null) => {

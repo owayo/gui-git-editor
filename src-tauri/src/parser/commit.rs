@@ -276,7 +276,7 @@ pub fn serialize_commit_msg(message: &CommitMessage) -> String {
     // Add comments
     if !message.comments.is_empty() {
         if !result.is_empty() {
-            result.push('\n');
+            result.push_str("\n\n");
         }
         result.push_str(&message.comments.join("\n"));
     }

@@ -64,8 +64,7 @@ export function ActionBar({
 			</div>
 
 			{/* Center: Status */}
-			<div
-				role="status"
+			<output
 				aria-live="polite"
 				aria-atomic="true"
 				className="flex items-center gap-2 text-sm"
@@ -93,7 +92,7 @@ export function ActionBar({
 						</span>
 					</>
 				) : null}
-			</div>
+			</output>
 
 			{/* Right side: Cancel, Save */}
 			<div className="flex items-center gap-2">

@@ -3,6 +3,12 @@ import type { AppError } from "../types/errors";
 import type { BlameLine, ConflictRegion } from "../types/git";
 import * as ipc from "../types/ipc";
 
+interface ResolvedReplacement {
+	text: string;
+	startLine: number;
+	lineCount: number;
+}
+
 interface MergeState {
 	// File contents
 	localContent: string | null;
@@ -35,7 +41,7 @@ interface MergeState {
 	remoteBlame: BlameLine[] | null;
 
 	// Stores replacement text per conflict for revert support
-	resolvedReplacements: Record<number, string>;
+	resolvedReplacements: Record<number, ResolvedReplacement>;
 
 	// Actions
 	initMerge: (
@@ -78,7 +84,7 @@ const initialState = {
 	codexAvailable: null,
 	localBlame: null,
 	remoteBlame: null,
-	resolvedReplacements: {} as Record<number, string>,
+	resolvedReplacements: {} as Record<number, ResolvedReplacement>,
 };
 
 /**
@@ -99,6 +105,110 @@ function resolveConflictInContent(
 
 function checkAllResolved(conflicts: ConflictRegion[]): boolean {
 	return conflicts.length > 0 && conflicts.every((c) => c.resolved);
+}
+
+/**
+ * Rebuild conflict markers from parsed conflict content.
+ * Uses generic labels because parser only relies on marker prefixes.
+ */
+function buildConflictMarkerText(conflict: ConflictRegion): string {
+	if (conflict.baseContent !== null) {
+		return `<<<<<<< LOCAL\n${conflict.localContent}\n||||||| BASE\n${conflict.baseContent}\n=======\n${conflict.remoteContent}\n>>>>>>> REMOTE`;
+	}
+	return `<<<<<<< LOCAL\n${conflict.localContent}\n=======\n${conflict.remoteContent}\n>>>>>>> REMOTE`;
+}
+
+/**
+ * Build a content signature for conflict matching across reparses.
+ * Conflict IDs are parser-local and can change after conflicts are removed.
+ */
+function getConflictSignature(conflict: ConflictRegion): string {
+	return JSON.stringify({
+		local: conflict.localContent,
+		base: conflict.baseContent,
+		remote: conflict.remoteContent,
+	});
+}
+
+/**
+ * Reconcile previous conflict states with newly parsed unresolved conflicts.
+ * - old unresolved not found now => externally resolved
+ * - old resolved reappearing as unresolved => drop stale resolved state
+ */
+function reconcileConflictsOnReload(
+	oldConflicts: ConflictRegion[],
+	newUnresolvedConflicts: ConflictRegion[],
+): {
+	preservedResolved: ConflictRegion[];
+	externallyResolved: ConflictRegion[];
+} {
+	const remainingBySignature = new Map<string, number>();
+	for (const conflict of newUnresolvedConflicts) {
+		const signature = getConflictSignature(conflict);
+		remainingBySignature.set(
+			signature,
+			(remainingBySignature.get(signature) ?? 0) + 1,
+		);
+	}
+
+	const externallyResolved: ConflictRegion[] = [];
+	for (const conflict of oldConflicts) {
+		if (conflict.resolved) {
+			continue;
+		}
+		const signature = getConflictSignature(conflict);
+		const remaining = remainingBySignature.get(signature) ?? 0;
+		if (remaining > 0) {
+			remainingBySignature.set(signature, remaining - 1);
+			continue;
+		}
+		externallyResolved.push({ ...conflict, resolved: true });
+	}
+
+	const preservedResolved: ConflictRegion[] = [];
+	for (const conflict of oldConflicts) {
+		if (!conflict.resolved) {
+			continue;
+		}
+		const signature = getConflictSignature(conflict);
+		const remaining = remainingBySignature.get(signature) ?? 0;
+		if (remaining > 0) {
+			remainingBySignature.set(signature, remaining - 1);
+			continue;
+		}
+		preservedResolved.push(conflict);
+	}
+
+	return { preservedResolved, externallyResolved };
+}
+
+/**
+ * Ensure unresolved and preserved-resolved conflicts never share IDs.
+ */
+function remapConflictsWithUniqueIds(
+	conflicts: ConflictRegion[],
+	reservedIds: Set<number>,
+): ConflictRegion[] {
+	let nextId =
+		reservedIds.size > 0 ? Math.max(...Array.from(reservedIds)) + 1 : 0;
+
+	return conflicts.map((conflict) => {
+		if (!reservedIds.has(conflict.id)) {
+			reservedIds.add(conflict.id);
+			if (conflict.id >= nextId) {
+				nextId = conflict.id + 1;
+			}
+			return conflict;
+		}
+
+		while (reservedIds.has(nextId)) {
+			nextId++;
+		}
+		const remapped = { ...conflict, id: nextId };
+		reservedIds.add(nextId);
+		nextId++;
+		return remapped;
+	});
 }
 
 export const useMergeStore = create<MergeState>((set, get) => ({
@@ -154,11 +264,17 @@ export const useMergeStore = create<MergeState>((set, get) => ({
 			conflict,
 			replacement,
 		);
-
-		const updatedConflicts = reParseAndPreserveResolved(
-			newContent,
+		const updatedConflicts = markResolvedAndShiftConflicts(
 			conflicts,
 			conflictId,
+			replacement,
+		);
+		if (!updatedConflicts) return;
+		const updatedReplacements = updateResolvedReplacementsAfterResolve(
+			resolvedReplacements,
+			conflictId,
+			conflict,
+			replacement,
 		);
 
 		set({
@@ -166,10 +282,7 @@ export const useMergeStore = create<MergeState>((set, get) => ({
 			conflicts: updatedConflicts,
 			allResolved: checkAllResolved(updatedConflicts),
 			isDirty: true,
-			resolvedReplacements: {
-				...resolvedReplacements,
-				[conflictId]: replacement,
-			},
+			resolvedReplacements: updatedReplacements,
 		});
 	},
 
@@ -186,11 +299,17 @@ export const useMergeStore = create<MergeState>((set, get) => ({
 			conflict,
 			replacement,
 		);
-
-		const updatedConflicts = reParseAndPreserveResolved(
-			newContent,
+		const updatedConflicts = markResolvedAndShiftConflicts(
 			conflicts,
 			conflictId,
+			replacement,
+		);
+		if (!updatedConflicts) return;
+		const updatedReplacements = updateResolvedReplacementsAfterResolve(
+			resolvedReplacements,
+			conflictId,
+			conflict,
+			replacement,
 		);
 
 		set({
@@ -198,10 +317,7 @@ export const useMergeStore = create<MergeState>((set, get) => ({
 			conflicts: updatedConflicts,
 			allResolved: checkAllResolved(updatedConflicts),
 			isDirty: true,
-			resolvedReplacements: {
-				...resolvedReplacements,
-				[conflictId]: replacement,
-			},
+			resolvedReplacements: updatedReplacements,
 		});
 	},
 
@@ -220,11 +336,17 @@ export const useMergeStore = create<MergeState>((set, get) => ({
 			conflict,
 			replacement,
 		);
-
-		const updatedConflicts = reParseAndPreserveResolved(
-			newContent,
+		const updatedConflicts = markResolvedAndShiftConflicts(
 			conflicts,
 			conflictId,
+			replacement,
+		);
+		if (!updatedConflicts) return;
+		const updatedReplacements = updateResolvedReplacementsAfterResolve(
+			resolvedReplacements,
+			conflictId,
+			conflict,
+			replacement,
 		);
 
 		set({
@@ -232,10 +354,7 @@ export const useMergeStore = create<MergeState>((set, get) => ({
 			conflicts: updatedConflicts,
 			allResolved: checkAllResolved(updatedConflicts),
 			isDirty: true,
-			resolvedReplacements: {
-				...resolvedReplacements,
-				[conflictId]: replacement,
-			},
+			resolvedReplacements: updatedReplacements,
 		});
 	},
 
@@ -247,47 +366,54 @@ export const useMergeStore = create<MergeState>((set, get) => ({
 		if (!conflict || !conflict.resolved) return;
 
 		const replacement = resolvedReplacements[conflictId];
-		if (replacement === undefined) return;
+		if (!replacement) return;
 
 		// Reconstruct conflict markers
-		const markerText = `<<<<<<< LOCAL\n${conflict.localContent}\n=======\n${conflict.remoteContent}\n>>>>>>> REMOTE`;
-
-		// Find the replacement text in content and replace with markers
-		const replacementLines = replacement.split("\n");
+		const markerText = buildConflictMarkerText(conflict);
 		const markerLines = markerText.split("\n");
 		const contentLines = mergedContent.split("\n");
-
-		let newContent: string | null = null;
-
-		for (let i = 0; i <= contentLines.length - replacementLines.length; i++) {
-			let match = true;
-			for (let j = 0; j < replacementLines.length; j++) {
-				if (contentLines[i + j] !== replacementLines[j]) {
-					match = false;
-					break;
-				}
-			}
-			if (match) {
-				const before = contentLines.slice(0, i);
-				const after = contentLines.slice(i + replacementLines.length);
-				newContent = [...before, ...markerLines, ...after].join("\n");
-				break;
-			}
+		const resolvedStartLine = findReplacementStartLine(
+			contentLines,
+			replacement,
+		);
+		if (resolvedStartLine === null) {
+			return;
+		}
+		const effectiveReplacement = {
+			...replacement,
+			startLine: resolvedStartLine,
+		};
+		const startLine = effectiveReplacement.startLine;
+		const endExclusive = startLine + effectiveReplacement.lineCount;
+		if (
+			startLine < 0 ||
+			startLine > contentLines.length ||
+			endExclusive > contentLines.length
+		) {
+			return;
 		}
 
-		if (newContent === null) return;
+		const before = contentLines.slice(0, startLine);
+		const after = contentLines.slice(endExclusive);
+		const newContent = [...before, ...markerLines, ...after].join("\n");
 
-		// Remove from resolvedReplacements
-		const { [conflictId]: _, ...remainingReplacements } = resolvedReplacements;
-
-		const updatedConflicts = conflicts.map((c) =>
-			c.id === conflictId ? { ...c, resolved: false } : c,
+		const updatedConflicts = markRevertedAndShiftConflicts(
+			conflicts,
+			conflict,
+			effectiveReplacement,
+			markerLines.length,
+		);
+		const updatedReplacements = updateResolvedReplacementsAfterRevert(
+			resolvedReplacements,
+			conflictId,
+			effectiveReplacement,
+			markerLines.length,
 		);
 
 		set({
 			mergedContent: newContent,
 			conflicts: updatedConflicts,
-			resolvedReplacements: remainingReplacements,
+			resolvedReplacements: updatedReplacements,
 			allResolved: checkAllResolved(updatedConflicts),
 			isDirty: true,
 		});
@@ -388,20 +514,19 @@ export const useMergeStore = create<MergeState>((set, get) => ({
 		// Preserve resolved conflicts so their red background persists.
 		// Also detect externally resolved conflicts (e.g. by Codex):
 		// old unresolved conflicts whose markers are no longer in the file.
-		const newUnresolvedIds = new Set(
-			parseResult.data.conflicts.map((c) => c.id),
+		const { preservedResolved, externallyResolved } =
+			reconcileConflictsOnReload(oldConflicts, parseResult.data.conflicts);
+		const allPreservedResolved = [...preservedResolved, ...externallyResolved];
+		const remappedUnresolved = remapConflictsWithUniqueIds(
+			parseResult.data.conflicts,
+			new Set(allPreservedResolved.map((c) => c.id)),
 		);
-		const alreadyResolved = oldConflicts.filter((c) => c.resolved);
-		const externallyResolved = oldConflicts
-			.filter((c) => !c.resolved && !newUnresolvedIds.has(c.id))
-			.map((c) => ({ ...c, resolved: true }));
-
-		const mergedConflicts = [
-			...parseResult.data.conflicts,
-			...alreadyResolved,
-			...externallyResolved,
-		];
+		const mergedConflicts = [...remappedUnresolved, ...allPreservedResolved];
 		const hasUnresolved = parseResult.data.hasConflicts;
+		const filteredReplacements = filterResolvedReplacements(
+			resolvedReplacements,
+			allPreservedResolved,
+		);
 
 		set({
 			mergedContent: fileResult.data.content,
@@ -412,7 +537,7 @@ export const useMergeStore = create<MergeState>((set, get) => ({
 					? checkAllResolved(mergedConflicts)
 					: !hasUnresolved,
 			isDirty: false,
-			resolvedReplacements,
+			resolvedReplacements: filteredReplacements,
 		});
 	},
 
@@ -439,17 +564,268 @@ export const useMergeStore = create<MergeState>((set, get) => ({
 }));
 
 /**
- * After resolving a conflict, we mark it as resolved and keep remaining
- * unresolved conflicts unchanged. The line numbers of remaining conflicts
- * will shift but we track by ID so this is safe for the next resolution.
- * We simply mark the resolved conflict and let the next parse re-align if needed.
+ * Count lines in replacement text.
+ * Empty text means the conflict is replaced with zero lines.
  */
-function reParseAndPreserveResolved(
-	_newContent: string,
+function countLines(text: string): number {
+	return text === "" ? 0 : text.split("\n").length;
+}
+
+/**
+ * Find where a resolved replacement currently exists in content.
+ * Prefer stored anchor and fall back to nearest exact text match.
+ */
+function findReplacementStartLine(
+	contentLines: string[],
+	replacement: ResolvedReplacement,
+): number | null {
+	const { startLine, lineCount } = replacement;
+	if (lineCount === 0) {
+		return startLine >= 0 && startLine <= contentLines.length
+			? startLine
+			: null;
+	}
+
+	const replacementLines = replacement.text.split("\n");
+	const matchesAt = (candidateStart: number): boolean => {
+		if (
+			candidateStart < 0 ||
+			candidateStart + lineCount > contentLines.length
+		) {
+			return false;
+		}
+
+		for (let i = 0; i < lineCount; i++) {
+			if (contentLines[candidateStart + i] !== replacementLines[i]) {
+				return false;
+			}
+		}
+		return true;
+	};
+
+	if (matchesAt(startLine)) {
+		return startLine;
+	}
+
+	let nearestStart: number | null = null;
+	let nearestDistance = Number.POSITIVE_INFINITY;
+	for (let i = 0; i <= contentLines.length - lineCount; i++) {
+		if (!matchesAt(i)) {
+			continue;
+		}
+		const distance = Math.abs(i - startLine);
+		if (distance < nearestDistance) {
+			nearestDistance = distance;
+			nearestStart = i;
+		}
+	}
+
+	return nearestStart;
+}
+
+/**
+ * Shift all line indices in a conflict by a delta.
+ */
+function shiftConflictLines(
+	conflict: ConflictRegion,
+	delta: number,
+): ConflictRegion {
+	return {
+		...conflict,
+		startLine: conflict.startLine + delta,
+		localStartLine: conflict.localStartLine + delta,
+		localEndLine: conflict.localEndLine + delta,
+		baseStartLine:
+			conflict.baseStartLine === null ? null : conflict.baseStartLine + delta,
+		baseEndLine:
+			conflict.baseEndLine === null ? null : conflict.baseEndLine + delta,
+		remoteStartLine: conflict.remoteStartLine + delta,
+		remoteEndLine: conflict.remoteEndLine + delta,
+		endLine: conflict.endLine + delta,
+	};
+}
+
+/**
+ * Mark one conflict as resolved and shift conflicts that appear after it.
+ */
+function markResolvedAndShiftConflicts(
 	oldConflicts: ConflictRegion[],
 	resolvedId: number,
+	replacement: string,
+): ConflictRegion[] | null {
+	const target = oldConflicts.find((c) => c.id === resolvedId);
+	if (!target) return null;
+
+	const removedLineCount = target.endLine - target.startLine + 1;
+	const replacementLineCount = countLines(replacement);
+	const delta = replacementLineCount - removedLineCount;
+
+	return oldConflicts.map((conflict) => {
+		if (conflict.id === resolvedId) {
+			const resolvedEnd =
+				replacementLineCount > 0
+					? target.startLine + replacementLineCount - 1
+					: target.startLine;
+			return {
+				...conflict,
+				resolved: true,
+				startLine: target.startLine,
+				endLine: resolvedEnd,
+			};
+		}
+		if (conflict.startLine > target.endLine) {
+			return shiftConflictLines(conflict, delta);
+		}
+		return conflict;
+	});
+}
+
+/**
+ * Update stored replacement metadata after resolving a conflict.
+ */
+function updateResolvedReplacementsAfterResolve(
+	oldReplacements: Record<number, ResolvedReplacement>,
+	resolvedId: number,
+	targetConflict: ConflictRegion,
+	replacement: string,
+): Record<number, ResolvedReplacement> {
+	const replacementLineCount = countLines(replacement);
+	const removedLineCount =
+		targetConflict.endLine - targetConflict.startLine + 1;
+	const delta = replacementLineCount - removedLineCount;
+	const updated: Record<number, ResolvedReplacement> = {};
+
+	for (const [idStr, meta] of Object.entries(oldReplacements)) {
+		const id = Number(idStr);
+		updated[id] =
+			meta.startLine > targetConflict.endLine
+				? { ...meta, startLine: meta.startLine + delta }
+				: meta;
+	}
+
+	updated[resolvedId] = {
+		text: replacement,
+		startLine: targetConflict.startLine,
+		lineCount: replacementLineCount,
+	};
+
+	return updated;
+}
+
+/**
+ * Build line metadata for a reverted standard conflict block.
+ */
+function buildRevertedConflict(
+	conflict: ConflictRegion,
+	startLine: number,
+): ConflictRegion {
+	const localLineCount = countLines(conflict.localContent);
+	const remoteLineCount = countLines(conflict.remoteContent);
+	const localStartLine = startLine + 1;
+	const localEndLine = localStartLine + localLineCount;
+	if (conflict.baseContent !== null) {
+		const baseLineCount = countLines(conflict.baseContent);
+		const baseStartLine = localEndLine + 1;
+		const baseEndLine = baseStartLine + baseLineCount;
+		const remoteStartLine = baseEndLine + 1;
+		const remoteEndLine = remoteStartLine + remoteLineCount;
+		return {
+			...conflict,
+			resolved: false,
+			startLine,
+			localStartLine,
+			localEndLine,
+			baseStartLine,
+			baseEndLine,
+			remoteStartLine,
+			remoteEndLine,
+			endLine: remoteEndLine,
+		};
+	}
+
+	const remoteStartLine = localEndLine + 1;
+	const remoteEndLine = remoteStartLine + remoteLineCount;
+
+	return {
+		...conflict,
+		resolved: false,
+		startLine,
+		localStartLine,
+		localEndLine,
+		baseStartLine: null,
+		baseEndLine: null,
+		remoteStartLine,
+		remoteEndLine,
+		endLine: remoteEndLine,
+	};
+}
+
+/**
+ * Mark one conflict as unresolved and shift conflicts after the reverted block.
+ */
+function markRevertedAndShiftConflicts(
+	oldConflicts: ConflictRegion[],
+	target: ConflictRegion,
+	replacement: ResolvedReplacement,
+	markerLineCount: number,
 ): ConflictRegion[] {
-	return oldConflicts.map((c) =>
-		c.id === resolvedId ? { ...c, resolved: true } : c,
-	);
+	const removedEnd = replacement.startLine + replacement.lineCount - 1;
+	const delta = markerLineCount - replacement.lineCount;
+
+	return oldConflicts.map((conflict) => {
+		if (conflict.id === target.id) {
+			return buildRevertedConflict(conflict, replacement.startLine);
+		}
+		if (conflict.startLine > removedEnd) {
+			return shiftConflictLines(conflict, delta);
+		}
+		return conflict;
+	});
+}
+
+/**
+ * Remove reverted conflict metadata and shift remaining replacement anchors.
+ */
+function updateResolvedReplacementsAfterRevert(
+	oldReplacements: Record<number, ResolvedReplacement>,
+	revertedId: number,
+	replacement: ResolvedReplacement,
+	markerLineCount: number,
+): Record<number, ResolvedReplacement> {
+	const removedEnd = replacement.startLine + replacement.lineCount - 1;
+	const delta = markerLineCount - replacement.lineCount;
+	const updated: Record<number, ResolvedReplacement> = {};
+
+	for (const [idStr, meta] of Object.entries(oldReplacements)) {
+		const id = Number(idStr);
+		if (id === revertedId) {
+			continue;
+		}
+		updated[id] =
+			meta.startLine > removedEnd
+				? { ...meta, startLine: meta.startLine + delta }
+				: meta;
+	}
+
+	return updated;
+}
+
+/**
+ * Keep replacement anchors only for currently preserved resolved conflicts.
+ */
+function filterResolvedReplacements(
+	oldReplacements: Record<number, ResolvedReplacement>,
+	preservedResolvedConflicts: ConflictRegion[],
+): Record<number, ResolvedReplacement> {
+	const preservedIds = new Set(preservedResolvedConflicts.map((c) => c.id));
+	const filtered: Record<number, ResolvedReplacement> = {};
+
+	for (const [idStr, meta] of Object.entries(oldReplacements)) {
+		const id = Number(idStr);
+		if (preservedIds.has(id)) {
+			filtered[id] = meta;
+		}
+	}
+
+	return filtered;
 }

@@ -114,40 +114,46 @@ export function RebaseEntryList({
 				items={entries.map((e) => e.id)}
 				strategy={verticalListSortingStrategy}
 			>
-				<div
-					role="list"
+				<ul
 					aria-label="Rebaseエントリ一覧"
 					aria-live="polite"
 					className="flex flex-col gap-2"
 				>
 					{/* Oldest commit indicator */}
-					<div className="flex items-center gap-2 text-xs text-gray-500 dark:text-gray-400">
+					<li
+						aria-hidden="true"
+						className="flex list-none items-center gap-2 text-xs text-gray-500 dark:text-gray-400"
+					>
 						<span className="flex-1 border-t border-dashed border-gray-300 dark:border-gray-600" />
 						<span>↑ 古いコミット（先に適用）</span>
 						<span className="flex-1 border-t border-dashed border-gray-300 dark:border-gray-600" />
-					</div>
+					</li>
 
 					{entries.map((entry, index) => (
-						<RebaseEntryItem
-							key={entry.id}
-							entry={entry}
-							isSelected={entry.id === selectedEntryId}
-							isFirst={index === 0}
-							isLast={index === entries.length - 1}
-							canSquashOrFixup={canSquashOrFixup(entries, index)}
-							squashTarget={findSquashTarget(entries, index)}
-							onSelect={() => onSelectEntry(entry.id)}
-							onCommandChange={(cmd) => onCommandChange(entry.id, cmd)}
-						/>
+						<li key={entry.id} className="list-none">
+							<RebaseEntryItem
+								entry={entry}
+								isSelected={entry.id === selectedEntryId}
+								isFirst={index === 0}
+								isLast={index === entries.length - 1}
+								canSquashOrFixup={canSquashOrFixup(entries, index)}
+								squashTarget={findSquashTarget(entries, index)}
+								onSelect={() => onSelectEntry(entry.id)}
+								onCommandChange={(cmd) => onCommandChange(entry.id, cmd)}
+							/>
+						</li>
 					))}
 
 					{/* Newest commit indicator */}
-					<div className="flex items-center gap-2 text-xs text-gray-500 dark:text-gray-400">
+					<li
+						aria-hidden="true"
+						className="flex list-none items-center gap-2 text-xs text-gray-500 dark:text-gray-400"
+					>
 						<span className="flex-1 border-t border-dashed border-gray-300 dark:border-gray-600" />
 						<span>↓ 新しいコミット（後に適用）</span>
 						<span className="flex-1 border-t border-dashed border-gray-300 dark:border-gray-600" />
-					</div>
-				</div>
+					</li>
+				</ul>
 				{/* Screen reader instructions for drag and drop */}
 				<div id="drag-instructions" className="sr-only">
 					スペースキーでドラッグを開始し、矢印キーで移動、スペースキーでドロップします

@@ -30,7 +30,15 @@ describe("historyStore", () => {
 
 		const state = useHistoryStore.getState();
 		expect(state.past).toHaveLength(1);
-		expect(state.canUndo()).toBe(true);
+		// With only 1 snapshot (the initial state), there's nothing to undo to
+		expect(state.canUndo()).toBe(false);
+	});
+
+	it("canUndo returns true when there are at least 2 snapshots", () => {
+		useHistoryStore.getState().pushSnapshot([makeEntry("1", "first")]);
+		useHistoryStore.getState().pushSnapshot([makeEntry("2", "second")]);
+
+		expect(useHistoryStore.getState().canUndo()).toBe(true);
 	});
 
 	it("undo returns previous entries and moves to future", () => {

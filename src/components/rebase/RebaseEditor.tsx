@@ -111,7 +111,7 @@ export function RebaseEditor() {
 
 			// Cmd+↑/↓: Move selected entry up/down
 			if (
-				event.metaKey &&
+				(event.metaKey || event.ctrlKey) &&
 				(event.key === "ArrowUp" || event.key === "ArrowDown")
 			) {
 				event.preventDefault();

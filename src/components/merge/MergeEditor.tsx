@@ -75,7 +75,6 @@ export function MergeEditor({ filePaths }: MergeEditorProps) {
 		mergedEditorRef,
 		conflicts,
 		mergedReady,
-		mergedContent,
 		resolvedReplacements,
 	);
 	useSidePanelConflictDecorations(

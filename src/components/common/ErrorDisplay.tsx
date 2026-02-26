@@ -24,7 +24,7 @@ export function ErrorDisplay({ error, onDismiss }: ErrorDisplayProps) {
 					<p className="mt-1 text-sm text-red-700 dark:text-red-300">
 						{message}
 					</p>
-					{error.details.path && (
+					{error.details?.path && (
 						<p className="mt-1 truncate font-mono text-xs text-red-600 dark:text-red-400">
 							{error.details.path}
 						</p>

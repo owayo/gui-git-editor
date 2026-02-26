@@ -1,7 +1,7 @@
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { ArrowUpIcon, Bars3Icon, XMarkIcon } from "@heroicons/react/24/outline";
-import { useCallback, useEffect, useRef } from "react";
+import { type KeyboardEvent, useCallback, useEffect, useRef } from "react";
 import type {
 	RebaseCommandType,
 	RebaseEntry,
@@ -80,6 +80,22 @@ export function RebaseEntryItem({
 		transition,
 	};
 
+	const handleKeyDown = useCallback(
+		(event: KeyboardEvent<HTMLDivElement>) => {
+			// Only treat key events on the row itself as selection commands.
+			// Nested interactive controls (command selector, drag handle) manage their own keys.
+			if (event.target !== event.currentTarget) {
+				return;
+			}
+
+			if (event.key === "Enter" || event.key === " ") {
+				event.preventDefault();
+				onSelect();
+			}
+		},
+		[onSelect],
+	);
+
 	const simpleCommand = getSimpleCommand(entry.command);
 	const commandType = entry.command.type;
 	const isDropped = commandType === "drop";
@@ -120,6 +136,10 @@ export function RebaseEntryItem({
 			style={style}
 			className={getContainerClasses()}
 			onClick={onSelect}
+			onKeyDown={handleKeyDown}
+			role="option"
+			aria-selected={isSelected}
+			tabIndex={0}
 		>
 			{/* Main row */}
 			<div className="flex flex-1 items-center gap-3">

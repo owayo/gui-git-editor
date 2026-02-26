@@ -51,10 +51,11 @@ export const useHistoryStore = create<HistoryState>((set, get) => ({
 
 	undo: () => {
 		const { past } = get();
-		if (past.length === 0) return null;
+		if (past.length <= 1) return null;
 
 		const newPast = [...past];
-		const snapshot = newPast.pop()!;
+		const snapshot = newPast.pop();
+		if (!snapshot) return null;
 
 		set((state) => ({
 			past: newPast,
@@ -73,7 +74,8 @@ export const useHistoryStore = create<HistoryState>((set, get) => ({
 		if (future.length === 0) return null;
 
 		const newFuture = [...future];
-		const snapshot = newFuture.shift()!;
+		const snapshot = newFuture.shift();
+		if (!snapshot) return null;
 
 		set((state) => ({
 			past: [...state.past, snapshot],
@@ -83,7 +85,7 @@ export const useHistoryStore = create<HistoryState>((set, get) => ({
 		return snapshot.entries;
 	},
 
-	canUndo: () => get().past.length > 0,
+	canUndo: () => get().past.length > 1,
 
 	canRedo: () => get().future.length > 0,
 
