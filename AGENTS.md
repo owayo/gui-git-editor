@@ -68,6 +68,7 @@ pnpm test:all          # 全テスト（JS + Rust）
 - Merge の競合解決は `mergeStore` で行アンカー付きの解決済み置換情報を保持し、連続解決・revert 時の位置ずれを防止
 - diff3 形式（`|||||||` を含む）の競合を revert した場合も、BASE セクション付きで復元する
 - Merge の再読み込みはコンフリクト内容ベースで外部解決を判定し、parse 後のID再採番やID衝突を吸収しつつ、再出現した競合の stale な resolved 状態を保持しない
+- `fileStore` はファイル読込成功時とバックアップ作成失敗時に `backupPath` をクリアし、古いバックアップパスの誤再利用を防止する
 
 ## Testing Conventions
 
@@ -76,5 +77,5 @@ pnpm test:all          # 全テスト（JS + Rust）
 - `@testing-library/react` + `@testing-library/user-event` を使用
 - `vitest` の `globals: true` 設定済み
 - commit/rebase/merge の表示系（`FileDiffViewer`, `TrailersDisplay`, `RebaseEntryList`, `ConflictNavigator`）と `mergeStore` の競合解決・復元・再読み込み整合性ロジックをテストでカバー
-- `fileStore`, `stagingStore` のファイルI/O・Git操作状態管理をテストでカバー
+- `fileStore`, `stagingStore` のファイルI/O・Git操作状態管理をテストでカバー（`backupPath` の stale 状態回避を含む）
 - `useKeyboardShortcuts` のクロスプラットフォームキーバインド（Cmd/Ctrl）をテストでカバー

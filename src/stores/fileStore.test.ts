@@ -3,7 +3,7 @@ import type { AppError } from "../types/errors";
 import type { FileContent } from "../types/git";
 import { useFileStore } from "./fileStore";
 
-// Mock IPC module
+// IPC モジュールをモックする
 vi.mock("../types/ipc", () => ({
 	readFile: vi.fn(),
 	writeFile: vi.fn(),
@@ -53,17 +53,23 @@ describe("fileStore", () => {
 
 	describe("loadFile", () => {
 		it("should set isLoading to true and clear error while loading", async () => {
-			let capturedState: ReturnType<typeof useFileStore.getState> | null = null;
+			let capturedState: { isLoading: boolean; error: AppError | null } | null =
+				null;
 			mockedIpc.readFile.mockImplementation(async () => {
-				capturedState = useFileStore.getState();
+				const state = useFileStore.getState();
+				capturedState = {
+					isLoading: state.isLoading,
+					error: state.error,
+				};
 				return { ok: true, data: makeFileContent() };
 			});
 
 			await useFileStore.getState().loadFile("/tmp/test.txt");
 
-			expect(capturedState).not.toBeNull();
-			expect(capturedState?.isLoading).toBe(true);
-			expect(capturedState?.error).toBeNull();
+			expect(capturedState).toEqual({
+				isLoading: true,
+				error: null,
+			});
 		});
 
 		it("should load file successfully and update state", async () => {
@@ -84,6 +90,24 @@ describe("fileStore", () => {
 			expect(state.isLoading).toBe(false);
 			expect(state.isDirty).toBe(false);
 			expect(state.error).toBeNull();
+		});
+
+		it("should clear stale backupPath when loading another file", async () => {
+			mockedIpc.readFile.mockResolvedValue({
+				ok: true,
+				data: makeFileContent({
+					path: "/tmp/next.txt",
+					content: "next content",
+				}),
+			});
+
+			useFileStore.setState({
+				backupPath: "/tmp/old.txt.bak",
+			});
+
+			await useFileStore.getState().loadFile("/tmp/next.txt");
+
+			expect(useFileStore.getState().backupPath).toBeNull();
 		});
 
 		it("should set error state on load failure", async () => {
@@ -160,9 +184,14 @@ describe("fileStore", () => {
 		});
 
 		it("should set isSaving to true and clear error while saving", async () => {
-			let capturedState: ReturnType<typeof useFileStore.getState> | null = null;
+			let capturedState: { isSaving: boolean; error: AppError | null } | null =
+				null;
 			mockedIpc.writeFile.mockImplementation(async () => {
-				capturedState = useFileStore.getState();
+				const state = useFileStore.getState();
+				capturedState = {
+					isSaving: state.isSaving,
+					error: state.error,
+				};
 				return { ok: true, data: undefined };
 			});
 
@@ -173,9 +202,10 @@ describe("fileStore", () => {
 
 			await useFileStore.getState().saveFile();
 
-			expect(capturedState).not.toBeNull();
-			expect(capturedState?.isSaving).toBe(true);
-			expect(capturedState?.error).toBeNull();
+			expect(capturedState).toEqual({
+				isSaving: true,
+				error: null,
+			});
 		});
 
 		it("should save file successfully and update state", async () => {
@@ -334,7 +364,10 @@ describe("fileStore", () => {
 			const error = makeAppError();
 			mockedIpc.createBackup.mockResolvedValue({ ok: false, error });
 
-			useFileStore.setState({ filePath: "/tmp/test.txt" });
+			useFileStore.setState({
+				filePath: "/tmp/test.txt",
+				backupPath: "/tmp/stale.txt.bak",
+			});
 
 			const result = await useFileStore.getState().createBackup();
 

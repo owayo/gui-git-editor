@@ -4,7 +4,7 @@ import type { FileContent, GitFileType } from "../types/git";
 import * as ipc from "../types/ipc";
 
 interface FileState {
-	// State
+	// 状態
 	filePath: string | null;
 	fileType: GitFileType | null;
 	originalContent: string | null;
@@ -15,7 +15,7 @@ interface FileState {
 	error: AppError | null;
 	isDirty: boolean;
 
-	// Actions
+	// 操作
 	loadFile: (path: string) => Promise<void>;
 	saveFile: () => Promise<boolean>;
 	setContent: (content: string) => void;
@@ -52,6 +52,7 @@ export const useFileStore = create<FileState>((set, get) => ({
 				fileType: file.file_type,
 				originalContent: file.content,
 				currentContent: file.content,
+				backupPath: null,
 				isLoading: false,
 				isDirty: false,
 			});
@@ -105,7 +106,7 @@ export const useFileStore = create<FileState>((set, get) => ({
 			set({ backupPath: result.data });
 			return true;
 		} else {
-			set({ error: result.error });
+			set({ error: result.error, backupPath: null });
 			return false;
 		}
 	},
@@ -117,7 +118,7 @@ export const useFileStore = create<FileState>((set, get) => ({
 		const result = await ipc.restoreBackup(backupPath, filePath);
 
 		if (result.ok) {
-			// Reload the file after restore
+			// 復元後にファイルを再読み込みする
 			await get().loadFile(filePath);
 			return true;
 		} else {

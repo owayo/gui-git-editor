@@ -190,13 +190,14 @@ pnpm tauri:build:debug    # デバッグビルド
 
 ```bash
 pnpm test                 # フロントエンドテスト (Vitest)
+pnpm test:coverage        # カバレッジ付きテスト
 pnpm test:rust            # バックエンドテスト (cargo test)
 pnpm test:all             # 全テスト
 pnpm check                # Biome lint + format
 pnpm typecheck            # TypeScript 型チェック
 ```
 
-主要UIコンポーネント（`ActionBar`, `SubjectInput`, `FileDiffViewer`, `TrailersDisplay`, `RebaseEntryList`, `ConflictNavigator`）に加えて、`mergeStore` のコンフリクト解決/復元ロジック（diff3 revert 含む）もテストで検証しています。
+主要UIコンポーネント（`ActionBar`, `SubjectInput`, `FileDiffViewer`, `TrailersDisplay`, `RebaseEntryList`, `ConflictNavigator`）に加えて、`mergeStore` のコンフリクト解決/復元ロジック（diff3 revert 含む）と `fileStore` のバックアップパス整合性（古い `backupPath` の残留防止）もテストで検証しています。
 
 ### Tech Stack
 
