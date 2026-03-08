@@ -51,7 +51,6 @@ function App() {
 	const {
 		isLoading: commitLoading,
 		error: commitError,
-		isDirty: commitIsDirty,
 		parseContent: parseCommitContent,
 		serialize: serializeCommit,
 		clearError: clearCommitError,
@@ -282,7 +281,7 @@ function App() {
 					fileType === "rebase_todo"
 						? rebaseIsDirty
 						: isCommitType
-							? commitIsDirty
+							? true
 							: isDirty
 				}
 				saveLabel={fileType === "rebase_todo" ? "Rebaseを開始" : "保存"}
