@@ -197,6 +197,7 @@ pnpm typecheck            # TypeScript 型チェック
 ```
 
 主要UIコンポーネント（`ActionBar`, `SubjectInput`, `FileDiffViewer`, `TrailersDisplay`, `RebaseEntryList`, `ConflictNavigator`）に加えて、`mergeStore` のコンフリクト解決/復元ロジック（diff3 revert 含む）、`fileStore` のバックアップパス整合性（古い `backupPath` の残留防止）、`stagingStore` / `commitDiffStore` の競合した非同期応答の無視と、status 更新後の diff 再取得もテストで検証しています。
+`useKeyboardShortcuts` のクロスプラットフォームキーバインド、`useMergeKeyboardShortcuts` のマージ画面キーバインド（保存/キャンセル/コンフリクト移動）、`useAutoBackup` の自動バックアップ間隔・dirty 状態連動・クリーンアップもカバーしています。
 
 ### Tech Stack
 
