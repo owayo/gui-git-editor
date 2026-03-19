@@ -4,7 +4,7 @@ import type { CommitFileInfo } from "../types/git";
 import * as ipc from "../types/ipc";
 
 interface CommitDiffState {
-	// State
+	// 状態
 	commitHash: string | null;
 	files: CommitFileInfo[];
 	selectedFile: string | null;
@@ -13,7 +13,7 @@ interface CommitDiffState {
 	isLoadingDiff: boolean;
 	error: AppError | null;
 
-	// Actions
+	// 操作
 	fetchFiles: (filePath: string, commitHash: string) => Promise<void>;
 	selectFile: (
 		filePath: string,
@@ -33,43 +33,69 @@ const initialState = {
 	error: null as AppError | null,
 };
 
-export const useCommitDiffStore = create<CommitDiffState>((set) => ({
-	...initialState,
+export const useCommitDiffStore = create<CommitDiffState>((set, get) => {
+	let filesRequestId = 0;
+	let diffRequestId = 0;
 
-	fetchFiles: async (filePath: string, commitHash: string) => {
-		set({
-			commitHash,
-			files: [],
-			selectedFile: null,
-			diffContent: null,
-			isLoadingFiles: true,
-			error: null,
-		});
+	return {
+		...initialState,
 
-		const result = await ipc.gitCommitFiles(filePath, commitHash);
+		fetchFiles: async (filePath: string, commitHash: string) => {
+			const requestId = ++filesRequestId;
+			diffRequestId += 1;
 
-		if (result.ok) {
-			set({ files: result.data, isLoadingFiles: false });
-		} else {
-			set({ error: result.error, isLoadingFiles: false });
-		}
-	},
+			set({
+				commitHash,
+				files: [],
+				selectedFile: null,
+				diffContent: null,
+				isLoadingFiles: true,
+				isLoadingDiff: false,
+				error: null,
+			});
 
-	selectFile: async (
-		filePath: string,
-		commitHash: string,
-		targetFile: string,
-	) => {
-		set({ selectedFile: targetFile, isLoadingDiff: true });
+			const result = await ipc.gitCommitFiles(filePath, commitHash);
 
-		const result = await ipc.gitCommitDiff(filePath, commitHash, targetFile);
+			if (requestId !== filesRequestId || get().commitHash !== commitHash) {
+				return;
+			}
 
-		if (result.ok) {
-			set({ diffContent: result.data, isLoadingDiff: false });
-		} else {
-			set({ diffContent: null, isLoadingDiff: false });
-		}
-	},
+			if (result.ok) {
+				set({ files: result.data, isLoadingFiles: false });
+			} else {
+				set({ error: result.error, isLoadingFiles: false });
+			}
+		},
 
-	reset: () => set(initialState),
-}));
+		selectFile: async (
+			filePath: string,
+			commitHash: string,
+			targetFile: string,
+		) => {
+			const requestId = ++diffRequestId;
+			set({ selectedFile: targetFile, diffContent: null, isLoadingDiff: true });
+
+			const result = await ipc.gitCommitDiff(filePath, commitHash, targetFile);
+
+			if (
+				requestId !== diffRequestId ||
+				get().selectedFile !== targetFile ||
+				get().commitHash !== commitHash
+			) {
+				return;
+			}
+
+			if (result.ok) {
+				set({ diffContent: result.data, isLoadingDiff: false });
+			} else {
+				set({ diffContent: null, isLoadingDiff: false });
+			}
+		},
+
+		reset: () => {
+			filesRequestId += 1;
+			diffRequestId += 1;
+			set(initialState);
+		},
+	};
+});

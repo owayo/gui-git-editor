@@ -9,9 +9,6 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/owayo/gui-git-editor/actions/workflows/release.yml">
-    <img alt="Release" src="https://github.com/owayo/gui-git-editor/actions/workflows/release.yml/badge.svg">
-  </a>
   <a href="https://github.com/owayo/gui-git-editor/releases/latest">
     <img alt="Version" src="https://img.shields.io/github/v/release/owayo/gui-git-editor">
   </a>
@@ -36,6 +33,8 @@ Interactive rebase、commit message編集、squash、rewordなどをすべてサ
 - 🔄 **Undo/Redo** - 操作の取り消し・やり直し
 - 🌙 **ダークモード** - システムテーマに自動追従
 - 🔀 **Merge Tool** - 3パネルビューでコンフリクト解決（LOCAL / MERGED / REMOTE）
+- 📂 **堅牢なステージング表示** - 空白を含むファイル名や rename を含む差分でも正しく一覧化・選択
+- 🔁 **差分の自動再同期** - ステージ状態の更新後も、選択中ファイルの diff を再取得して古い表示を残さない
 - 🤖 **Codex 連携** - [Codex CLI](https://github.com/openai/codex) + iTerm2 でコンフリクトを自動解決
 - ♿ **アクセシビリティ** - ARIA属性、フォーカス管理対応（Rebase項目のTab/Enter選択を含む）
 
@@ -168,7 +167,7 @@ git mergetool             # マージコンフリクト解決
 
 ### Requirements
 
-- Node.js 18+
+- Node.js 20.19+（22 系は 22.13+、推奨は 24.x）
 - Rust 1.70+
 - pnpm
 
@@ -197,13 +196,13 @@ pnpm check                # Biome lint + format
 pnpm typecheck            # TypeScript 型チェック
 ```
 
-主要UIコンポーネント（`ActionBar`, `SubjectInput`, `FileDiffViewer`, `TrailersDisplay`, `RebaseEntryList`, `ConflictNavigator`）に加えて、`mergeStore` のコンフリクト解決/復元ロジック（diff3 revert 含む）と `fileStore` のバックアップパス整合性（古い `backupPath` の残留防止）もテストで検証しています。
+主要UIコンポーネント（`ActionBar`, `SubjectInput`, `FileDiffViewer`, `TrailersDisplay`, `RebaseEntryList`, `ConflictNavigator`）に加えて、`mergeStore` のコンフリクト解決/復元ロジック（diff3 revert 含む）、`fileStore` のバックアップパス整合性（古い `backupPath` の残留防止）、`stagingStore` / `commitDiffStore` の競合した非同期応答の無視と、status 更新後の diff 再取得もテストで検証しています。
 
 ### Tech Stack
 
 - **Frontend**: React 19, TypeScript 5.9, Tailwind CSS v4, Zustand 5, Monaco Editor, dnd-kit
 - **Backend**: Rust, Tauri v2
-- **Build**: Vite 7
+- **Build**: Vite 8
 - **Test**: Vitest, Testing Library
 - **Lint/Format**: Biome
 

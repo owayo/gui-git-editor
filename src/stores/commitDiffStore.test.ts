@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { useCommitDiffStore } from "./commitDiffStore";
 
-// Mock IPC module
+// IPC モジュールをモック化する
 vi.mock("../types/ipc", () => ({
 	gitCommitFiles: vi.fn(),
 	gitCommitDiff: vi.fn(),
@@ -10,6 +10,14 @@ vi.mock("../types/ipc", () => ({
 import * as ipc from "../types/ipc";
 
 const mockedIpc = vi.mocked(ipc);
+
+function createDeferred<T>() {
+	let resolve!: (value: T) => void;
+	const promise = new Promise<T>((nextResolve) => {
+		resolve = nextResolve;
+	});
+	return { promise, resolve };
+}
 
 describe("commitDiffStore", () => {
 	beforeEach(() => {
@@ -79,10 +87,47 @@ describe("commitDiffStore", () => {
 			expect(useCommitDiffStore.getState().selectedFile).toBeNull();
 			expect(useCommitDiffStore.getState().diffContent).toBeNull();
 		});
+
+		it("should ignore stale responses when a newer commit finishes first", async () => {
+			const first =
+				createDeferred<Awaited<ReturnType<typeof ipc.gitCommitFiles>>>();
+			const second =
+				createDeferred<Awaited<ReturnType<typeof ipc.gitCommitFiles>>>();
+
+			mockedIpc.gitCommitFiles
+				.mockImplementationOnce(() => first.promise)
+				.mockImplementationOnce(() => second.promise);
+
+			const firstRequest = useCommitDiffStore
+				.getState()
+				.fetchFiles("/repo", "old123");
+			const secondRequest = useCommitDiffStore
+				.getState()
+				.fetchFiles("/repo", "new456");
+
+			second.resolve({
+				ok: true,
+				data: [{ path: "new.ts", originalPath: null, status: "M" }],
+			});
+			await secondRequest;
+
+			first.resolve({
+				ok: true,
+				data: [{ path: "old.ts", originalPath: null, status: "A" }],
+			});
+			await firstRequest;
+
+			const state = useCommitDiffStore.getState();
+			expect(state.commitHash).toBe("new456");
+			expect(state.files).toEqual([
+				{ path: "new.ts", originalPath: null, status: "M" },
+			]);
+		});
 	});
 
 	describe("selectFile", () => {
 		it("should fetch diff for selected file", async () => {
+			useCommitDiffStore.setState({ commitHash: "abc123" });
 			mockedIpc.gitCommitDiff.mockResolvedValue({
 				ok: true,
 				data: "diff --git a/file.ts",
@@ -99,6 +144,7 @@ describe("commitDiffStore", () => {
 		});
 
 		it("should handle diff fetch error", async () => {
+			useCommitDiffStore.setState({ commitHash: "abc123" });
 			mockedIpc.gitCommitDiff.mockResolvedValue({
 				ok: false,
 				error: { message: "diff failed" } as never,
@@ -111,6 +157,42 @@ describe("commitDiffStore", () => {
 			const state = useCommitDiffStore.getState();
 			expect(state.selectedFile).toBe("file.ts");
 			expect(state.diffContent).toBeNull();
+			expect(state.isLoadingDiff).toBe(false);
+		});
+
+		it("should ignore stale diff responses after selecting another file", async () => {
+			const first =
+				createDeferred<Awaited<ReturnType<typeof ipc.gitCommitDiff>>>();
+			const second =
+				createDeferred<Awaited<ReturnType<typeof ipc.gitCommitDiff>>>();
+
+			useCommitDiffStore.setState({ commitHash: "abc123" });
+			mockedIpc.gitCommitDiff
+				.mockImplementationOnce(() => first.promise)
+				.mockImplementationOnce(() => second.promise);
+
+			const firstRequest = useCommitDiffStore
+				.getState()
+				.selectFile("/repo", "abc123", "first.ts");
+			const secondRequest = useCommitDiffStore
+				.getState()
+				.selectFile("/repo", "abc123", "second.ts");
+
+			second.resolve({
+				ok: true,
+				data: "diff --git a/second.ts",
+			});
+			await secondRequest;
+
+			first.resolve({
+				ok: true,
+				data: "diff --git a/first.ts",
+			});
+			await firstRequest;
+
+			const state = useCommitDiffStore.getState();
+			expect(state.selectedFile).toBe("second.ts");
+			expect(state.diffContent).toBe("diff --git a/second.ts");
 			expect(state.isLoadingDiff).toBe(false);
 		});
 	});

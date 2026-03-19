@@ -63,6 +63,8 @@ export function StagingArea({ filePath }: StagingAreaProps) {
 	};
 
 	const totalChanges = staged.length + unstaged.length + untracked.length;
+	const selectedUnstagedPath =
+		selectedFile && !selectedFile.staged ? selectedFile.path : null;
 
 	return (
 		<div className="flex h-full flex-col">
@@ -180,9 +182,7 @@ export function StagingArea({ filePath }: StagingAreaProps) {
 					title="未ステージ"
 					files={unstaged}
 					actionType="stage"
-					selectedPath={
-						selectedFile && !selectedFile.staged ? selectedFile.path : null
-					}
+					selectedPath={selectedUnstagedPath}
 					disabled={isOperating}
 					onAction={handleStage}
 					onSelect={handleSelectUnstaged}
@@ -192,7 +192,7 @@ export function StagingArea({ filePath }: StagingAreaProps) {
 					title="未追跡"
 					files={untracked}
 					actionType="stage"
-					selectedPath={null}
+					selectedPath={selectedUnstagedPath}
 					disabled={isOperating}
 					onAction={handleStage}
 					onSelect={handleSelectUnstaged}

@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { useStagingStore } from "./stagingStore";
 
-// Mock IPC module
+// IPC モジュールをモック化する
 vi.mock("../types/ipc", () => ({
 	gitStatus: vi.fn(),
 	gitStageFile: vi.fn(),
@@ -15,6 +15,14 @@ import * as ipc from "../types/ipc";
 const mockedIpc = vi.mocked(ipc);
 
 const filePath = "/tmp/test-repo/.git/COMMIT_EDITMSG";
+
+function createDeferred<T>() {
+	let resolve!: (value: T) => void;
+	const promise = new Promise<T>((nextResolve) => {
+		resolve = nextResolve;
+	});
+	return { promise, resolve };
+}
 
 const mockStatusResult = {
 	staged: [
@@ -127,6 +135,134 @@ describe("stagingStore", () => {
 			await useStagingStore.getState().fetchStatus(filePath);
 
 			expect(useStagingStore.getState().error).toBeNull();
+		});
+
+		it("should ignore stale status responses when a newer refresh finishes first", async () => {
+			const first = createDeferred<Awaited<ReturnType<typeof ipc.gitStatus>>>();
+			const second =
+				createDeferred<Awaited<ReturnType<typeof ipc.gitStatus>>>();
+			const newerStatus = {
+				...mockStatusResult,
+				staged: [
+					{
+						path: "src/new.ts",
+						originalPath: null,
+						indexStatus: "A",
+						worktreeStatus: " ",
+					},
+				],
+			};
+
+			mockedIpc.gitStatus
+				.mockImplementationOnce(() => first.promise)
+				.mockImplementationOnce(() => second.promise);
+
+			const firstRequest = useStagingStore.getState().fetchStatus(filePath);
+			const secondRequest = useStagingStore.getState().fetchStatus(filePath);
+
+			second.resolve({
+				ok: true,
+				data: newerStatus,
+			});
+			await secondRequest;
+
+			first.resolve({
+				ok: true,
+				data: mockStatusResult,
+			});
+			await firstRequest;
+
+			const state = useStagingStore.getState();
+			expect(state.staged).toEqual(newerStatus.staged);
+			expect(state.unstaged).toEqual(newerStatus.unstaged);
+			expect(state.untracked).toEqual(newerStatus.untracked);
+		});
+
+		it("should keep the selected side when the same path exists in staged and unstaged lists", async () => {
+			const mixedPath = "src/shared.ts";
+			useStagingStore.setState({
+				selectedFile: { path: mixedPath, staged: false },
+				diffContent: "existing diff",
+			});
+			mockedIpc.gitDiffFile.mockResolvedValue({
+				ok: true,
+				data: "updated unstaged diff",
+			});
+
+			mockedIpc.gitStatus.mockResolvedValue({
+				ok: true,
+				data: {
+					...mockStatusResult,
+					staged: [
+						{
+							path: mixedPath,
+							originalPath: null,
+							indexStatus: "M",
+							worktreeStatus: " ",
+						},
+					],
+					unstaged: [
+						{
+							path: mixedPath,
+							originalPath: null,
+							indexStatus: " ",
+							worktreeStatus: "M",
+						},
+					],
+				},
+			});
+
+			await useStagingStore.getState().fetchStatus(filePath);
+
+			const state = useStagingStore.getState();
+			expect(state.selectedFile).toEqual({ path: mixedPath, staged: false });
+			expect(state.diffContent).toBe("updated unstaged diff");
+			expect(mockedIpc.gitDiffFile).toHaveBeenCalledWith(
+				filePath,
+				mixedPath,
+				false,
+			);
+		});
+
+		it("should reload diff when the refreshed selection moves from unstaged to staged", async () => {
+			useStagingStore.setState({
+				selectedFile: { path: "src/utils.ts", staged: false },
+				diffContent: "stale diff",
+			});
+			mockedIpc.gitDiffFile.mockResolvedValue({
+				ok: true,
+				data: "fresh staged diff",
+			});
+			mockedIpc.gitStatus.mockResolvedValue({
+				ok: true,
+				data: {
+					...mockStatusResult,
+					staged: [
+						{
+							path: "src/utils.ts",
+							originalPath: null,
+							indexStatus: "M",
+							worktreeStatus: " ",
+						},
+					],
+					unstaged: [],
+					untracked: [],
+				},
+			});
+
+			await useStagingStore.getState().fetchStatus(filePath);
+
+			const state = useStagingStore.getState();
+			expect(state.selectedFile).toEqual({
+				path: "src/utils.ts",
+				staged: true,
+			});
+			expect(state.diffContent).toBe("fresh staged diff");
+			expect(mockedIpc.gitDiffFile).toHaveBeenCalledWith(
+				filePath,
+				"src/utils.ts",
+				true,
+			);
 		});
 	});
 
@@ -386,6 +522,44 @@ describe("stagingStore", () => {
 				path: "src/main.ts",
 				staged: true,
 			});
+		});
+
+		it("should ignore stale diff responses after selecting another file", async () => {
+			const first =
+				createDeferred<Awaited<ReturnType<typeof ipc.gitDiffFile>>>();
+			const second =
+				createDeferred<Awaited<ReturnType<typeof ipc.gitDiffFile>>>();
+
+			mockedIpc.gitDiffFile
+				.mockImplementationOnce(() => first.promise)
+				.mockImplementationOnce(() => second.promise);
+
+			const firstRequest = useStagingStore
+				.getState()
+				.selectFile("src/first.ts", true, filePath);
+			const secondRequest = useStagingStore
+				.getState()
+				.selectFile("src/second.ts", false, filePath);
+
+			second.resolve({
+				ok: true,
+				data: "diff --git a/src/second.ts",
+			});
+			await secondRequest;
+
+			first.resolve({
+				ok: true,
+				data: "diff --git a/src/first.ts",
+			});
+			await firstRequest;
+
+			const state = useStagingStore.getState();
+			expect(state.selectedFile).toEqual({
+				path: "src/second.ts",
+				staged: false,
+			});
+			expect(state.diffContent).toBe("diff --git a/src/second.ts");
+			expect(state.isLoadingDiff).toBe(false);
 		});
 	});
 
