@@ -2,11 +2,15 @@ import { useCallback, useEffect, useState } from "react";
 import { useFileStore, useRebaseStore } from "../../stores";
 import type { RebaseEntry, SimpleCommand } from "../../types/git";
 import { getModifierKey, getShortcut } from "../../utils/platform";
+import {
+	countSquashableEntries,
+	hasSquashTargetBeforeEntry,
+} from "../../utils/rebase";
 import { CommitChangeViewer } from "./CommitChangeViewer";
 import { RebaseEntryList } from "./RebaseEntryList";
 import { RewordModal } from "./RewordModal";
 
-/** Remove leading # from commit message if present */
+/** コミットメッセージ先頭の `#` を表示用に取り除く。 */
 function cleanMessage(message: string): string {
 	return message.replace(/^#\s*/, "");
 }
@@ -21,32 +25,8 @@ const COMMAND_SHORTCUTS: Record<string, SimpleCommand> = {
 };
 
 /**
- * Check if an entry can be squashed/fixup'd.
- * An entry can only be squash/fixup if there's a valid target commit before it
- * (i.e., a commit that is not drop).
- */
-function canSquashOrFixupEntry(
-	entries: { id: string; command: { type: string } }[],
-	entryId: string,
-): boolean {
-	const index = entries.findIndex((e) => e.id === entryId);
-	if (index <= 0) return false;
-
-	// Check all entries before this one
-	for (let i = 0; i < index; i++) {
-		const entry = entries[i];
-		// A valid target is any command that's not drop
-		if (entry.command.type !== "drop") {
-			return true;
-		}
-	}
-	return false;
-}
-
-/**
- * Collect related commit hashes for squash/fixup entries.
- * When a commit has subsequent squash/fixup commands, their changes
- * will be combined, so we need all their hashes for AI message generation.
+ * 後続の squash / fixup で統合されるコミットのハッシュを集める。
+ * AI 生成時に統合対象の変更をまとめて渡すために使う。
  */
 function collectRelatedHashes(
 	entries: RebaseEntry[],
@@ -57,16 +37,16 @@ function collectRelatedHashes(
 
 	const relatedHashes: string[] = [];
 
-	// Look at subsequent entries
+	// 後続エントリを順に見ていく
 	for (let i = index + 1; i < entries.length; i++) {
 		const entry = entries[i];
 		const cmdType = entry.command.type;
 
-		// Collect squash and fixup entries
+		// squash / fixup だけを関連コミットとして扱う
 		if (cmdType === "squash" || cmdType === "fixup") {
 			relatedHashes.push(entry.commit_hash);
 		} else {
-			// Stop when we hit a non-squash/fixup command
+			// 連続した squash / fixup の塊が途切れたら終了する
 			break;
 		}
 	}
@@ -89,18 +69,19 @@ export function RebaseEditor() {
 
 	const filePath = useFileStore((s) => s.filePath);
 
-	// Get selected entry for the change viewer
+	// 右側の変更ビューアに表示する選択中エントリ
 	const selectedEntry = entries.find((e) => e.id === selectedEntryId);
 	const selectedCommitHash = selectedEntry?.commit_hash || null;
 	const selectedMessage = selectedEntry?.message || "";
 
-	// State for reword modal
+	// Reword ダイアログの表示状態
 	const [rewordEntry, setRewordEntry] = useState<RebaseEntry | null>(null);
+	const squashableEntryCount = countSquashableEntries(entries);
 
-	// Keyboard shortcuts for command changes
+	// コマンド変更や並べ替えに使うキーボードショートカット
 	const handleKeyDown = useCallback(
 		(event: KeyboardEvent) => {
-			// Ignore if typing in an input
+			// 入力中はショートカットを無効化する
 			if (
 				event.target instanceof HTMLInputElement ||
 				event.target instanceof HTMLTextAreaElement ||
@@ -109,7 +90,7 @@ export function RebaseEditor() {
 				return;
 			}
 
-			// Cmd+↑/↓: Move selected entry up/down
+			// Cmd+↑/↓ または Ctrl+↑/↓ で選択中エントリを移動する
 			if (
 				(event.metaKey || event.ctrlKey) &&
 				(event.key === "ArrowUp" || event.key === "ArrowDown")
@@ -131,7 +112,7 @@ export function RebaseEditor() {
 				return;
 			}
 
-			// Shift+F: Squash all into one (fixup all except first)
+			// Shift+F でコミット系エントリだけを 1 つにまとめる
 			if (
 				event.shiftKey &&
 				!event.ctrlKey &&
@@ -139,30 +120,30 @@ export function RebaseEditor() {
 				!event.altKey &&
 				event.key.toLowerCase() === "f"
 			) {
-				if (entries.length >= 2) {
+				if (squashableEntryCount >= 2) {
 					event.preventDefault();
 					squashAll();
 				}
 				return;
 			}
 
-			// Ignore other shortcuts if modifier keys are pressed
+			// 上記以外は修飾キー付きショートカットとして扱わない
 			if (event.ctrlKey || event.metaKey || event.altKey || event.shiftKey)
 				return;
 
 			const command = COMMAND_SHORTCUTS[event.key.toLowerCase()];
 			if (command && selectedEntryId) {
-				// Check if squash/fixup is allowed for this entry
+				// 統合先がない fixup / squash は Git 実行時に失敗するため防ぐ
 				if (
 					(command === "squash" || command === "fixup") &&
-					!canSquashOrFixupEntry(entries, selectedEntryId)
+					!hasSquashTargetBeforeEntry(entries, selectedEntryId)
 				) {
-					return; // Don't allow squash/fixup if no valid target before it
+					return;
 				}
 				event.preventDefault();
 				setSimpleCommand(selectedEntryId, command);
 
-				// Open reword modal when 'r' is pressed
+				// `r` では reword ダイアログも開く
 				if (command === "reword") {
 					const entry = entries.find((e) => e.id === selectedEntryId);
 					if (entry) {
@@ -171,7 +152,7 @@ export function RebaseEditor() {
 				}
 			}
 
-			// Arrow key navigation
+			// 矢印キーで一覧選択を移動する
 			if (event.key === "ArrowUp" || event.key === "ArrowDown") {
 				event.preventDefault();
 				const currentIndex = entries.findIndex((e) => e.id === selectedEntryId);
@@ -190,6 +171,7 @@ export function RebaseEditor() {
 		[
 			selectedEntryId,
 			entries,
+			squashableEntryCount,
 			setSimpleCommand,
 			selectEntry,
 			moveEntry,
@@ -202,7 +184,7 @@ export function RebaseEditor() {
 		return () => window.removeEventListener("keydown", handleKeyDown);
 	}, [handleKeyDown]);
 
-	// Reword modal handlers
+	// Reword ダイアログの保存処理
 	const handleRewordSave = useCallback(
 		(newMessage: string) => {
 			if (rewordEntry) {
@@ -217,12 +199,12 @@ export function RebaseEditor() {
 		setRewordEntry(null);
 	}, []);
 
-	// Wrap command change to open modal when reword is selected
+	// 一覧から reword が選ばれたときもダイアログを開く
 	const handleCommandChange = useCallback(
 		(id: string, command: import("../../types/git").RebaseCommandType) => {
 			updateEntryCommand(id, command);
 
-			// Open reword modal when reword command is selected
+			// reword 選択時はメッセージ編集をすぐ開始する
 			if (command.type === "reword") {
 				const entry = entries.find((e) => e.id === id);
 				if (entry) {
@@ -235,15 +217,15 @@ export function RebaseEditor() {
 
 	return (
 		<div className="flex h-full gap-0">
-			{/* Left: Entry list */}
+			{/* 左側: rebase エントリ一覧 */}
 			<div className="flex min-w-0 flex-1 flex-col gap-4">
-				{/* Header with entry count */}
+				{/* ヘッダーと件数表示 */}
 				<div className="flex items-center justify-between">
 					<h2 className="text-lg font-semibold text-gray-800 dark:text-gray-200">
 						Rebase エントリ
 					</h2>
 					<div className="flex items-center gap-2">
-						{entries.length >= 2 && (
+						{squashableEntryCount >= 2 && (
 							<button
 								type="button"
 								onClick={squashAll}
@@ -261,14 +243,14 @@ export function RebaseEditor() {
 					</div>
 				</div>
 
-				{/* Instructions */}
+				{/* 操作ガイド */}
 				<div className="rounded-lg bg-blue-50 p-3 text-sm text-blue-700 dark:bg-blue-900/20 dark:text-blue-300">
 					<p>
 						ドラッグ&ドロップで順序を変更できます。コマンドを選択してアクションを変更してください。
 					</p>
 				</div>
 
-				{/* Entry list */}
+				{/* エントリ一覧 */}
 				<div className="flex-1 overflow-auto">
 					<RebaseEntryList
 						entries={entries}
@@ -279,7 +261,7 @@ export function RebaseEditor() {
 					/>
 				</div>
 
-				{/* Comments section (collapsed by default) */}
+				{/* コメントは必要なときだけ展開できる */}
 				{comments.length > 0 && (
 					<details className="rounded-lg border border-gray-200 dark:border-gray-700">
 						<summary className="cursor-pointer px-4 py-2 text-sm font-medium text-gray-600 hover:bg-gray-50 dark:text-gray-400 dark:hover:bg-gray-800">
@@ -293,7 +275,7 @@ export function RebaseEditor() {
 					</details>
 				)}
 
-				{/* Keyboard shortcuts help */}
+				{/* キーボードショートカット一覧 */}
 				<div className="flex flex-wrap gap-x-4 gap-y-1 border-t border-gray-200 pt-3 text-xs text-gray-500 dark:border-gray-700 dark:text-gray-500">
 					<span>
 						<kbd className="rounded bg-gray-200 px-1.5 py-0.5 font-mono dark:bg-gray-700">
@@ -364,10 +346,10 @@ export function RebaseEditor() {
 				</div>
 			</div>
 
-			{/* Divider */}
+			{/* 区切り線 */}
 			<div className="w-px bg-gray-200 dark:bg-gray-700" />
 
-			{/* Right: Commit change viewer */}
+			{/* 右側: 選択中コミットの変更表示 */}
 			{filePath && selectedCommitHash && (
 				<div className="w-[460px] shrink-0 overflow-hidden pl-4">
 					<CommitChangeViewer
@@ -378,7 +360,7 @@ export function RebaseEditor() {
 				</div>
 			)}
 
-			{/* Reword modal */}
+			{/* Reword ダイアログ */}
 			<RewordModal
 				isOpen={rewordEntry !== null}
 				commitHash={rewordEntry?.commit_hash ?? ""}

@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { RebaseEntry } from "../types/git";
 import { useRebaseStore } from "./rebaseStore";
 
-// Mock IPC module
+// IPC をモック化する
 vi.mock("../types/ipc", () => ({
 	parseRebaseTodo: vi.fn(),
 	serializeRebaseTodo: vi.fn(),
@@ -168,6 +168,16 @@ describe("rebaseStore", () => {
 				]);
 			expect(useRebaseStore.getState().getValidationError()).toBeNull();
 		});
+
+		it("should return error when first commit entry is fixup after exec", () => {
+			useRebaseStore
+				.getState()
+				.setEntries([
+					makeEntry("exec", { type: "exec", value: "echo hi" }),
+					makeEntry("2", { type: "fixup" }),
+				]);
+			expect(useRebaseStore.getState().getValidationError()).not.toBeNull();
+		});
 	});
 
 	describe("setSimpleCommand", () => {
@@ -213,11 +223,29 @@ describe("rebaseStore", () => {
 			expect(entries[1].command).toEqual({ type: "fixup" });
 			expect(entries[2].command).toEqual({ type: "fixup" });
 		});
+
+		it("should keep special commands and drop entries unchanged", () => {
+			useRebaseStore
+				.getState()
+				.setEntries([
+					makeEntry("exec", { type: "exec", value: "echo hi" }),
+					makeEntry("1"),
+					makeEntry("drop", { type: "drop" }),
+					makeEntry("2", { type: "reword" }),
+				]);
+			useRebaseStore.getState().squashAll();
+
+			const entries = useRebaseStore.getState().entries;
+			expect(entries[0].command).toEqual({ type: "exec", value: "echo hi" });
+			expect(entries[1].command).toEqual({ type: "pick" });
+			expect(entries[2].command).toEqual({ type: "drop" });
+			expect(entries[3].command).toEqual({ type: "fixup" });
+		});
 	});
 
 	describe("clearError", () => {
 		it("should clear the error state", () => {
-			// Force an error state
+			// 強制的にエラー状態を作る
 			useRebaseStore.setState({ error: { message: "test error" } as never });
 			useRebaseStore.getState().clearError();
 			expect(useRebaseStore.getState().error).toBeNull();

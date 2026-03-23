@@ -29,6 +29,7 @@ Interactive rebase、commit message編集、squash、rewordなどをすべてサ
 
 - ✨ **Interactive Rebase** - ドラッグ&ドロップでコミットの並び替え
 - ⌨️ **キーボード操作** - ショートカットで高速なコマンド変更（p/r/e/s/f/d）
+- ✅ **安全な fixup / squash 判定** - `exec` や `label` を統合先として誤認せず、Git が失敗する rebase todo を事前に防止
 - 🤖 **AIコミットメッセージ** - [git-smart-commit](https://github.com/owayo/git-smart-commit) 連携で自動生成
 - 🔄 **Undo/Redo** - 操作の取り消し・やり直し
 - 🌙 **ダークモード** - システムテーマに自動追従
@@ -93,6 +94,9 @@ git config --global core.editor '"/Applications/gui-git-editor.app/Contents/MacO
 git config --global sequence.editor '"/Applications/gui-git-editor.app/Contents/MacOS/gui-git-editor"'
 ```
 ※ `sequence.editor` 未設定時は `rebase -i` 時、`core.editor` が使用されます。`rebase -i` 時だけ使いたい場合に設定してください。
+
+特殊コマンド（`exec`, `label`, `reset`, `break`, `merge`, `drop`）を含む todo でも、`fixup` / `squash` の統合先は commit 系エントリだけに限定して判定します。
+「すべて1つにまとめる」操作でも、特殊コマンドと `drop` は保持したまま後続コミットだけを `fixup` 化します。
 
 ### Git マージツールとして設定
 
@@ -197,6 +201,7 @@ pnpm typecheck            # TypeScript 型チェック
 ```
 
 主要UIコンポーネント（`ActionBar`, `SubjectInput`, `FileDiffViewer`, `TrailersDisplay`, `RebaseEntryList`, `ConflictNavigator`）に加えて、`mergeStore` のコンフリクト解決/復元ロジック（diff3 revert 含む）、`fileStore` のバックアップパス整合性（古い `backupPath` の残留防止）、`stagingStore` / `commitDiffStore` の競合した非同期応答の無視と、status 更新後の diff 再取得もテストで検証しています。
+`utils/rebase.ts` と `rebaseStore` では、特殊コマンドを含む rebase todo に対する `fixup` / `squash` の検証と `squashAll` の安全な変換も確認しています。
 `useKeyboardShortcuts` のクロスプラットフォームキーバインド、`useMergeKeyboardShortcuts` のマージ画面キーバインド（保存/キャンセル/コンフリクト移動）、`useAutoBackup` の自動バックアップ間隔・dirty 状態連動・クリーンアップもカバーしています。
 
 ### Tech Stack

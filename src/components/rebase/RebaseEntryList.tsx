@@ -18,43 +18,11 @@ import {
 } from "@dnd-kit/sortable";
 import { useCallback } from "react";
 import type { RebaseCommandType, RebaseEntry } from "../../types/git";
+import {
+	findSquashTarget,
+	hasSquashTargetBeforeIndex,
+} from "../../utils/rebase";
 import { RebaseEntryItem } from "./RebaseEntryItem";
-
-/**
- * Check if an entry can be squashed/fixup'd.
- * An entry can only be squash/fixup if there's a valid target commit before it
- * (i.e., a commit that is not drop).
- */
-function canSquashOrFixup(entries: RebaseEntry[], index: number): boolean {
-	// Check all entries before this one
-	for (let i = 0; i < index; i++) {
-		const entry = entries[i];
-		// A valid target is any command that's not drop
-		if (entry.command.type !== "drop") {
-			return true;
-		}
-	}
-	return false;
-}
-
-/**
- * Find the target commit for squash/fixup.
- * The target is the last non-squash/fixup/drop commit before this entry.
- */
-function findSquashTarget(
-	entries: RebaseEntry[],
-	index: number,
-): RebaseEntry | null {
-	for (let i = index - 1; i >= 0; i--) {
-		const entry = entries[i];
-		const cmdType = entry.command.type;
-		// Target is pick, reword, or edit (not squash, fixup, or drop)
-		if (cmdType !== "squash" && cmdType !== "fixup" && cmdType !== "drop") {
-			return entry;
-		}
-	}
-	return null;
-}
 
 interface RebaseEntryListProps {
 	entries: RebaseEntry[];
@@ -119,7 +87,7 @@ export function RebaseEntryList({
 					aria-live="polite"
 					className="flex flex-col gap-2"
 				>
-					{/* Oldest commit indicator */}
+					{/* 最古コミットの位置を示すガイド */}
 					<li
 						aria-hidden="true"
 						className="flex list-none items-center gap-2 text-xs text-gray-500 dark:text-gray-400"
@@ -136,7 +104,7 @@ export function RebaseEntryList({
 								isSelected={entry.id === selectedEntryId}
 								isFirst={index === 0}
 								isLast={index === entries.length - 1}
-								canSquashOrFixup={canSquashOrFixup(entries, index)}
+								canSquashOrFixup={hasSquashTargetBeforeIndex(entries, index)}
 								squashTarget={findSquashTarget(entries, index)}
 								onSelect={() => onSelectEntry(entry.id)}
 								onCommandChange={(cmd) => onCommandChange(entry.id, cmd)}
@@ -144,7 +112,7 @@ export function RebaseEntryList({
 						</li>
 					))}
 
-					{/* Newest commit indicator */}
+					{/* 最新コミットの位置を示すガイド */}
 					<li
 						aria-hidden="true"
 						className="flex list-none items-center gap-2 text-xs text-gray-500 dark:text-gray-400"
@@ -154,7 +122,7 @@ export function RebaseEntryList({
 						<span className="flex-1 border-t border-dashed border-gray-300 dark:border-gray-600" />
 					</li>
 				</ul>
-				{/* Screen reader instructions for drag and drop */}
+				{/* ドラッグ操作の説明をスクリーンリーダー向けに提供する */}
 				<div id="drag-instructions" className="sr-only">
 					スペースキーでドラッグを開始し、矢印キーで移動、スペースキーでドロップします
 				</div>

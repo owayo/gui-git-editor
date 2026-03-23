@@ -7,9 +7,10 @@ import type {
 	SimpleCommand,
 } from "../types/git";
 import * as ipc from "../types/ipc";
+import { getRebaseValidationError, squashAllEntries } from "../utils/rebase";
 
 interface RebaseState {
-	// State
+	// 状態
 	entries: RebaseEntry[];
 	originalEntries: RebaseEntry[];
 	comments: string[];
@@ -18,13 +19,13 @@ interface RebaseState {
 	error: AppError | null;
 	isDirty: boolean;
 
-	// Derived state helpers
+	// 派生状態ヘルパー
 	getEntry: (id: string) => RebaseEntry | undefined;
 	getSelectedEntry: () => RebaseEntry | undefined;
-	/** Returns validation error message if entries are invalid, null otherwise */
+	/** 不正な並びならエラーメッセージを返し、問題なければ null を返す。 */
 	getValidationError: () => string | null;
 
-	// Actions
+	// 操作
 	parseContent: (content: string) => Promise<boolean>;
 	serialize: () => Promise<string | null>;
 	setEntries: (entries: RebaseEntry[]) => void;
@@ -62,24 +63,7 @@ export const useRebaseStore = create<RebaseState>((set, get) => ({
 			: undefined;
 	},
 
-	getValidationError: () => {
-		const { entries } = get();
-		if (entries.length === 0) return null;
-
-		// Find the first non-drop entry
-		for (const entry of entries) {
-			const cmdType = entry.command.type;
-			if (cmdType === "drop") continue;
-
-			// If the first non-drop entry is squash or fixup, it's invalid
-			if (cmdType === "squash" || cmdType === "fixup") {
-				return "先頭のコミットにsquash/fixupは使用できません。統合先のコミットがありません。";
-			}
-			// First non-drop entry is valid (pick, reword, edit, etc.)
-			break;
-		}
-		return null;
-	},
+	getValidationError: () => getRebaseValidationError(get().entries),
 
 	parseContent: async (content: string) => {
 		set({ isLoading: true, error: null });
@@ -94,7 +78,7 @@ export const useRebaseStore = create<RebaseState>((set, get) => ({
 				comments: file.comments,
 				isLoading: false,
 				isDirty: false,
-				// Auto-select the first entry
+				// 読み込み直後は先頭エントリを選択する
 				selectedEntryId: file.entries.length > 0 ? file.entries[0].id : null,
 			});
 			return true;
@@ -167,9 +151,7 @@ export const useRebaseStore = create<RebaseState>((set, get) => ({
 
 	squashAll: () => {
 		set((state) => ({
-			entries: state.entries.map((entry, index) =>
-				index === 0 ? entry : { ...entry, command: { type: "fixup" as const } },
-			),
+			entries: squashAllEntries(state.entries),
 			isDirty: true,
 		}));
 	},
