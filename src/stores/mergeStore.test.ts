@@ -341,6 +341,243 @@ describe("mergeStore", () => {
 		expect(new Set(ids).size).toBe(ids.length);
 	});
 
+	// --- acceptRemote ---
+
+	it("acceptRemote はリモート側の内容でコンフリクトを解決する", () => {
+		const mergedContent = [
+			"before",
+			"<<<<<<< LOCAL",
+			"A",
+			"=======",
+			"B",
+			">>>>>>> REMOTE",
+			"after",
+		].join("\n");
+
+		useMergeStore.setState({
+			mergedContent,
+			conflicts: [makeConflict(0, 1, "A", "B")],
+		});
+
+		useMergeStore.getState().acceptRemote(0);
+
+		const state = useMergeStore.getState();
+		expect(state.mergedContent).toBe(["before", "B", "after"].join("\n"));
+		expect(state.conflicts[0].resolved).toBe(true);
+		expect(state.isDirty).toBe(true);
+		expect(state.allResolved).toBe(true);
+	});
+
+	// --- acceptBoth ---
+
+	it("acceptBoth はローカルとリモートの両方を結合して解決する", () => {
+		const mergedContent = [
+			"before",
+			"<<<<<<< LOCAL",
+			"A",
+			"=======",
+			"B",
+			">>>>>>> REMOTE",
+			"after",
+		].join("\n");
+
+		useMergeStore.setState({
+			mergedContent,
+			conflicts: [makeConflict(0, 1, "A", "B")],
+		});
+
+		useMergeStore.getState().acceptBoth(0);
+
+		const state = useMergeStore.getState();
+		expect(state.mergedContent).toBe(["before", "A", "B", "after"].join("\n"));
+		expect(state.conflicts[0].resolved).toBe(true);
+		expect(state.isDirty).toBe(true);
+		expect(state.allResolved).toBe(true);
+	});
+
+	it("acceptBoth はローカルが空の場合リモートのみを挿入する", () => {
+		const mergedContent = [
+			"before",
+			"<<<<<<< LOCAL",
+			"=======",
+			"B",
+			">>>>>>> REMOTE",
+			"after",
+		].join("\n");
+
+		useMergeStore.setState({
+			mergedContent,
+			conflicts: [makeConflict(0, 1, "", "B")],
+		});
+
+		useMergeStore.getState().acceptBoth(0);
+
+		const state = useMergeStore.getState();
+		expect(state.mergedContent).toBe(["before", "B", "after"].join("\n"));
+	});
+
+	// --- goToNextConflict ---
+
+	it("goToNextConflict は次の未解決コンフリクトに移動する", () => {
+		useMergeStore.setState({
+			mergedContent: "dummy",
+			conflicts: [
+				makeConflict(0, 1, "A", "B"),
+				makeConflict(1, 7, "X", "Y"),
+				makeConflict(2, 13, "P", "Q"),
+			],
+			currentConflictIndex: 0,
+		});
+
+		const startLine = useMergeStore.getState().goToNextConflict();
+
+		const state = useMergeStore.getState();
+		expect(state.currentConflictIndex).toBe(1);
+		expect(startLine).toBe(7);
+	});
+
+	it("goToNextConflict は末尾から先頭にラップアラウンドする", () => {
+		useMergeStore.setState({
+			mergedContent: "dummy",
+			conflicts: [makeConflict(0, 1, "A", "B"), makeConflict(1, 7, "X", "Y")],
+			currentConflictIndex: 1,
+		});
+
+		const startLine = useMergeStore.getState().goToNextConflict();
+
+		const state = useMergeStore.getState();
+		expect(state.currentConflictIndex).toBe(0);
+		expect(startLine).toBe(1);
+	});
+
+	it("goToNextConflict は解決済みをスキップして未解決に移動する", () => {
+		useMergeStore.setState({
+			mergedContent: "dummy",
+			conflicts: [
+				makeConflict(0, 1, "A", "B"),
+				{ ...makeConflict(1, 7, "X", "Y"), resolved: true },
+				makeConflict(2, 13, "P", "Q"),
+			],
+			currentConflictIndex: 0,
+		});
+
+		const startLine = useMergeStore.getState().goToNextConflict();
+
+		expect(useMergeStore.getState().currentConflictIndex).toBe(2);
+		expect(startLine).toBe(13);
+	});
+
+	// --- goToPrevConflict ---
+
+	it("goToPrevConflict は前の未解決コンフリクトに移動する", () => {
+		useMergeStore.setState({
+			mergedContent: "dummy",
+			conflicts: [
+				makeConflict(0, 1, "A", "B"),
+				makeConflict(1, 7, "X", "Y"),
+				makeConflict(2, 13, "P", "Q"),
+			],
+			currentConflictIndex: 2,
+		});
+
+		const startLine = useMergeStore.getState().goToPrevConflict();
+
+		expect(useMergeStore.getState().currentConflictIndex).toBe(1);
+		expect(startLine).toBe(7);
+	});
+
+	it("goToPrevConflict は先頭から末尾にラップアラウンドする", () => {
+		useMergeStore.setState({
+			mergedContent: "dummy",
+			conflicts: [makeConflict(0, 1, "A", "B"), makeConflict(1, 7, "X", "Y")],
+			currentConflictIndex: 0,
+		});
+
+		const startLine = useMergeStore.getState().goToPrevConflict();
+
+		expect(useMergeStore.getState().currentConflictIndex).toBe(1);
+		expect(startLine).toBe(7);
+	});
+
+	// --- goToNextConflict / goToPrevConflict: 全て解決済み ---
+
+	it("goToNextConflict は全て解決済みの場合 null を返す", () => {
+		useMergeStore.setState({
+			mergedContent: "dummy",
+			conflicts: [
+				{ ...makeConflict(0, 1, "A", "B"), resolved: true },
+				{ ...makeConflict(1, 7, "X", "Y"), resolved: true },
+			],
+			currentConflictIndex: 0,
+		});
+
+		const result = useMergeStore.getState().goToNextConflict();
+		expect(result).toBeNull();
+	});
+
+	it("goToPrevConflict は全て解決済みの場合 null を返す", () => {
+		useMergeStore.setState({
+			mergedContent: "dummy",
+			conflicts: [
+				{ ...makeConflict(0, 1, "A", "B"), resolved: true },
+				{ ...makeConflict(1, 7, "X", "Y"), resolved: true },
+			],
+			currentConflictIndex: 1,
+		});
+
+		const result = useMergeStore.getState().goToPrevConflict();
+		expect(result).toBeNull();
+	});
+
+	// --- save ---
+
+	it("save は正常系で IPC 成功時に true を返す", async () => {
+		vi.spyOn(ipc, "writeFile").mockResolvedValue({ ok: true, data: null });
+
+		useMergeStore.setState({
+			mergedPath: "/tmp/merged",
+			mergedContent: "resolved content",
+			isDirty: true,
+		});
+
+		const result = await useMergeStore.getState().save();
+
+		expect(result).toBe(true);
+		const state = useMergeStore.getState();
+		expect(state.isDirty).toBe(false);
+		expect(state.isSaving).toBe(false);
+	});
+
+	it("save は IPC 失敗時に false を返しエラーを設定する", async () => {
+		vi.spyOn(ipc, "writeFile").mockResolvedValue({
+			ok: false,
+			error: "write failed",
+		});
+
+		useMergeStore.setState({
+			mergedPath: "/tmp/merged",
+			mergedContent: "resolved content",
+		});
+
+		const result = await useMergeStore.getState().save();
+
+		expect(result).toBe(false);
+		const state = useMergeStore.getState();
+		expect(state.error).toBe("write failed");
+		expect(state.isSaving).toBe(false);
+	});
+
+	it("save は mergedPath が null の場合 false を返す", async () => {
+		useMergeStore.setState({
+			mergedPath: null,
+			mergedContent: "some content",
+		});
+
+		const result = await useMergeStore.getState().save();
+
+		expect(result).toBe(false);
+	});
+
 	it("reload 時に解決済みコンフリクトが再出現した場合は stale な resolved を保持しない", async () => {
 		const reloadedContent = [
 			"<<<<<<< LOCAL",

@@ -264,4 +264,100 @@ describe("rebaseStore", () => {
 			expect(state.isDirty).toBe(false);
 		});
 	});
+
+	describe("parseContent", () => {
+		it("IPC成功時に entries, comments, isLoading, isDirty, selectedEntryId が正しく設定される", async () => {
+			const { parseRebaseTodo } = await import("../types/ipc");
+			const entries = [makeEntry("1"), makeEntry("2")];
+			const comments = ["# コメント行"];
+			vi.mocked(parseRebaseTodo).mockResolvedValue({
+				ok: true,
+				data: { entries, comments },
+			});
+
+			const result = await useRebaseStore
+				.getState()
+				.parseContent("pick abc1 commit 1\npick abc2 commit 2\n");
+
+			expect(result).toBe(true);
+			const state = useRebaseStore.getState();
+			expect(state.entries).toEqual(entries);
+			expect(state.originalEntries).toEqual(entries);
+			expect(state.comments).toEqual(comments);
+			expect(state.isLoading).toBe(false);
+			expect(state.isDirty).toBe(false);
+			// 先頭エントリが選択される
+			expect(state.selectedEntryId).toBe("1");
+		});
+
+		it("entries が空の場合、selectedEntryId が null になる", async () => {
+			const { parseRebaseTodo } = await import("../types/ipc");
+			vi.mocked(parseRebaseTodo).mockResolvedValue({
+				ok: true,
+				data: { entries: [], comments: [] },
+			});
+
+			const result = await useRebaseStore.getState().parseContent("");
+
+			expect(result).toBe(true);
+			const state = useRebaseStore.getState();
+			expect(state.entries).toEqual([]);
+			expect(state.selectedEntryId).toBeNull();
+			expect(state.isLoading).toBe(false);
+			expect(state.isDirty).toBe(false);
+		});
+
+		it("IPC失敗時に error が設定され、isLoading が false になる", async () => {
+			const { parseRebaseTodo } = await import("../types/ipc");
+			const error = { message: "parse failed", code: "PARSE_ERROR" };
+			vi.mocked(parseRebaseTodo).mockResolvedValue({
+				ok: false,
+				error: error as never,
+			});
+
+			const result = await useRebaseStore
+				.getState()
+				.parseContent("invalid content");
+
+			expect(result).toBe(false);
+			const state = useRebaseStore.getState();
+			expect(state.error).toEqual(error);
+			expect(state.isLoading).toBe(false);
+		});
+	});
+
+	describe("serialize", () => {
+		it("IPC成功時にシリアライズされたデータを返す", async () => {
+			const { serializeRebaseTodo } = await import("../types/ipc");
+			const entries = [makeEntry("1")];
+			const comments = ["# comment"];
+			useRebaseStore.getState().setEntries(entries);
+			useRebaseStore.setState({ comments });
+
+			vi.mocked(serializeRebaseTodo).mockResolvedValue({
+				ok: true,
+				data: "pick abc1 commit 1\n# comment\n",
+			});
+
+			const result = await useRebaseStore.getState().serialize();
+
+			expect(result).toBe("pick abc1 commit 1\n# comment\n");
+			// serializeRebaseTodo に正しい引数が渡されたことを確認
+			expect(serializeRebaseTodo).toHaveBeenCalledWith({ entries, comments });
+		});
+
+		it("IPC失敗時に null を返し、error が設定される", async () => {
+			const { serializeRebaseTodo } = await import("../types/ipc");
+			const error = { message: "serialize failed", code: "SERIALIZE_ERROR" };
+			vi.mocked(serializeRebaseTodo).mockResolvedValue({
+				ok: false,
+				error: error as never,
+			});
+
+			const result = await useRebaseStore.getState().serialize();
+
+			expect(result).toBeNull();
+			expect(useRebaseStore.getState().error).toEqual(error);
+		});
+	});
 });
