@@ -363,7 +363,7 @@ export const useMergeStore = create<MergeState>((set, get) => ({
 		if (!mergedContent) return;
 
 		const conflict = conflicts.find((c) => c.id === conflictId);
-		if (!conflict || !conflict.resolved) return;
+		if (!conflict?.resolved) return;
 
 		const replacement = resolvedReplacements[conflictId];
 		if (!replacement) return;
