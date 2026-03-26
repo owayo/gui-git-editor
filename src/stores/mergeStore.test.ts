@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import type { AppError } from "../types/errors";
 import type { ConflictRegion } from "../types/git";
 import * as ipc from "../types/ipc";
 import { useMergeStore } from "./mergeStore";
@@ -532,7 +533,10 @@ describe("mergeStore", () => {
 	// --- save ---
 
 	it("save は正常系で IPC 成功時に true を返す", async () => {
-		vi.spyOn(ipc, "writeFile").mockResolvedValue({ ok: true, data: null });
+		vi.spyOn(ipc, "writeFile").mockResolvedValue({
+			ok: true,
+			data: undefined as never,
+		});
 
 		useMergeStore.setState({
 			mergedPath: "/tmp/merged",
@@ -551,7 +555,10 @@ describe("mergeStore", () => {
 	it("save は IPC 失敗時に false を返しエラーを設定する", async () => {
 		vi.spyOn(ipc, "writeFile").mockResolvedValue({
 			ok: false,
-			error: "write failed",
+			error: {
+				code: "IoError",
+				details: { message: "write failed" },
+			} as AppError,
 		});
 
 		useMergeStore.setState({
@@ -563,7 +570,7 @@ describe("mergeStore", () => {
 
 		expect(result).toBe(false);
 		const state = useMergeStore.getState();
-		expect(state.error).toBe("write failed");
+		expect(state.error?.details.message).toBe("write failed");
 		expect(state.isSaving).toBe(false);
 	});
 
