@@ -40,3 +40,4 @@ lerna-debug.log*
 *.sw?
 
 coverage
+.claude/settings.json
