@@ -103,6 +103,30 @@ describe("useKeyboardShortcuts", () => {
 
 			expect(handlers.onUndo).not.toHaveBeenCalled();
 		});
+
+		it("does not hijack undo inside input elements", () => {
+			renderHook(() => useKeyboardShortcuts(handlers));
+
+			const input = document.createElement("input");
+			document.body.append(input);
+
+			const event = new KeyboardEvent("keydown", {
+				key: "z",
+				metaKey: true,
+				bubbles: true,
+				cancelable: true,
+			});
+			const spy = vi.spyOn(event, "preventDefault");
+
+			act(() => {
+				input.dispatchEvent(event);
+			});
+
+			expect(handlers.onUndo).not.toHaveBeenCalled();
+			expect(spy).not.toHaveBeenCalled();
+
+			input.remove();
+		});
 	});
 
 	describe("Cmd/Ctrl + Shift + Z (Redo)", () => {
@@ -144,6 +168,31 @@ describe("useKeyboardShortcuts", () => {
 			});
 
 			expect(handlers.onRedo).toHaveBeenCalledOnce();
+		});
+
+		it("does not hijack redo inside textarea elements", () => {
+			renderHook(() => useKeyboardShortcuts(handlers));
+
+			const textarea = document.createElement("textarea");
+			document.body.append(textarea);
+
+			const event = new KeyboardEvent("keydown", {
+				key: "z",
+				metaKey: true,
+				shiftKey: true,
+				bubbles: true,
+				cancelable: true,
+			});
+			const spy = vi.spyOn(event, "preventDefault");
+
+			act(() => {
+				textarea.dispatchEvent(event);
+			});
+
+			expect(handlers.onRedo).not.toHaveBeenCalled();
+			expect(spy).not.toHaveBeenCalled();
+
+			textarea.remove();
 		});
 	});
 
@@ -272,6 +321,30 @@ describe("useKeyboardShortcuts", () => {
 			});
 
 			expect(spy).not.toHaveBeenCalled();
+		});
+
+		it("keeps save shortcut active inside editable elements", () => {
+			renderHook(() => useKeyboardShortcuts(handlers));
+
+			const textarea = document.createElement("textarea");
+			document.body.append(textarea);
+
+			const event = new KeyboardEvent("keydown", {
+				key: "s",
+				metaKey: true,
+				bubbles: true,
+				cancelable: true,
+			});
+			const spy = vi.spyOn(event, "preventDefault");
+
+			act(() => {
+				textarea.dispatchEvent(event);
+			});
+
+			expect(handlers.onSave).toHaveBeenCalledOnce();
+			expect(spy).toHaveBeenCalledOnce();
+
+			textarea.remove();
 		});
 	});
 

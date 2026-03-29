@@ -31,7 +31,7 @@ Interactive rebase、commit message編集、squash、rewordなどをすべてサ
 - ⌨️ **キーボード操作** - ショートカットで高速なコマンド変更（p/r/e/s/f/d）
 - ✅ **安全な fixup / squash 判定** - `exec` や `label` を統合先として誤認せず、Git が失敗する rebase todo を事前に防止
 - 🤖 **AIコミットメッセージ** - [git-smart-commit](https://github.com/owayo/git-smart-commit) 連携で自動生成
-- 🔄 **Undo/Redo** - 操作の取り消し・やり直し
+- 🔄 **Undo/Redo** - リスト操作の取り消し・やり直し。入力欄ではブラウザ/エディタ本来の undo/redo を優先
 - 🌙 **ダークモード** - システムテーマに自動追従
 - 🔀 **Merge Tool** - 3パネルビューでコンフリクト解決（LOCAL / MERGED / REMOTE）
 - 📂 **堅牢なステージング表示** - 空白を含むファイル名や rename を含む差分でも正しく一覧化・選択
@@ -202,7 +202,7 @@ pnpm typecheck            # TypeScript 型チェック
 
 主要UIコンポーネント（`ActionBar`, `SubjectInput`, `FileDiffViewer`, `TrailersDisplay`, `RebaseEntryList`, `ConflictNavigator`）に加えて、`mergeStore` のコンフリクト解決/復元ロジック（diff3 revert 含む）、`fileStore` のバックアップパス整合性（古い `backupPath` の残留防止）、`stagingStore` / `commitDiffStore` の競合した非同期応答の無視と、status 更新後の diff 再取得もテストで検証しています。
 `utils/rebase.ts` と `rebaseStore` では、特殊コマンドを含む rebase todo に対する `fixup` / `squash` の検証と `squashAll` の安全な変換も確認しています。
-`useKeyboardShortcuts` のクロスプラットフォームキーバインド、`useMergeKeyboardShortcuts` のマージ画面キーバインド（保存/キャンセル/コンフリクト移動）、`useAutoBackup` の自動バックアップ間隔・dirty 状態連動・クリーンアップもカバーしています。
+`useKeyboardShortcuts` のクロスプラットフォームキーバインドと、input / textarea では undo/redo を横取りしない挙動、`useMergeKeyboardShortcuts` のマージ画面キーバインド（保存/キャンセル/コンフリクト移動）、`useAutoBackup` の自動バックアップ間隔・dirty 状態連動・クリーンアップもカバーしています。
 `rebaseStore` の `parseContent` / `serialize` の IPC 連携（成功・失敗・空エントリ）、`mergeStore` の `acceptRemote` / `acceptBoth` / コンフリクトナビゲーション / `save`、`themeStore` のシステムテーマ変更イベントリスナーもテストでカバーしています。
 
 ### Tech Stack

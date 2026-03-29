@@ -7,6 +7,19 @@ interface ShortcutHandlers {
 	onRedo?: () => void;
 }
 
+function isEditableTarget(target: EventTarget | null) {
+	if (!(target instanceof HTMLElement)) {
+		return false;
+	}
+
+	return (
+		target.isContentEditable ||
+		target instanceof HTMLInputElement ||
+		target instanceof HTMLTextAreaElement ||
+		target instanceof HTMLSelectElement
+	);
+}
+
 export function useKeyboardShortcuts({
 	onSave,
 	onCancel,
@@ -17,29 +30,35 @@ export function useKeyboardShortcuts({
 		(event: KeyboardEvent) => {
 			const { key, ctrlKey, metaKey, shiftKey } = event;
 			const modKey = ctrlKey || metaKey;
+			const isEditable = isEditableTarget(event.target);
 
-			// Ctrl/Cmd + S: Save
+			// Ctrl/Cmd + S: 保存
 			if (modKey && key === "s") {
 				event.preventDefault();
 				onSave?.();
 				return;
 			}
 
-			// Escape: Cancel
+			// Escape: キャンセル
 			if (key === "Escape") {
 				event.preventDefault();
 				onCancel?.();
 				return;
 			}
 
-			// Ctrl/Cmd + Z: Undo
+			// 入力欄ではブラウザやエディタ本来の undo/redo を優先する
+			if (isEditable) {
+				return;
+			}
+
+			// Ctrl/Cmd + Z: 元に戻す
 			if (modKey && key === "z" && !shiftKey) {
 				event.preventDefault();
 				onUndo?.();
 				return;
 			}
 
-			// Ctrl/Cmd + Shift + Z or Ctrl/Cmd + Y: Redo
+			// Ctrl/Cmd + Shift + Z または Ctrl/Cmd + Y: やり直す
 			if ((modKey && key === "z" && shiftKey) || (modKey && key === "y")) {
 				event.preventDefault();
 				onRedo?.();

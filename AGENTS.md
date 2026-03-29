@@ -73,6 +73,7 @@ pnpm test:all          # 全テスト（JS + Rust）
 - `fileStore` はファイル読込成功時とバックアップ作成失敗時に `backupPath` をクリアし、古いバックアップパスの誤再利用を防止する
 - `stagingStore` と `commitDiffStore` は request id で非同期レスポンスを突き合わせ、古い diff/status 応答が新しい選択結果を上書きしない
 - `stagingStore` は同一パスが staged/unstaged の両方に存在する場合でも、ユーザーが選択中の側を維持しつつ、status 更新後の diff を再取得して stale 表示を残さない
+- `useKeyboardShortcuts` の undo / redo はグローバル処理するが、input / textarea / contenteditable 上ではネイティブの編集履歴を優先して横取りしない
 - Rust 側の staging コマンドは `git status --porcelain=v1 -z` を使い、空白を含むパスや rename のパスを引用符付き文字列として誤解釈しない
 
 ## Testing Conventions
@@ -84,7 +85,7 @@ pnpm test:all          # 全テスト（JS + Rust）
 - commit/rebase/merge の表示系（`FileDiffViewer`, `TrailersDisplay`, `RebaseEntryList`, `ConflictNavigator`）と `mergeStore` の競合解決・復元・再読み込み整合性ロジックをテストでカバー
 - `utils/rebase.ts` と `rebaseStore` のテストで、特殊コマンドを含む todo に対する `fixup` / `squash` の検証と `squashAll` の安全性をカバー
 - `fileStore`, `stagingStore`, `commitDiffStore` のファイルI/O・Git操作状態管理をテストでカバー（`backupPath` の stale 状態回避、diff/status の競合応答無視、staged/unstaged 両出現時の選択維持と diff 再取得を含む）
-- `useKeyboardShortcuts` のクロスプラットフォームキーバインド（Cmd/Ctrl）をテストでカバー
+- `useKeyboardShortcuts` のクロスプラットフォームキーバインド（Cmd/Ctrl）と、入力欄で undo / redo を横取りしない挙動をテストでカバー
 - `useMergeKeyboardShortcuts` のマージ画面キーバインド（保存/キャンセル/コンフリクト移動）をテストでカバー
 - `useAutoBackup` の自動バックアップ間隔・dirty 状態連動・クリーンアップをテストでカバー
 - `rebaseStore` の `parseContent` / `serialize` IPC連携（成功・失敗・空エントリ）をテストでカバー
