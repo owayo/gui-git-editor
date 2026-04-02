@@ -12,6 +12,15 @@ vi.mock("@tauri-apps/plugin-cli", () => ({
 	}),
 }));
 
+// jsdom に存在しない DOM API のモック
+Element.prototype.scrollIntoView = vi.fn();
+
+globalThis.ResizeObserver = class ResizeObserver {
+	observe() {}
+	unobserve() {}
+	disconnect() {}
+} as unknown as typeof globalThis.ResizeObserver;
+
 // Mock window.matchMedia for dark mode detection
 Object.defineProperty(window, "matchMedia", {
 	writable: true,

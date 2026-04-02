@@ -82,4 +82,68 @@ describe("RebaseEntryList", () => {
 
 		expect(onSelectEntry).not.toHaveBeenCalled();
 	});
+
+	it("エントリが空の場合は空状態のメッセージを表示する", () => {
+		render(
+			<RebaseEntryList
+				entries={[]}
+				selectedEntryId={null}
+				onSelectEntry={vi.fn()}
+				onReorder={vi.fn()}
+				onCommandChange={vi.fn()}
+			/>,
+		);
+
+		expect(screen.getByText("エントリがありません")).toBeInTheDocument();
+		expect(screen.queryByRole("list")).not.toBeInTheDocument();
+	});
+
+	it("古いコミット・新しいコミットのガイドテキストを表示する", () => {
+		render(
+			<RebaseEntryList
+				entries={ENTRIES}
+				selectedEntryId={null}
+				onSelectEntry={vi.fn()}
+				onReorder={vi.fn()}
+				onCommandChange={vi.fn()}
+			/>,
+		);
+
+		expect(screen.getByText("↑ 古いコミット（先に適用）")).toBeInTheDocument();
+		expect(
+			screen.getByText("↓ 新しいコミット（後に適用）"),
+		).toBeInTheDocument();
+	});
+
+	it("selectedEntryId に一致するエントリが選択状態になる", () => {
+		render(
+			<RebaseEntryList
+				entries={ENTRIES}
+				selectedEntryId="entry-2"
+				onSelectEntry={vi.fn()}
+				onReorder={vi.fn()}
+				onCommandChange={vi.fn()}
+			/>,
+		);
+
+		const options = screen.getAllByRole("option");
+		expect(options[0]).toHaveAttribute("aria-selected", "false");
+		expect(options[1]).toHaveAttribute("aria-selected", "true");
+	});
+
+	it("スクリーンリーダー向けのドラッグ操作説明が存在する", () => {
+		render(
+			<RebaseEntryList
+				entries={ENTRIES}
+				selectedEntryId={null}
+				onSelectEntry={vi.fn()}
+				onReorder={vi.fn()}
+				onCommandChange={vi.fn()}
+			/>,
+		);
+
+		const instructions = document.getElementById("drag-instructions");
+		expect(instructions).toBeInTheDocument();
+		expect(instructions?.textContent).toContain("スペースキーでドラッグを開始");
+	});
 });
