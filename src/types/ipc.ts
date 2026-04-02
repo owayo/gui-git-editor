@@ -51,8 +51,8 @@ export async function restoreBackup(
 	targetPath: string,
 ): Promise<IpcResult<void>> {
 	return safeInvoke<void>("restore_backup", {
-		backup_path: backupPath,
-		target_path: targetPath,
+		backupPath,
+		targetPath,
 	});
 }
 
