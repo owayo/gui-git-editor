@@ -60,7 +60,7 @@ pnpm test:all          # 全テスト（JS + Rust）
 
 ## Architecture Notes
 
-- Tauri IPC は `src/types/ipc.ts` の `safeInvoke` で統一ラッピング（`IpcResult<T>` 型）
+- Tauri IPC は `src/types/ipc.ts` の `safeInvoke` で統一ラッピング（`IpcResult<T>` 型）。引数キーは camelCase で渡す（Tauri v2 の `#[tauri::command]` マクロが `rename_all = "camelCase"` を適用するため、Rust 側の `snake_case` パラメータに対応する）
 - テスト環境では Tauri API をモック（`src/test/setup.ts`）
 - ストアは Zustand で管理、`stores/index.ts` で一括エクスポート
 - テーマは `zustand/middleware/persist` でローカルストレージに永続化
@@ -93,4 +93,8 @@ pnpm test:all          # 全テスト（JS + Rust）
 - `themeStore` のシステムテーマ変更イベントリスナーをテストでカバー
 - `ConflictNavigator` の全解決状態表示・前後ナビゲーション・エディタスクロール・editorRef null 安全性をテストでカバー
 - `CommandSelector` のコマンド選択・disabled 状態・disabledCommands によるオプション無効化をテストでカバー
+- `ipc.ts` の全 IPC ラッパーに対し、`invoke` に渡す引数キーが camelCase であることをテストでカバー（snake_case 混入の再発防止）
+- `BodyTextarea` の行長超過検出・警告表示・省略表示をテストでカバー
+- `ErrorDisplay` のエラーメッセージ表示・パス表示・閉じるボタンの条件表示をテストでカバー
+- `FileStatusBadge` の各ステータス（M/A/D/R/C/?）のラベル・背景色・未知ステータスのフォールバックをテストでカバー
 - テスト環境では `scrollIntoView` と `ResizeObserver` を `setup.ts` でモック（dnd-kit / headlessui が使用）
