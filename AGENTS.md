@@ -90,6 +90,7 @@ pnpm test:all          # 全テスト（JS + Rust）
 - `useAutoBackup` の自動バックアップ間隔・dirty 状態連動・クリーンアップをテストでカバー
 - `rebaseStore` の `parseContent` / `serialize` IPC連携（成功・失敗・空エントリ）をテストでカバー
 - `mergeStore` の `acceptRemote` / `acceptBoth` / コンフリクトナビゲーション / `save` / `initMerge` / `checkCodexAvailable` / `openCodexResolve` / `fetchBlame` / `reloadMergedFile` エラーパス / `clearError` / `updateMergedContent` をテストでカバー
+- `mergeStore` の revert 時に後続コンフリクトの行位置と resolvedReplacements の startLine がシフトされる動作をテストでカバー
 - `themeStore` のシステムテーマ変更イベントリスナーをテストでカバー
 - `ConflictNavigator` の全解決状態表示・前後ナビゲーション・エディタスクロール・editorRef null 安全性をテストでカバー
 - `CommandSelector` のコマンド選択・disabled 状態・disabledCommands によるオプション無効化をテストでカバー

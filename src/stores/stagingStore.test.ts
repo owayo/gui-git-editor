@@ -665,4 +665,108 @@ describe("stagingStore", () => {
 			expect(useStagingStore.getState().isOperating).toBe(false);
 		});
 	});
+
+	describe("resolveSelectedFile fallback", () => {
+		it("選択中ファイルが staged だが staged リストから消えた場合は unstaged にフォールバックする", async () => {
+			useStagingStore.setState({
+				selectedFile: { path: "src/main.ts", staged: true },
+				diffContent: "old diff",
+			});
+			mockedIpc.gitDiffFile.mockResolvedValue({
+				ok: true,
+				data: "unstaged diff",
+			});
+
+			mockedIpc.gitStatus.mockResolvedValue({
+				ok: true,
+				data: {
+					...mockStatusResult,
+					staged: [],
+					unstaged: [
+						{
+							path: "src/main.ts",
+							originalPath: null,
+							indexStatus: " ",
+							worktreeStatus: "M",
+						},
+					],
+					untracked: [],
+					repoRoot: "/tmp/test-repo",
+					branchName: "main",
+				},
+			});
+
+			await useStagingStore.getState().fetchStatus(filePath);
+
+			const state = useStagingStore.getState();
+			expect(state.selectedFile).toEqual({
+				path: "src/main.ts",
+				staged: false,
+			});
+			expect(state.diffContent).toBe("unstaged diff");
+		});
+
+		it("選択中ファイルがどのリストにも存在しない場合は null にリセットする", async () => {
+			useStagingStore.setState({
+				selectedFile: { path: "deleted-file.ts", staged: true },
+				diffContent: "old diff",
+			});
+
+			mockedIpc.gitStatus.mockResolvedValue({
+				ok: true,
+				data: {
+					...mockStatusResult,
+					staged: [],
+					unstaged: [],
+					untracked: [],
+					repoRoot: "/tmp/test-repo",
+					branchName: "main",
+				},
+			});
+
+			await useStagingStore.getState().fetchStatus(filePath);
+
+			const state = useStagingStore.getState();
+			expect(state.selectedFile).toBeNull();
+			expect(state.diffContent).toBeNull();
+		});
+
+		it("選択中ファイルが unstaged だが untracked に移動した場合も維持する", async () => {
+			useStagingStore.setState({
+				selectedFile: { path: "new-file.txt", staged: false },
+				diffContent: "old diff",
+			});
+			mockedIpc.gitDiffFile.mockResolvedValue({
+				ok: true,
+				data: "untracked diff",
+			});
+
+			mockedIpc.gitStatus.mockResolvedValue({
+				ok: true,
+				data: {
+					...mockStatusResult,
+					staged: [],
+					unstaged: [],
+					untracked: [
+						{
+							path: "new-file.txt",
+							originalPath: null,
+							indexStatus: "?",
+							worktreeStatus: "?",
+						},
+					],
+					repoRoot: "/tmp/test-repo",
+					branchName: "main",
+				},
+			});
+
+			await useStagingStore.getState().fetchStatus(filePath);
+
+			const state = useStagingStore.getState();
+			expect(state.selectedFile).toEqual({
+				path: "new-file.txt",
+				staged: false,
+			});
+		});
+	});
 });

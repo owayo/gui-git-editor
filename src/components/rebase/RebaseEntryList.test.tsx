@@ -146,4 +146,33 @@ describe("RebaseEntryList", () => {
 		expect(instructions).toBeInTheDocument();
 		expect(instructions?.textContent).toContain("スペースキーでドラッグを開始");
 	});
+
+	it("コマンド変更時に onCommandChange が正しい引数で呼ばれる", async () => {
+		const user = userEvent.setup();
+		const onCommandChange = vi.fn();
+
+		render(
+			<RebaseEntryList
+				entries={ENTRIES}
+				selectedEntryId={null}
+				onSelectEntry={vi.fn()}
+				onReorder={vi.fn()}
+				onCommandChange={onCommandChange}
+			/>,
+		);
+
+		// HeadlessUI Listbox のボタンをクリックしてドロップダウンを開く
+		const buttons = screen.getAllByRole("button", { name: /Pick/i });
+		await user.click(buttons[0]);
+
+		// オプションを選択する
+		const rewordOption = await screen.findByRole("option", {
+			name: /Reword/,
+		});
+		await user.click(rewordOption);
+
+		expect(onCommandChange).toHaveBeenCalledWith("entry-1", {
+			type: "reword",
+		});
+	});
 });

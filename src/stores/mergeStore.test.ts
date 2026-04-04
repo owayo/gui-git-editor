@@ -935,4 +935,90 @@ describe("mergeStore", () => {
 		expect(state.mergedContent).toBe("new");
 		expect(state.isDirty).toBe(true);
 	});
+
+	// --- revert で後続コンフリクトの行位置がシフトする ---
+
+	it("revert は後続コンフリクトの行位置をマーカー行数分シフトする", () => {
+		// 2つのコンフリクトがあるファイル
+		const mergedContent = [
+			"before",
+			"<<<<<<< LOCAL",
+			"A",
+			"=======",
+			"B",
+			">>>>>>> REMOTE",
+			"mid",
+			"<<<<<<< LOCAL",
+			"X",
+			"=======",
+			"Y",
+			">>>>>>> REMOTE",
+			"after",
+		].join("\n");
+
+		useMergeStore.setState({
+			mergedContent,
+			conflicts: [makeConflict(0, 1, "A", "B"), makeConflict(1, 7, "X", "Y")],
+		});
+
+		// 最初のコンフリクトを解決
+		useMergeStore.getState().acceptLocal(0);
+		// 解決後: ["before", "A", "mid", "<<<<<<< LOCAL", "X", "=======", "Y", ">>>>>>> REMOTE", "after"]
+		const afterResolve = useMergeStore.getState();
+		expect(afterResolve.conflicts[1].startLine).toBe(3);
+
+		// 最初のコンフリクトを revert
+		useMergeStore.getState().revertConflict(0);
+
+		const state = useMergeStore.getState();
+		// revert 後は元のマーカーが復元されるため、後続コンフリクトの位置が戻る
+		expect(state.conflicts[0].resolved).toBe(false);
+		expect(state.conflicts[0].startLine).toBe(1);
+		expect(state.conflicts[1].startLine).toBe(7);
+		expect(state.mergedContent).toBe(mergedContent);
+	});
+
+	it("revert は後続の resolvedReplacements の startLine もシフトする", () => {
+		// 2つのコンフリクトがあるファイル
+		const mergedContent = [
+			"before",
+			"<<<<<<< LOCAL",
+			"A",
+			"=======",
+			"B",
+			">>>>>>> REMOTE",
+			"mid",
+			"<<<<<<< LOCAL",
+			"X",
+			"=======",
+			"Y",
+			">>>>>>> REMOTE",
+			"after",
+		].join("\n");
+
+		useMergeStore.setState({
+			mergedContent,
+			conflicts: [makeConflict(0, 1, "A", "B"), makeConflict(1, 7, "X", "Y")],
+		});
+
+		// 両方のコンフリクトを解決
+		useMergeStore.getState().acceptLocal(0);
+		useMergeStore.getState().acceptRemote(1);
+
+		// 両方が解決済み
+		const afterBothResolved = useMergeStore.getState();
+		expect(afterBothResolved.allResolved).toBe(true);
+
+		// 最初のコンフリクトを revert → 後続の replacement の startLine がシフトする
+		useMergeStore.getState().revertConflict(0);
+
+		const state = useMergeStore.getState();
+		expect(state.conflicts[0].resolved).toBe(false);
+		expect(state.conflicts[1].resolved).toBe(true);
+		// revert したコンフリクトの replacement は削除される
+		expect(state.resolvedReplacements[0]).toBeUndefined();
+		// 後続の replacement は存在し、行位置がシフトしている
+		expect(state.resolvedReplacements[1]).toBeDefined();
+		expect(state.allResolved).toBe(false);
+	});
 });
