@@ -10,8 +10,11 @@ const mockedInvoke = vi.mocked(invoke);
 
 import {
 	checkBackupExists,
+	checkCodexAvailable,
+	checkGitScAvailable,
 	createBackup,
 	deleteBackup,
+	exitApp,
 	generateCommitMessage,
 	generateCommitMessageFromStaged,
 	gitBlameForMerge,
@@ -23,10 +26,15 @@ import {
 	gitStatus,
 	gitUnstageFile,
 	openCodexTerminal,
+	parseCommitMsg,
 	parseConflicts,
+	parseRebaseTodo,
 	readFile,
 	readMergeFiles,
 	restoreBackup,
+	serializeCommitMsg,
+	serializeRebaseTodo,
+	validateCommitMsg,
 	writeFile,
 } from "./ipc";
 
