@@ -124,6 +124,21 @@ describe("historyStore", () => {
 		expect(state.future).toHaveLength(0);
 	});
 
+	it("undo を連続で呼ぶと最終的に null を返す", () => {
+		useHistoryStore.getState().pushSnapshot([makeEntry("1", "first")]);
+		useHistoryStore.getState().pushSnapshot([makeEntry("2", "second")]);
+		useHistoryStore.getState().pushSnapshot([makeEntry("3", "third")]);
+
+		// 3回目のundoはpastが1つしかないのでnull
+		expect(useHistoryStore.getState().undo()).toEqual([
+			makeEntry("2", "second"),
+		]);
+		expect(useHistoryStore.getState().undo()).toEqual([
+			makeEntry("1", "first"),
+		]);
+		expect(useHistoryStore.getState().undo()).toBeNull();
+	});
+
 	it("deep clones entries in snapshots", () => {
 		const entries = [makeEntry("1", "first")];
 		useHistoryStore.getState().pushSnapshot(entries);

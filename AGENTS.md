@@ -93,7 +93,9 @@ pnpm test:all          # 全テスト（JS + Rust）
 - `themeStore` のシステムテーマ変更イベントリスナーをテストでカバー
 - `ConflictNavigator` の全解決状態表示・前後ナビゲーション・エディタスクロール・editorRef null 安全性をテストでカバー
 - `CommandSelector` のコマンド選択・disabled 状態・disabledCommands によるオプション無効化をテストでカバー
-- `ipc.ts` の全 IPC ラッパーに対し、`invoke` に渡す引数キーが camelCase であることをテストでカバー（snake_case 混入の再発防止）
+- `ipc.ts` の全 IPC ラッパーに対し、`invoke` に渡す引数キーが camelCase であることをテストでカバー（snake_case 混入の再発防止）。引数なし IPC（`checkGitScAvailable`, `checkCodexAvailable`）のエラーハンドリングもカバー
+- `RebaseEntryItem` の各コマンド状態（pick/drop/squash/fixup/exec）の表示・スタイル切替・squashTarget 表示・aria-selected・キーボード選択をテストでカバー
+- `historyStore` の連続 undo で past が枯渇するまで戻る動作をテストでカバー
 - `BodyTextarea` の行長超過検出・警告表示・省略表示をテストでカバー
 - `ErrorDisplay` のエラーメッセージ表示・パス表示・閉じるボタンの条件表示をテストでカバー
 - `FileStatusBadge` の各ステータス（M/A/D/R/C/?）のラベル・背景色・未知ステータスのフォールバックをテストでカバー

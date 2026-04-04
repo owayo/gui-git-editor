@@ -152,6 +152,55 @@ describe("IPC引数キーのcamelCase検証", () => {
 			},
 		);
 	});
+
+	it("exitApp はcamelCaseキーを渡す", async () => {
+		await exitApp(0);
+
+		expect(mockedInvoke).toHaveBeenCalledWith("exit_app", { code: 0 });
+	});
+
+	it("parseRebaseTodo はcamelCaseキーを渡す", async () => {
+		await parseRebaseTodo("pick abc123 some commit");
+
+		expect(mockedInvoke).toHaveBeenCalledWith("parse_rebase_todo", {
+			content: "pick abc123 some commit",
+		});
+	});
+
+	it("serializeRebaseTodo はcamelCaseキーを渡す", async () => {
+		const file = { entries: [], comments: [] };
+		await serializeRebaseTodo(file as never);
+
+		expect(mockedInvoke).toHaveBeenCalledWith("serialize_rebase_todo", {
+			file,
+		});
+	});
+
+	it("parseCommitMsg はcamelCaseキーを渡す", async () => {
+		await parseCommitMsg("feat: add feature\n\nbody text");
+
+		expect(mockedInvoke).toHaveBeenCalledWith("parse_commit_msg", {
+			content: "feat: add feature\n\nbody text",
+		});
+	});
+
+	it("serializeCommitMsg はcamelCaseキーを渡す", async () => {
+		const message = { subject: "feat: add feature", body: "", trailers: [] };
+		await serializeCommitMsg(message as never);
+
+		expect(mockedInvoke).toHaveBeenCalledWith("serialize_commit_msg", {
+			message,
+		});
+	});
+
+	it("validateCommitMsg はcamelCaseキーを渡す", async () => {
+		const message = { subject: "feat: add feature", body: "", trailers: [] };
+		await validateCommitMsg(message as never);
+
+		expect(mockedInvoke).toHaveBeenCalledWith("validate_commit_msg", {
+			message,
+		});
+	});
 });
 
 describe("IPC エラーハンドリング", () => {
@@ -237,5 +286,59 @@ describe("IPC エラーハンドリング", () => {
 		expect(mockedInvoke).toHaveBeenCalledWith("parse_conflicts", {
 			content: "some content",
 		});
+	});
+
+	it("checkGitScAvailable は引数なしで呼ばれる", async () => {
+		mockedInvoke.mockResolvedValue(true as never);
+
+		const result = await checkGitScAvailable();
+
+		expect(mockedInvoke).toHaveBeenCalledWith(
+			"check_git_sc_available",
+			undefined,
+		);
+		expect(result.ok).toBe(true);
+		if (result.ok) {
+			expect(result.data).toBe(true);
+		}
+	});
+
+	it("checkGitScAvailable はエラー時にok: falseを返す", async () => {
+		const error = { code: "CommandFailed", details: {} };
+		mockedInvoke.mockRejectedValue(error);
+
+		const result = await checkGitScAvailable();
+
+		expect(result.ok).toBe(false);
+		if (!result.ok) {
+			expect(result.error).toEqual(error);
+		}
+	});
+
+	it("checkCodexAvailable は引数なしで呼ばれる", async () => {
+		mockedInvoke.mockResolvedValue(false as never);
+
+		const result = await checkCodexAvailable();
+
+		expect(mockedInvoke).toHaveBeenCalledWith(
+			"check_codex_available",
+			undefined,
+		);
+		expect(result.ok).toBe(true);
+		if (result.ok) {
+			expect(result.data).toBe(false);
+		}
+	});
+
+	it("checkCodexAvailable はエラー時にok: falseを返す", async () => {
+		const error = { code: "CommandFailed", details: {} };
+		mockedInvoke.mockRejectedValue(error);
+
+		const result = await checkCodexAvailable();
+
+		expect(result.ok).toBe(false);
+		if (!result.ok) {
+			expect(result.error).toEqual(error);
+		}
 	});
 });
