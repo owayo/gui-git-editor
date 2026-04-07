@@ -47,109 +47,118 @@ const initialState = {
 	originalBody: "",
 };
 
-export const useCommitStore = create<CommitState>((set, get) => ({
-	...initialState,
+export const useCommitStore = create<CommitState>((set, get) => {
+	// validate の非同期応答が古い結果で上書きされないよう request-ID で突き合わせる
+	let validateRequestId = 0;
 
-	getMessage: () => ({
-		subject: get().subject,
-		body: get().body,
-		trailers: get().trailers,
-		comments: get().comments,
-		diff_content: get().diffContent,
-	}),
+	return {
+		...initialState,
 
-	parseContent: async (content: string) => {
-		set({ isLoading: true, error: null });
+		getMessage: () => ({
+			subject: get().subject,
+			body: get().body,
+			trailers: get().trailers,
+			comments: get().comments,
+			diff_content: get().diffContent,
+		}),
 
-		const result = await ipc.parseCommitMsg(content);
+		parseContent: async (content: string) => {
+			set({ isLoading: true, error: null });
 
-		if (result.ok) {
-			const msg = result.data;
+			const result = await ipc.parseCommitMsg(content);
+
+			if (result.ok) {
+				const msg = result.data;
+				set({
+					subject: msg.subject,
+					body: msg.body,
+					trailers: msg.trailers,
+					comments: msg.comments,
+					diffContent: msg.diff_content,
+					isLoading: false,
+					isDirty: false,
+					originalSubject: msg.subject,
+					originalBody: msg.body,
+				});
+				// Validate after parsing
+				await get().validate();
+				return true;
+			} else {
+				set({
+					error: result.error,
+					isLoading: false,
+				});
+				return false;
+			}
+		},
+
+		serialize: async () => {
+			const message = get().getMessage();
+			const result = await ipc.serializeCommitMsg(message);
+
+			if (result.ok) {
+				return result.data;
+			} else {
+				set({ error: result.error });
+				return null;
+			}
+		},
+
+		setSubject: (subject: string) => {
+			const { originalSubject, originalBody, body } = get();
 			set({
-				subject: msg.subject,
-				body: msg.body,
-				trailers: msg.trailers,
-				comments: msg.comments,
-				diffContent: msg.diff_content,
-				isLoading: false,
-				isDirty: false,
-				originalSubject: msg.subject,
-				originalBody: msg.body,
+				subject,
+				isDirty: subject !== originalSubject || body !== originalBody,
 			});
-			// Validate after parsing
-			await get().validate();
-			return true;
-		} else {
+			// Debounced validation would be better in production
+			get().validate();
+		},
+
+		setBody: (body: string) => {
+			const { originalSubject, originalBody, subject } = get();
 			set({
-				error: result.error,
-				isLoading: false,
+				body,
+				isDirty: subject !== originalSubject || body !== originalBody,
 			});
-			return false;
-		}
-	},
+			get().validate();
+		},
 
-	serialize: async () => {
-		const message = get().getMessage();
-		const result = await ipc.serializeCommitMsg(message);
+		addTrailer: (trailer: Trailer) => {
+			set((state) => ({
+				trailers: [...state.trailers, trailer],
+				isDirty: true,
+			}));
+		},
 
-		if (result.ok) {
-			return result.data;
-		} else {
-			set({ error: result.error });
-			return null;
-		}
-	},
+		removeTrailer: (index: number) => {
+			set((state) => ({
+				trailers: state.trailers.filter((_, i) => i !== index),
+				isDirty: true,
+			}));
+		},
 
-	setSubject: (subject: string) => {
-		const { originalSubject, originalBody, body } = get();
-		set({
-			subject,
-			isDirty: subject !== originalSubject || body !== originalBody,
-		});
-		// Debounced validation would be better in production
-		get().validate();
-	},
+		updateTrailer: (index: number, trailer: Trailer) => {
+			set((state) => ({
+				trailers: state.trailers.map((t, i) => (i === index ? trailer : t)),
+				isDirty: true,
+			}));
+		},
 
-	setBody: (body: string) => {
-		const { originalSubject, originalBody, subject } = get();
-		set({
-			body,
-			isDirty: subject !== originalSubject || body !== originalBody,
-		});
-		get().validate();
-	},
+		validate: async () => {
+			const requestId = ++validateRequestId;
+			const message = get().getMessage();
+			const result = await ipc.validateCommitMsg(message);
 
-	addTrailer: (trailer: Trailer) => {
-		set((state) => ({
-			trailers: [...state.trailers, trailer],
-			isDirty: true,
-		}));
-	},
+			// 古いリクエストの応答は無視する
+			if (requestId !== validateRequestId) return;
 
-	removeTrailer: (index: number) => {
-		set((state) => ({
-			trailers: state.trailers.filter((_, i) => i !== index),
-			isDirty: true,
-		}));
-	},
+			if (result.ok) {
+				set({ validation: result.data });
+			}
+		},
 
-	updateTrailer: (index: number, trailer: Trailer) => {
-		set((state) => ({
-			trailers: state.trailers.map((t, i) => (i === index ? trailer : t)),
-			isDirty: true,
-		}));
-	},
+		clearError: () => set({ error: null }),
 
-	validate: async () => {
-		const message = get().getMessage();
-		const result = await ipc.validateCommitMsg(message);
-
-		if (result.ok) {
-			set({ validation: result.data });
-		}
-	},
-
-	clearError: () => set({ error: null }),
-
-	reset: () => set(initialState),
-}));
+		reset: () => set(initialState),
+	};
+});
