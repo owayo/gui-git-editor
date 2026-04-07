@@ -258,4 +258,159 @@ describe("commitStore", () => {
 			expect(state.isDirty).toBe(false);
 		});
 	});
+
+	describe("validate request-ID guard", () => {
+		// ヘルパー: 手動で解決できる deferred promise を作成
+		function deferred<T>() {
+			let resolve!: (value: T) => void;
+			const promise = new Promise<T>((r) => {
+				resolve = r;
+			});
+			return { promise, resolve };
+		}
+
+		it("古い validate 応答は破棄される", async () => {
+			const first = deferred<ReturnType<typeof ipc.validateCommitMsg>>();
+			const second = deferred<ReturnType<typeof ipc.validateCommitMsg>>();
+
+			// 1回目 → first、2回目 → second を返す
+			mockedIpc.validateCommitMsg
+				.mockReturnValueOnce(first.promise as never)
+				.mockReturnValueOnce(second.promise as never);
+
+			// validate を連続で2回呼ぶ
+			const p1 = useCommitStore.getState().validate();
+			const p2 = useCommitStore.getState().validate();
+
+			// 2回目を先に解決（最新のリクエスト）
+			second.resolve({
+				ok: true,
+				data: {
+					is_valid: true,
+					subject_too_long: false,
+					subject_length: 5,
+					long_body_lines: [],
+				},
+			});
+			await p2;
+
+			expect(useCommitStore.getState().validation).toEqual({
+				is_valid: true,
+				subject_too_long: false,
+				subject_length: 5,
+				long_body_lines: [],
+			});
+
+			// 1回目を後から解決（古いリクエスト → 無視されるべき）
+			first.resolve({
+				ok: true,
+				data: {
+					is_valid: false,
+					subject_too_long: true,
+					subject_length: 100,
+					long_body_lines: [1, 2, 3],
+				},
+			});
+			await p1;
+
+			// 古い応答で上書きされていないことを確認
+			expect(useCommitStore.getState().validation).toEqual({
+				is_valid: true,
+				subject_too_long: false,
+				subject_length: 5,
+				long_body_lines: [],
+			});
+		});
+
+		it("単発の validate リクエストは正常に適用される", async () => {
+			mockedIpc.validateCommitMsg.mockResolvedValue({
+				ok: true,
+				data: {
+					is_valid: false,
+					subject_too_long: true,
+					subject_length: 80,
+					long_body_lines: [5],
+				},
+			});
+
+			await useCommitStore.getState().validate();
+
+			expect(useCommitStore.getState().validation).toEqual({
+				is_valid: false,
+				subject_too_long: true,
+				subject_length: 80,
+				long_body_lines: [5],
+			});
+		});
+
+		it("連続 setSubject で最後の validate 結果のみ反映される", async () => {
+			const deferreds = [
+				deferred<ReturnType<typeof ipc.validateCommitMsg>>(),
+				deferred<ReturnType<typeof ipc.validateCommitMsg>>(),
+				deferred<ReturnType<typeof ipc.validateCommitMsg>>(),
+			];
+
+			mockedIpc.validateCommitMsg
+				.mockReturnValueOnce(deferreds[0].promise as never)
+				.mockReturnValueOnce(deferreds[1].promise as never)
+				.mockReturnValueOnce(deferreds[2].promise as never);
+
+			// setSubject を3回連続で呼ぶ（それぞれ validate() を発火する）
+			useCommitStore.getState().setSubject("a");
+			useCommitStore.getState().setSubject("ab");
+			useCommitStore.getState().setSubject("abc");
+
+			expect(mockedIpc.validateCommitMsg).toHaveBeenCalledTimes(3);
+
+			// 逆順で解決（3回目 → 1回目 → 2回目）
+			deferreds[2].resolve({
+				ok: true,
+				data: {
+					is_valid: true,
+					subject_too_long: false,
+					subject_length: 3,
+					long_body_lines: [],
+				},
+			});
+			// 最新の応答が反映されるのを待つ
+			await vi.waitFor(() => {
+				expect(useCommitStore.getState().validation).toEqual({
+					is_valid: true,
+					subject_too_long: false,
+					subject_length: 3,
+					long_body_lines: [],
+				});
+			});
+
+			// 古い応答を解決
+			deferreds[0].resolve({
+				ok: true,
+				data: {
+					is_valid: false,
+					subject_too_long: true,
+					subject_length: 1,
+					long_body_lines: [99],
+				},
+			});
+			deferreds[1].resolve({
+				ok: true,
+				data: {
+					is_valid: false,
+					subject_too_long: true,
+					subject_length: 2,
+					long_body_lines: [50],
+				},
+			});
+			// microtask を消化
+			await new Promise((r) => setTimeout(r, 0));
+
+			// 最後の結果のみが残っていることを確認
+			expect(useCommitStore.getState().validation).toEqual({
+				is_valid: true,
+				subject_too_long: false,
+				subject_length: 3,
+				long_body_lines: [],
+			});
+		});
+	});
 });
