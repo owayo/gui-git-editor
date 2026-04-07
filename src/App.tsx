@@ -202,13 +202,18 @@ function App() {
 		clearHistory();
 	}, [filePath, clearHistory]);
 
-	// Setup keyboard shortcuts
-	useKeyboardShortcuts({
-		onSave: handleSave,
-		onCancel: handleCancel,
-		onUndo: handleUndo,
-		onRedo: handleRedo,
-	});
+	// マージモード以外でキーボードショートカットを有効化
+	// マージモードでは MergeEditor 内の useMergeKeyboardShortcuts が処理する
+	useKeyboardShortcuts(
+		isMergeMode
+			? {}
+			: {
+					onSave: handleSave,
+					onCancel: handleCancel,
+					onUndo: handleUndo,
+					onRedo: handleRedo,
+				},
+	);
 
 	const clearError = useCallback(() => {
 		clearFileError();
