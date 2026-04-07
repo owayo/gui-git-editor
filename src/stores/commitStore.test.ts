@@ -269,9 +269,11 @@ describe("commitStore", () => {
 			return { promise, resolve };
 		}
 
+		type ValidateResult = Awaited<ReturnType<typeof ipc.validateCommitMsg>>;
+
 		it("古い validate 応答は破棄される", async () => {
-			const first = deferred<ReturnType<typeof ipc.validateCommitMsg>>();
-			const second = deferred<ReturnType<typeof ipc.validateCommitMsg>>();
+			const first = deferred<ValidateResult>();
+			const second = deferred<ValidateResult>();
 
 			// 1回目 → first、2回目 → second を返す
 			mockedIpc.validateCommitMsg
@@ -308,7 +310,11 @@ describe("commitStore", () => {
 					is_valid: false,
 					subject_too_long: true,
 					subject_length: 100,
-					long_body_lines: [1, 2, 3],
+					long_body_lines: [
+						[1, 80],
+						[2, 90],
+						[3, 85],
+					],
 				},
 			});
 			await p1;
@@ -329,7 +335,7 @@ describe("commitStore", () => {
 					is_valid: false,
 					subject_too_long: true,
 					subject_length: 80,
-					long_body_lines: [5],
+					long_body_lines: [[5, 100]],
 				},
 			});
 
@@ -339,15 +345,15 @@ describe("commitStore", () => {
 				is_valid: false,
 				subject_too_long: true,
 				subject_length: 80,
-				long_body_lines: [5],
+				long_body_lines: [[5, 100]],
 			});
 		});
 
 		it("連続 setSubject で最後の validate 結果のみ反映される", async () => {
 			const deferreds = [
-				deferred<ReturnType<typeof ipc.validateCommitMsg>>(),
-				deferred<ReturnType<typeof ipc.validateCommitMsg>>(),
-				deferred<ReturnType<typeof ipc.validateCommitMsg>>(),
+				deferred<ValidateResult>(),
+				deferred<ValidateResult>(),
+				deferred<ValidateResult>(),
 			];
 
 			mockedIpc.validateCommitMsg
@@ -389,7 +395,7 @@ describe("commitStore", () => {
 					is_valid: false,
 					subject_too_long: true,
 					subject_length: 1,
-					long_body_lines: [99],
+					long_body_lines: [[99, 120]],
 				},
 			});
 			deferreds[1].resolve({
@@ -398,7 +404,7 @@ describe("commitStore", () => {
 					is_valid: false,
 					subject_too_long: true,
 					subject_length: 2,
-					long_body_lines: [50],
+					long_body_lines: [[50, 90]],
 				},
 			});
 			// microtask を消化
