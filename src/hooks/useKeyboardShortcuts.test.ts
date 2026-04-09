@@ -71,6 +71,39 @@ describe("useKeyboardShortcuts", () => {
 
 			expect(handlers.onCancel).toHaveBeenCalledOnce();
 		});
+
+		it("モーダルが開いている場合は onCancel を呼ばない", () => {
+			renderHook(() => useKeyboardShortcuts(handlers));
+
+			// aria-modal 要素を追加してモーダル表示状態を模倣
+			const modal = document.createElement("div");
+			modal.setAttribute("aria-modal", "true");
+			document.body.appendChild(modal);
+
+			act(() => {
+				dispatchKeydown({ key: "Escape" });
+			});
+
+			expect(handlers.onCancel).not.toHaveBeenCalled();
+
+			document.body.removeChild(modal);
+		});
+
+		it("モーダルが閉じた後は onCancel が呼ばれる", () => {
+			renderHook(() => useKeyboardShortcuts(handlers));
+
+			// モーダルを追加して削除
+			const modal = document.createElement("div");
+			modal.setAttribute("aria-modal", "true");
+			document.body.appendChild(modal);
+			document.body.removeChild(modal);
+
+			act(() => {
+				dispatchKeydown({ key: "Escape" });
+			});
+
+			expect(handlers.onCancel).toHaveBeenCalledOnce();
+		});
 	});
 
 	describe("Cmd/Ctrl + Z (Undo)", () => {

@@ -39,8 +39,11 @@ export function useKeyboardShortcuts({
 				return;
 			}
 
-			// Escape: キャンセル
+			// Escape: キャンセル（モーダルが開いている場合はモーダル側に委ねる）
 			if (key === "Escape") {
+				if (document.querySelector("[aria-modal='true']")) {
+					return;
+				}
 				event.preventDefault();
 				onCancel?.();
 				return;

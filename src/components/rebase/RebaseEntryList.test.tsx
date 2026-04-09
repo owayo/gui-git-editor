@@ -31,11 +31,13 @@ describe("RebaseEntryList", () => {
 			/>,
 		);
 
-		const list = screen.getByRole("list", { name: "Rebaseエントリ一覧" });
-		const items = within(list).getAllByRole("listitem", { hidden: true });
+		const listbox = screen.getByRole("listbox", {
+			name: "Rebaseエントリ一覧",
+		});
+		expect(listbox).toBeInTheDocument();
 
-		// 先頭/末尾インジケーター2件 + エントリ件数
-		expect(items).toHaveLength(ENTRIES.length + 2);
+		const options = within(listbox).getAllByRole("option");
+		expect(options).toHaveLength(ENTRIES.length);
 	});
 
 	it("行コンテナにフォーカス時は Enter で選択する", async () => {

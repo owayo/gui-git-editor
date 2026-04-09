@@ -39,6 +39,26 @@ describe("rebase utils", () => {
 
 			expect(hasSquashTargetBeforeEntry(entries, "2")).toBe(true);
 		});
+
+		it("前方に squash/fixup しかない場合は統合先なしと判定する", () => {
+			const entries = [
+				makeEntry("1", { type: "squash" }),
+				makeEntry("2", { type: "fixup" }),
+				makeEntry("3"),
+			];
+
+			expect(hasSquashTargetBeforeEntry(entries, "3")).toBe(false);
+		});
+
+		it("squash/fixup の前に pick があれば統合先ありと判定する", () => {
+			const entries = [
+				makeEntry("1"),
+				makeEntry("2", { type: "squash" }),
+				makeEntry("3"),
+			];
+
+			expect(hasSquashTargetBeforeEntry(entries, "3")).toBe(true);
+		});
 	});
 
 	describe("findSquashTarget", () => {

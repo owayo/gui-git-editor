@@ -46,7 +46,7 @@ export function hasSquashTargetBeforeIndex(
 	if (index <= 0) return false;
 
 	for (let i = 0; i < index; i++) {
-		if (isSquashableEntry(entries[i])) {
+		if (isSquashTargetCommandType(entries[i].command.type)) {
 			return true;
 		}
 	}

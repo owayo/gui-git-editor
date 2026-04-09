@@ -82,23 +82,24 @@ export function RebaseEntryList({
 				items={entries.map((e) => e.id)}
 				strategy={verticalListSortingStrategy}
 			>
-				<ul
+				<div
+					role="listbox"
 					aria-label="Rebaseエントリ一覧"
 					aria-live="polite"
 					className="flex flex-col gap-2"
 				>
 					{/* 最古コミットの位置を示すガイド */}
-					<li
+					<div
 						aria-hidden="true"
-						className="flex list-none items-center gap-2 text-xs text-gray-500 dark:text-gray-400"
+						className="flex items-center gap-2 text-xs text-gray-500 dark:text-gray-400"
 					>
 						<span className="flex-1 border-t border-dashed border-gray-300 dark:border-gray-600" />
 						<span>↑ 古いコミット（先に適用）</span>
 						<span className="flex-1 border-t border-dashed border-gray-300 dark:border-gray-600" />
-					</li>
+					</div>
 
 					{entries.map((entry, index) => (
-						<li key={entry.id} className="list-none">
+						<div key={entry.id}>
 							<RebaseEntryItem
 								entry={entry}
 								isSelected={entry.id === selectedEntryId}
@@ -109,19 +110,19 @@ export function RebaseEntryList({
 								onSelect={() => onSelectEntry(entry.id)}
 								onCommandChange={(cmd) => onCommandChange(entry.id, cmd)}
 							/>
-						</li>
+						</div>
 					))}
 
 					{/* 最新コミットの位置を示すガイド */}
-					<li
+					<div
 						aria-hidden="true"
-						className="flex list-none items-center gap-2 text-xs text-gray-500 dark:text-gray-400"
+						className="flex items-center gap-2 text-xs text-gray-500 dark:text-gray-400"
 					>
 						<span className="flex-1 border-t border-dashed border-gray-300 dark:border-gray-600" />
 						<span>↓ 新しいコミット（後に適用）</span>
 						<span className="flex-1 border-t border-dashed border-gray-300 dark:border-gray-600" />
-					</li>
-				</ul>
+					</div>
+				</div>
 				{/* ドラッグ操作の説明をスクリーンリーダー向けに提供する */}
 				<div id="drag-instructions" className="sr-only">
 					スペースキーでドラッグを開始し、矢印キーで移動、スペースキーでドロップします
