@@ -64,8 +64,8 @@ pnpm test:all          # 全テスト（JS + Rust）
 - テスト環境では Tauri API をモック（`src/test/setup.ts`）
 - ストアは Zustand で管理、`stores/index.ts` で一括エクスポート
 - テーマは `zustand/middleware/persist` でローカルストレージに永続化
-- Rebase エントリ一覧はセマンティックなリスト構造（`<ul>/<li>`）を採用し、項目選択はキーボード操作に対応
-- Rebase の `fixup` / `squash` 判定は commit 系エントリ（`pick` / `reword` / `edit` / `squash` / `fixup`）だけを統合先として扱い、`exec` などの特殊コマンドや `drop` を誤って統合先にしない
+- Rebase エントリ一覧は `role="listbox"` / `role="option"` の ARIA 構造を採用し、項目選択はキーボード操作に対応
+- Rebase の `fixup` / `squash` の統合先判定（`hasSquashTargetBeforeIndex`）は `pick` / `reword` / `edit` のみを対象とし、`squash` / `fixup` 自体や `exec` などの特殊コマンドを統合先としない（`findSquashTarget` と整合）
 - Rebase の「すべて1つにまとめる」は commit 系エントリだけを `fixup` 化し、`exec`・`label`・`drop` などの特殊行は保持する
 - Merge の競合解決は `mergeStore` で行アンカー付きの解決済み置換情報を保持し、連続解決・revert 時の位置ずれを防止
 - diff3 形式（`|||||||` を含む）の競合を revert した場合も、BASE セクション付きで復元する
@@ -75,6 +75,7 @@ pnpm test:all          # 全テスト（JS + Rust）
 - `stagingStore` は同一パスが staged/unstaged の両方に存在する場合でも、ユーザーが選択中の側を維持しつつ、status 更新後の diff を再取得して stale 表示を残さない
 - `useKeyboardShortcuts` の undo / redo はグローバル処理するが、input / textarea / contenteditable 上ではネイティブの編集履歴を優先して横取りしない
 - `useKeyboardShortcuts` はマージモード時に空オブジェクトを渡して無効化し、`useMergeKeyboardShortcuts` との二重発火を防止する
+- `useKeyboardShortcuts` の Escape ハンドラは `aria-modal` 要素の存在を確認し、モーダルが開いている場合はモーダル側に処理を委ねてアプリ終了を防止する
 - Rust 側の staging コマンドは `git status --porcelain=v1 -z` を使い、空白を含むパスや rename のパスを引用符付き文字列として誤解釈しない
 
 ## Testing Conventions
@@ -84,9 +85,9 @@ pnpm test:all          # 全テスト（JS + Rust）
 - `@testing-library/react` + `@testing-library/user-event` を使用
 - `vitest` の `globals: true` 設定済み
 - commit/rebase/merge の表示系（`FileDiffViewer`, `TrailersDisplay`, `RebaseEntryList`, `ConflictNavigator`）と `mergeStore` の競合解決・復元・再読み込み整合性ロジックをテストでカバー
-- `utils/rebase.ts` と `rebaseStore` のテストで、特殊コマンドを含む todo に対する `fixup` / `squash` の検証と `squashAll` の安全性をカバー
+- `utils/rebase.ts` と `rebaseStore` のテストで、特殊コマンドを含む todo に対する `fixup` / `squash` の検証と `squashAll` の安全性をカバー（`squash`/`fixup` のみの場合に統合先なしと判定するケースを含む）
 - `fileStore`, `stagingStore`, `commitDiffStore` のファイルI/O・Git操作状態管理をテストでカバー（`backupPath` の stale 状態回避、diff/status の競合応答無視、staged/unstaged 両出現時の選択維持と diff 再取得を含む）
-- `useKeyboardShortcuts` のクロスプラットフォームキーバインド（Cmd/Ctrl）と、入力欄で undo / redo を横取りしない挙動をテストでカバー
+- `useKeyboardShortcuts` のクロスプラットフォームキーバインド（Cmd/Ctrl）と、入力欄で undo / redo を横取りしない挙動、モーダル表示中の Escape 抑制をテストでカバー
 - `useMergeKeyboardShortcuts` のマージ画面キーバインド（保存/キャンセル/コンフリクト移動）をテストでカバー
 - `useAutoBackup` の自動バックアップ間隔・dirty 状態連動・クリーンアップをテストでカバー
 - `rebaseStore` の `parseContent` / `serialize` IPC連携（成功・失敗・空エントリ）をテストでカバー
