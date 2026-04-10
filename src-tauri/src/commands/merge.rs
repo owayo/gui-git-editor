@@ -316,7 +316,7 @@ fn parse_tz_offset(tz: &str) -> i64 {
 
 /// Format a Unix timestamp to YYYY-MM-DD without external crates.
 fn format_unix_timestamp(timestamp: i64) -> String {
-    if timestamp == 0 {
+    if timestamp <= 0 {
         return "unknown".to_string();
     }
 
@@ -362,6 +362,13 @@ pub async fn git_blame_for_merge(
     merged_path: String,
     side: String,
 ) -> Result<Vec<BlameLine>, AppError> {
+    // side パラメータの検証
+    if side != "local" && side != "remote" {
+        return Err(AppError::CommandError {
+            message: format!("Invalid side parameter: {}", side),
+        });
+    }
+
     // Get working directory from merged path
     let work_dir = Path::new(&merged_path)
         .parent()

@@ -1,6 +1,6 @@
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { getMatches } from "@tauri-apps/plugin-cli";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { CommitEditor } from "./components/commit";
 import { ActionBar, ErrorDisplay, Loading } from "./components/common";
 import { FallbackEditor } from "./components/fallback";
@@ -173,10 +173,14 @@ function App() {
 		await exitApp(1);
 	}, []);
 
+	// undo/redo 経由の entries 変更では pushSnapshot をスキップするためのフラグ
+	const isUndoRedoRef = useRef(false);
+
 	// Handle undo
 	const handleUndo = useCallback(() => {
 		const previousEntries = undo();
 		if (previousEntries) {
+			isUndoRedoRef.current = true;
 			setEntries(previousEntries);
 		}
 	}, [undo, setEntries]);
@@ -185,6 +189,7 @@ function App() {
 	const handleRedo = useCallback(() => {
 		const nextEntries = redo();
 		if (nextEntries) {
+			isUndoRedoRef.current = true;
 			setEntries(nextEntries);
 		}
 	}, [redo, setEntries]);
@@ -192,6 +197,10 @@ function App() {
 	// Push snapshot when entries change
 	useEffect(() => {
 		if (entries.length > 0) {
+			if (isUndoRedoRef.current) {
+				isUndoRedoRef.current = false;
+				return;
+			}
 			pushSnapshot(entries);
 		}
 	}, [entries, pushSnapshot]);

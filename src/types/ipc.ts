@@ -87,26 +87,22 @@ export async function generateCommitMessage(
 	hashes: string[],
 	withBody: boolean = false,
 ): Promise<IpcResult<string>> {
-	console.log("[IPC] generate_commit_message", { hashes, withBody });
 	const result = await safeInvoke<string>("generate_commit_message", {
 		hashes,
 		withBody,
 	});
-	console.log("[IPC] generate_commit_message result:", result);
 	return result;
 }
 
 export async function generateCommitMessageFromStaged(
 	withBody: boolean = false,
 ): Promise<IpcResult<string>> {
-	console.log("[IPC] generate_commit_message_from_staged", { withBody });
 	const result = await safeInvoke<string>(
 		"generate_commit_message_from_staged",
 		{
 			withBody,
 		},
 	);
-	console.log("[IPC] generate_commit_message_from_staged result:", result);
 	return result;
 }
 

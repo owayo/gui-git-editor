@@ -88,7 +88,7 @@ export const useCommitDiffStore = create<CommitDiffState>((set, get) => {
 			if (result.ok) {
 				set({ diffContent: result.data, isLoadingDiff: false });
 			} else {
-				set({ diffContent: null, isLoadingDiff: false });
+				set({ error: result.error, diffContent: null, isLoadingDiff: false });
 			}
 		},
 

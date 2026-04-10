@@ -205,7 +205,11 @@ export function MergeEditor({ filePaths }: MergeEditorProps) {
 					const leftSize = Math.max(0.15, Math.min(0.7, ratio)) * total;
 					const diff = leftSize - newSizes[0];
 					newSizes[0] = leftSize;
-					newSizes[1] = Math.max(0.15 * total, newSizes[1] - diff);
+					const middleAdjusted = Math.max(0.15 * total, newSizes[1] - diff);
+					const middleDiff = newSizes[1] - diff - middleAdjusted;
+					newSizes[1] = middleAdjusted;
+					// 中央パネルの下限クランプで吸収しきれなかった差分を右パネルに反映
+					newSizes[2] = Math.max(0.15 * total, newSizes[2] + middleDiff);
 				} else if (resizeIndex === 1) {
 					const rightStart = ratio * total;
 					const leftSize = newSizes[0];
