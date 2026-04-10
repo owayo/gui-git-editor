@@ -211,10 +211,15 @@ export function MergeEditor({ filePaths }: MergeEditorProps) {
 					// 中央パネルの下限クランプで吸収しきれなかった差分を右パネルに反映
 					newSizes[2] = Math.max(0.15 * total, newSizes[2] + middleDiff);
 				} else if (resizeIndex === 1) {
-					const rightStart = ratio * total;
+					const min = 0.15 * total;
 					const leftSize = newSizes[0];
-					newSizes[1] = Math.max(0.15 * total, rightStart - leftSize);
-					newSizes[2] = Math.max(0.15 * total, total - leftSize - newSizes[1]);
+					// 左パネルの右端 + 最小幅 〜 全体 - 最小幅 の範囲にクランプ
+					const boundary = Math.max(
+						leftSize + min,
+						Math.min(total - min, ratio * total),
+					);
+					newSizes[1] = boundary - leftSize;
+					newSizes[2] = total - boundary;
 				}
 
 				return newSizes;

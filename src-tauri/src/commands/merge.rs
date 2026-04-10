@@ -535,6 +535,14 @@ filename src/main.rs
     }
 
     #[test]
+    fn test_format_unix_timestamp_negative() {
+        // 負のタイムスタンプ（1970年以前）は u32 wrap を防止して "unknown" を返す
+        assert_eq!(format_unix_timestamp(-1), "unknown");
+        assert_eq!(format_unix_timestamp(-86400), "unknown");
+        assert_eq!(format_unix_timestamp(i64::MIN), "unknown");
+    }
+
+    #[test]
     fn test_merge_files_serialization() {
         let files = MergeFiles {
             local: MergeFileContent {

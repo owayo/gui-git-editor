@@ -62,7 +62,7 @@ async fn open_codex_terminal_macos(merged_path: String) -> Result<(), AppError> 
         4. import文の重複・欠落、変数名や型の整合性、ロジックの矛盾がないか確認する \
         5. コンフリクトマーカー（<<<<<<<, =======, >>>>>>>）をすべて除去し、マージ結果に置き換える \
         6. プロジェクトに設定されている linter・formatter を実行し、エラーや警告がないことを確認する",
-        shell_escape(&merged_path)
+        merged_path
     );
 
     let codex_cmd = format!(
@@ -169,5 +169,21 @@ mod tests {
     #[cfg(target_os = "macos")]
     fn test_escape_applescript_backslash() {
         assert_eq!(escape_applescript("path\\to"), "path\\\\to");
+    }
+
+    #[test]
+    #[cfg(target_os = "macos")]
+    fn test_shell_escape_backtick() {
+        assert_eq!(shell_escape("run `cmd`"), "run \\`cmd\\`");
+    }
+
+    #[test]
+    #[cfg(target_os = "macos")]
+    fn test_shell_escape_combined() {
+        // 複数の特殊文字を含むパスのエスケープ
+        assert_eq!(
+            shell_escape("path with \"quotes\" and $var"),
+            "path with \\\"quotes\\\" and \\$var"
+        );
     }
 }

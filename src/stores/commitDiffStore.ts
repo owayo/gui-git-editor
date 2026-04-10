@@ -73,7 +73,12 @@ export const useCommitDiffStore = create<CommitDiffState>((set, get) => {
 			targetFile: string,
 		) => {
 			const requestId = ++diffRequestId;
-			set({ selectedFile: targetFile, diffContent: null, isLoadingDiff: true });
+			set({
+				selectedFile: targetFile,
+				diffContent: null,
+				isLoadingDiff: true,
+				error: null,
+			});
 
 			const result = await ipc.gitCommitDiff(filePath, commitHash, targetFile);
 
@@ -86,7 +91,7 @@ export const useCommitDiffStore = create<CommitDiffState>((set, get) => {
 			}
 
 			if (result.ok) {
-				set({ diffContent: result.data, isLoadingDiff: false });
+				set({ diffContent: result.data, isLoadingDiff: false, error: null });
 			} else {
 				set({ error: result.error, diffContent: null, isLoadingDiff: false });
 			}

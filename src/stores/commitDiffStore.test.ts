@@ -158,6 +158,50 @@ describe("commitDiffStore", () => {
 			expect(state.selectedFile).toBe("file.ts");
 			expect(state.diffContent).toBeNull();
 			expect(state.isLoadingDiff).toBe(false);
+			expect(state.error).toEqual({ message: "diff failed" });
+		});
+
+		it("should clear error on new selectFile call", async () => {
+			// エラー状態をセット
+			useCommitDiffStore.setState({
+				commitHash: "abc123",
+				error: { message: "previous error" } as never,
+			});
+
+			mockedIpc.gitCommitDiff.mockResolvedValue({
+				ok: true,
+				data: "diff --git a/file.ts",
+			});
+
+			await useCommitDiffStore
+				.getState()
+				.selectFile("/repo", "abc123", "file.ts");
+
+			const state = useCommitDiffStore.getState();
+			expect(state.error).toBeNull();
+			expect(state.diffContent).toBe("diff --git a/file.ts");
+		});
+
+		it("should clear error at start of selectFile even before result", async () => {
+			useCommitDiffStore.setState({
+				commitHash: "abc123",
+				error: { message: "stale error" } as never,
+			});
+
+			const deferred =
+				createDeferred<Awaited<ReturnType<typeof ipc.gitCommitDiff>>>();
+			mockedIpc.gitCommitDiff.mockImplementation(() => deferred.promise);
+
+			const promise = useCommitDiffStore
+				.getState()
+				.selectFile("/repo", "abc123", "file.ts");
+
+			// リクエスト開始直後にerrorがクリアされていること
+			expect(useCommitDiffStore.getState().error).toBeNull();
+			expect(useCommitDiffStore.getState().isLoadingDiff).toBe(true);
+
+			deferred.resolve({ ok: true, data: "diff content" });
+			await promise;
 		});
 
 		it("should ignore stale diff responses after selecting another file", async () => {
