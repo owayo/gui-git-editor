@@ -76,6 +76,14 @@ function resetMergeStore() {
 describe("mergeStore", () => {
 	beforeEach(() => {
 		resetMergeStore();
+		vi.spyOn(ipc, "parseConflicts").mockResolvedValue({
+			ok: true,
+			data: {
+				conflicts: [],
+				hasConflicts: false,
+				totalConflicts: 0,
+			},
+		});
 	});
 
 	afterEach(() => {
@@ -342,7 +350,7 @@ describe("mergeStore", () => {
 		expect(new Set(ids).size).toBe(ids.length);
 	});
 
-	// --- acceptRemote ---
+	// --- acceptRemote 系 ---
 
 	it("acceptRemote はリモート側の内容でコンフリクトを解決する", () => {
 		const mergedContent = [
@@ -369,7 +377,7 @@ describe("mergeStore", () => {
 		expect(state.allResolved).toBe(true);
 	});
 
-	// --- acceptBoth ---
+	// --- acceptBoth 系 ---
 
 	it("acceptBoth はローカルとリモートの両方を結合して解決する", () => {
 		const mergedContent = [
@@ -417,7 +425,7 @@ describe("mergeStore", () => {
 		expect(state.mergedContent).toBe(["before", "B", "after"].join("\n"));
 	});
 
-	// --- goToNextConflict ---
+	// --- goToNextConflict 系 ---
 
 	it("goToNextConflict は次の未解決コンフリクトに移動する", () => {
 		useMergeStore.setState({
@@ -468,7 +476,7 @@ describe("mergeStore", () => {
 		expect(startLine).toBe(13);
 	});
 
-	// --- goToPrevConflict ---
+	// --- goToPrevConflict 系 ---
 
 	it("goToPrevConflict は前の未解決コンフリクトに移動する", () => {
 		useMergeStore.setState({
@@ -500,7 +508,7 @@ describe("mergeStore", () => {
 		expect(startLine).toBe(7);
 	});
 
-	// --- goToNextConflict / goToPrevConflict: 全て解決済み ---
+	// --- すべて解決済みの navigation ---
 
 	it("goToNextConflict は全て解決済みの場合 null を返す", () => {
 		useMergeStore.setState({
@@ -530,7 +538,7 @@ describe("mergeStore", () => {
 		expect(result).toBeNull();
 	});
 
-	// --- save ---
+	// --- save 系 ---
 
 	it("save は正常系で IPC 成功時に true を返す", async () => {
 		vi.spyOn(ipc, "writeFile").mockResolvedValue({
@@ -585,7 +593,7 @@ describe("mergeStore", () => {
 		expect(result).toBe(false);
 	});
 
-	it("reload 時に解決済みコンフリクトが再出現した場合は stale な resolved を保持しない", async () => {
+	it("reload 時に解決済みコンフリクトが再出現した場合は古い resolved 状態を保持しない", async () => {
 		const reloadedContent = [
 			"<<<<<<< LOCAL",
 			"A",
@@ -627,7 +635,7 @@ describe("mergeStore", () => {
 		expect(state.resolvedReplacements).toEqual({});
 	});
 
-	// --- initMerge ---
+	// --- initMerge 系 ---
 
 	it("initMerge はファイル読み込みとコンフリクト解析を行い状態を初期化する", async () => {
 		const mergedContent = [
@@ -724,7 +732,7 @@ describe("mergeStore", () => {
 		expect(state.isLoading).toBe(false);
 	});
 
-	// --- checkCodexAvailable ---
+	// --- checkCodexAvailable 系 ---
 
 	it("checkCodexAvailable は利用可能な場合 true を設定する", async () => {
 		vi.spyOn(ipc, "checkCodexAvailable").mockResolvedValue({
@@ -762,7 +770,7 @@ describe("mergeStore", () => {
 		expect(useMergeStore.getState().codexAvailable).toBe(false);
 	});
 
-	// --- openCodexResolve ---
+	// --- openCodexResolve 系 ---
 
 	it("openCodexResolve は mergedPath が null の場合に何もしない", async () => {
 		const spy = vi.spyOn(ipc, "openCodexTerminal");
@@ -790,7 +798,7 @@ describe("mergeStore", () => {
 		);
 	});
 
-	// --- fetchBlame ---
+	// --- fetchBlame 系 ---
 
 	it("fetchBlame は mergedPath が null の場合に何もしない", async () => {
 		const spy = vi.spyOn(ipc, "gitBlameForMerge");
@@ -824,7 +832,7 @@ describe("mergeStore", () => {
 		expect(state.remoteBlame).toEqual(blameData);
 	});
 
-	// --- reloadMergedFile エラーパス ---
+	// --- reloadMergedFile のエラーパス ---
 
 	it("reloadMergedFile はファイル読み込み失敗時にエラーを設定する", async () => {
 		vi.spyOn(ipc, "readFile").mockResolvedValue({
@@ -864,7 +872,7 @@ describe("mergeStore", () => {
 		expect(useMergeStore.getState().error?.details.message).toBe("parse error");
 	});
 
-	// --- acceptLocal: エッジケース ---
+	// --- acceptLocal のエッジケース ---
 
 	it("acceptLocal は mergedContent が null の場合に何もしない", () => {
 		useMergeStore.setState({
@@ -909,7 +917,7 @@ describe("mergeStore", () => {
 		expect(useMergeStore.getState().mergedContent).toBe(mergedContent);
 	});
 
-	// --- clearError ---
+	// --- clearError 系 ---
 
 	it("clearError はエラーを null にリセットする", () => {
 		useMergeStore.setState({
@@ -924,19 +932,60 @@ describe("mergeStore", () => {
 		expect(useMergeStore.getState().error).toBeNull();
 	});
 
-	// --- updateMergedContent ---
+	// --- updateMergedContent 系 ---
 
-	it("updateMergedContent は内容を更新し isDirty を true にする", () => {
+	it("updateMergedContent は内容を更新し isDirty を true にする", async () => {
 		useMergeStore.setState({ mergedContent: "old", isDirty: false });
 
 		useMergeStore.getState().updateMergedContent("new");
+		await Promise.resolve();
 
 		const state = useMergeStore.getState();
 		expect(state.mergedContent).toBe("new");
 		expect(state.isDirty).toBe(true);
 	});
 
-	// --- revert で後続コンフリクトの行位置がシフトする ---
+	it("手動編集で先頭に行を追加した後も acceptLocal は最新位置のコンフリクトを解決する", async () => {
+		const mergedContent = [
+			"before",
+			"<<<<<<< LOCAL",
+			"A",
+			"=======",
+			"B",
+			">>>>>>> REMOTE",
+			"after",
+		].join("\n");
+		const editedContent = ["header", mergedContent].join("\n");
+
+		vi.spyOn(ipc, "parseConflicts").mockResolvedValue({
+			ok: true,
+			data: {
+				conflicts: [makeConflict(0, 2, "A", "B")],
+				hasConflicts: true,
+				totalConflicts: 1,
+			},
+		});
+
+		useMergeStore.setState({
+			mergedContent,
+			conflicts: [makeConflict(0, 1, "A", "B")],
+		});
+
+		useMergeStore.getState().updateMergedContent(editedContent);
+		await Promise.resolve();
+
+		expect(useMergeStore.getState().conflicts[0].startLine).toBe(2);
+
+		useMergeStore.getState().acceptLocal(0);
+
+		const state = useMergeStore.getState();
+		expect(state.mergedContent).toBe(
+			["header", "before", "A", "after"].join("\n"),
+		);
+		expect(state.conflicts[0].resolved).toBe(true);
+	});
+
+	// --- revert 時の後続コンフリクト位置シフト ---
 
 	it("revert は後続コンフリクトの行位置をマーカー行数分シフトする", () => {
 		// 2つのコンフリクトがあるファイル

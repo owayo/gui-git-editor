@@ -58,6 +58,12 @@ export const useFileStore = create<FileState>((set, get) => ({
 			});
 		} else {
 			set({
+				filePath: null,
+				fileType: null,
+				originalContent: null,
+				currentContent: null,
+				backupPath: null,
+				isDirty: false,
 				error: result.error,
 				isLoading: false,
 			});

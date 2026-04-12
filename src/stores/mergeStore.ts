@@ -10,7 +10,7 @@ interface ResolvedReplacement {
 }
 
 interface MergeState {
-	// File contents
+	// ファイル内容
 	localContent: string | null;
 	remoteContent: string | null;
 	baseContent: string | null;
@@ -18,32 +18,32 @@ interface MergeState {
 	mergedPath: string | null;
 	language: string;
 
-	// Conflict state
+	// コンフリクト状態
 	conflicts: ConflictRegion[];
 	currentConflictIndex: number;
 	allResolved: boolean;
 
-	// UI state
+	// UI 状態
 	isLoading: boolean;
 	isSaving: boolean;
 	error: AppError | null;
 	isDirty: boolean;
 
-	// Branch labels
+	// ブランチラベル
 	localLabel: string;
 	remoteLabel: string;
 
-	// Codex state
+	// Codex 状態
 	codexAvailable: boolean | null;
 
-	// Blame data for side panels
+	// サイドパネル用の blame 情報
 	localBlame: BlameLine[] | null;
 	remoteBlame: BlameLine[] | null;
 
-	// Stores replacement text per conflict for revert support
+	// revert 用に、解決時の置換テキストをコンフリクトごとに保持する
 	resolvedReplacements: Record<number, ResolvedReplacement>;
 
-	// Actions
+	// 操作
 	initMerge: (
 		local: string,
 		remote: string,
@@ -88,8 +88,7 @@ const initialState = {
 };
 
 /**
- * Resolve a single conflict in the merged content by replacing the conflict
- * markers with the chosen replacement text.
+ * 1 つのコンフリクトを、選択した置換テキストで解決する。
  */
 function resolveConflictInContent(
 	content: string,
@@ -108,8 +107,8 @@ function checkAllResolved(conflicts: ConflictRegion[]): boolean {
 }
 
 /**
- * Rebuild conflict markers from parsed conflict content.
- * Uses generic labels because parser only relies on marker prefixes.
+ * 解析済みのコンフリクト内容からマーカー文字列を再構築する。
+ * パーサーは接頭辞だけを見ればよいため、ラベルは汎用名を使う。
  */
 function buildConflictMarkerText(conflict: ConflictRegion): string {
 	if (conflict.baseContent !== null) {
@@ -119,8 +118,8 @@ function buildConflictMarkerText(conflict: ConflictRegion): string {
 }
 
 /**
- * Build a content signature for conflict matching across reparses.
- * Conflict IDs are parser-local and can change after conflicts are removed.
+ * 再解析時に同一コンフリクトを突き合わせるための内容シグネチャを作る。
+ * コンフリクト ID はパーサー依存で、除去後に再採番されうる。
  */
 function getConflictSignature(conflict: ConflictRegion): string {
 	return JSON.stringify({
@@ -131,9 +130,9 @@ function getConflictSignature(conflict: ConflictRegion): string {
 }
 
 /**
- * Reconcile previous conflict states with newly parsed unresolved conflicts.
- * - old unresolved not found now => externally resolved
- * - old resolved reappearing as unresolved => drop stale resolved state
+ * 前回状態と、再解析後の未解決コンフリクトを突き合わせる。
+ * - 前回未解決で今回見つからないものは外部で解決済みとみなす
+ * - 前回解決済みでも今回未解決として再出現したものは古い状態を落とす
  */
 function reconcileConflictsOnReload(
 	oldConflicts: ConflictRegion[],
@@ -183,7 +182,7 @@ function reconcileConflictsOnReload(
 }
 
 /**
- * Ensure unresolved and preserved-resolved conflicts never share IDs.
+ * 未解決と保持済み解決コンフリクトで ID が衝突しないようにする。
  */
 function remapConflictsWithUniqueIds(
 	conflicts: ConflictRegion[],
@@ -211,369 +210,466 @@ function remapConflictsWithUniqueIds(
 	});
 }
 
-export const useMergeStore = create<MergeState>((set, get) => ({
-	...initialState,
+/**
+ * 手動編集後、未解決として再出現していない解決済みコンフリクトだけを保持する。
+ */
+function preserveResolvedConflictsAfterEdit(
+	oldConflicts: ConflictRegion[],
+	newUnresolvedConflicts: ConflictRegion[],
+): ConflictRegion[] {
+	const remainingBySignature = new Map<string, number>();
+	for (const conflict of newUnresolvedConflicts) {
+		const signature = getConflictSignature(conflict);
+		remainingBySignature.set(
+			signature,
+			(remainingBySignature.get(signature) ?? 0) + 1,
+		);
+	}
 
-	initMerge: async (local, remote, base, merged) => {
-		set({ isLoading: true, error: null });
-
-		const filesResult = await ipc.readMergeFiles(local, remote, base, merged);
-		if (!filesResult.ok) {
-			set({ error: filesResult.error, isLoading: false });
-			return;
+	const preservedResolved: ConflictRegion[] = [];
+	for (const conflict of oldConflicts) {
+		if (!conflict.resolved) {
+			continue;
 		}
 
-		const files = filesResult.data;
-
-		const parseResult = await ipc.parseConflicts(files.merged.content);
-		if (!parseResult.ok) {
-			set({ error: parseResult.error, isLoading: false });
-			return;
+		const signature = getConflictSignature(conflict);
+		const remaining = remainingBySignature.get(signature) ?? 0;
+		if (remaining > 0) {
+			remainingBySignature.set(signature, remaining - 1);
+			continue;
 		}
 
-		set({
-			localContent: files.local.content,
-			remoteContent: files.remote.content,
-			baseContent: files.base?.content ?? null,
-			mergedContent: files.merged.content,
-			mergedPath: files.merged.path,
-			language: files.language,
-			localLabel: files.localLabel,
-			remoteLabel: files.remoteLabel,
-			conflicts: parseResult.data.conflicts,
-			currentConflictIndex: 0,
-			allResolved: !parseResult.data.hasConflicts,
-			isLoading: false,
-			isDirty: false,
-		});
+		preservedResolved.push(conflict);
+	}
 
-		// Fetch blame data in background (non-blocking)
-		get().fetchBlame();
-	},
-
-	acceptLocal: (conflictId) => {
-		const { mergedContent, conflicts, resolvedReplacements } = get();
-		if (!mergedContent) return;
-
-		const conflict = conflicts.find((c) => c.id === conflictId);
-		if (!conflict || conflict.resolved) return;
-
-		const replacement = conflict.localContent;
-		const newContent = resolveConflictInContent(
-			mergedContent,
-			conflict,
-			replacement,
-		);
-		const updatedConflicts = markResolvedAndShiftConflicts(
-			conflicts,
-			conflictId,
-			replacement,
-		);
-		if (!updatedConflicts) return;
-		const updatedReplacements = updateResolvedReplacementsAfterResolve(
-			resolvedReplacements,
-			conflictId,
-			conflict,
-			replacement,
-		);
-
-		set({
-			mergedContent: newContent,
-			conflicts: updatedConflicts,
-			allResolved: checkAllResolved(updatedConflicts),
-			isDirty: true,
-			resolvedReplacements: updatedReplacements,
-		});
-	},
-
-	acceptRemote: (conflictId) => {
-		const { mergedContent, conflicts, resolvedReplacements } = get();
-		if (!mergedContent) return;
-
-		const conflict = conflicts.find((c) => c.id === conflictId);
-		if (!conflict || conflict.resolved) return;
-
-		const replacement = conflict.remoteContent;
-		const newContent = resolveConflictInContent(
-			mergedContent,
-			conflict,
-			replacement,
-		);
-		const updatedConflicts = markResolvedAndShiftConflicts(
-			conflicts,
-			conflictId,
-			replacement,
-		);
-		if (!updatedConflicts) return;
-		const updatedReplacements = updateResolvedReplacementsAfterResolve(
-			resolvedReplacements,
-			conflictId,
-			conflict,
-			replacement,
-		);
-
-		set({
-			mergedContent: newContent,
-			conflicts: updatedConflicts,
-			allResolved: checkAllResolved(updatedConflicts),
-			isDirty: true,
-			resolvedReplacements: updatedReplacements,
-		});
-	},
-
-	acceptBoth: (conflictId) => {
-		const { mergedContent, conflicts, resolvedReplacements } = get();
-		if (!mergedContent) return;
-
-		const conflict = conflicts.find((c) => c.id === conflictId);
-		if (!conflict || conflict.resolved) return;
-
-		const replacement = [conflict.localContent, conflict.remoteContent]
-			.filter((c) => c.length > 0)
-			.join("\n");
-		const newContent = resolveConflictInContent(
-			mergedContent,
-			conflict,
-			replacement,
-		);
-		const updatedConflicts = markResolvedAndShiftConflicts(
-			conflicts,
-			conflictId,
-			replacement,
-		);
-		if (!updatedConflicts) return;
-		const updatedReplacements = updateResolvedReplacementsAfterResolve(
-			resolvedReplacements,
-			conflictId,
-			conflict,
-			replacement,
-		);
-
-		set({
-			mergedContent: newContent,
-			conflicts: updatedConflicts,
-			allResolved: checkAllResolved(updatedConflicts),
-			isDirty: true,
-			resolvedReplacements: updatedReplacements,
-		});
-	},
-
-	revertConflict: (conflictId) => {
-		const { mergedContent, conflicts, resolvedReplacements } = get();
-		if (!mergedContent) return;
-
-		const conflict = conflicts.find((c) => c.id === conflictId);
-		if (!conflict?.resolved) return;
-
-		const replacement = resolvedReplacements[conflictId];
-		if (!replacement) return;
-
-		// Reconstruct conflict markers
-		const markerText = buildConflictMarkerText(conflict);
-		const markerLines = markerText.split("\n");
-		const contentLines = mergedContent.split("\n");
-		const resolvedStartLine = findReplacementStartLine(
-			contentLines,
-			replacement,
-		);
-		if (resolvedStartLine === null) {
-			return;
-		}
-		const effectiveReplacement = {
-			...replacement,
-			startLine: resolvedStartLine,
-		};
-		const startLine = effectiveReplacement.startLine;
-		const endExclusive = startLine + effectiveReplacement.lineCount;
-		if (
-			startLine < 0 ||
-			startLine > contentLines.length ||
-			endExclusive > contentLines.length
-		) {
-			return;
-		}
-
-		const before = contentLines.slice(0, startLine);
-		const after = contentLines.slice(endExclusive);
-		const newContent = [...before, ...markerLines, ...after].join("\n");
-
-		const updatedConflicts = markRevertedAndShiftConflicts(
-			conflicts,
-			conflict,
-			effectiveReplacement,
-			markerLines.length,
-		);
-		const updatedReplacements = updateResolvedReplacementsAfterRevert(
-			resolvedReplacements,
-			conflictId,
-			effectiveReplacement,
-			markerLines.length,
-		);
-
-		set({
-			mergedContent: newContent,
-			conflicts: updatedConflicts,
-			resolvedReplacements: updatedReplacements,
-			allResolved: checkAllResolved(updatedConflicts),
-			isDirty: true,
-		});
-	},
-
-	updateMergedContent: (content) => {
-		set({ mergedContent: content, isDirty: true });
-	},
-
-	goToNextConflict: () => {
-		const { conflicts, currentConflictIndex } = get();
-		const unresolvedIndices = conflicts
-			.map((c, i) => (!c.resolved ? i : -1))
-			.filter((i) => i >= 0);
-		if (unresolvedIndices.length === 0) return null;
-
-		const nextIndex = unresolvedIndices.find((i) => i > currentConflictIndex);
-		const targetIndex = nextIndex ?? unresolvedIndices[0];
-		set({ currentConflictIndex: targetIndex });
-		return conflicts[targetIndex].startLine;
-	},
-
-	goToPrevConflict: () => {
-		const { conflicts, currentConflictIndex } = get();
-		const unresolvedIndices = conflicts
-			.map((c, i) => (!c.resolved ? i : -1))
-			.filter((i) => i >= 0);
-		if (unresolvedIndices.length === 0) return null;
-
-		const prevIndex = [...unresolvedIndices]
-			.reverse()
-			.find((i) => i < currentConflictIndex);
-		const targetIndex =
-			prevIndex ?? unresolvedIndices[unresolvedIndices.length - 1];
-		set({ currentConflictIndex: targetIndex });
-		return conflicts[targetIndex].startLine;
-	},
-
-	save: async () => {
-		const { mergedPath, mergedContent } = get();
-		if (!mergedPath || mergedContent === null) return false;
-
-		set({ isSaving: true, error: null });
-
-		const result = await ipc.writeFile(mergedPath, mergedContent);
-		if (result.ok) {
-			set({ isSaving: false, isDirty: false });
-			return true;
-		}
-		set({ error: result.error, isSaving: false });
-		return false;
-	},
-
-	fetchBlame: async () => {
-		const { mergedPath } = get();
-		if (!mergedPath) return;
-
-		const [localResult, remoteResult] = await Promise.all([
-			ipc.gitBlameForMerge(mergedPath, "local"),
-			ipc.gitBlameForMerge(mergedPath, "remote"),
-		]);
-
-		if (!localResult.ok) {
-			console.warn("[blame] local blame failed:", localResult.error);
-		}
-		if (!remoteResult.ok) {
-			console.warn("[blame] remote blame failed:", remoteResult.error);
-		}
-
-		set({
-			localBlame: localResult.ok ? localResult.data : null,
-			remoteBlame: remoteResult.ok ? remoteResult.data : null,
-		});
-	},
-
-	reloadMergedFile: async () => {
-		const { mergedPath, conflicts: oldConflicts, resolvedReplacements } = get();
-		if (!mergedPath) return;
-
-		// NOTE: isLoading is intentionally NOT set here.
-		// Setting isLoading unmounts editors, which breaks decoration refs
-		// and blame tooltips on remount. File reads are fast enough to skip
-		// the loading screen.
-		set({ error: null });
-
-		const fileResult = await ipc.readFile(mergedPath);
-		if (!fileResult.ok) {
-			set({ error: fileResult.error });
-			return;
-		}
-
-		const parseResult = await ipc.parseConflicts(fileResult.data.content);
-		if (!parseResult.ok) {
-			set({ error: parseResult.error });
-			return;
-		}
-
-		// Preserve resolved conflicts so their red background persists.
-		// Also detect externally resolved conflicts (e.g. by Codex):
-		// old unresolved conflicts whose markers are no longer in the file.
-		const { preservedResolved, externallyResolved } =
-			reconcileConflictsOnReload(oldConflicts, parseResult.data.conflicts);
-		const allPreservedResolved = [...preservedResolved, ...externallyResolved];
-		const remappedUnresolved = remapConflictsWithUniqueIds(
-			parseResult.data.conflicts,
-			new Set(allPreservedResolved.map((c) => c.id)),
-		);
-		const mergedConflicts = [...remappedUnresolved, ...allPreservedResolved];
-		const hasUnresolved = parseResult.data.hasConflicts;
-		const filteredReplacements = filterResolvedReplacements(
-			resolvedReplacements,
-			allPreservedResolved,
-		);
-
-		set({
-			mergedContent: fileResult.data.content,
-			conflicts: mergedConflicts,
-			currentConflictIndex: 0,
-			allResolved:
-				!hasUnresolved && mergedConflicts.length > 0
-					? checkAllResolved(mergedConflicts)
-					: !hasUnresolved,
-			isDirty: false,
-			resolvedReplacements: filteredReplacements,
-		});
-	},
-
-	clearError: () => set({ error: null }),
-
-	checkCodexAvailable: async () => {
-		const result = await ipc.checkCodexAvailable();
-		if (result.ok) {
-			set({ codexAvailable: result.data });
-		} else {
-			set({ codexAvailable: false });
-		}
-	},
-
-	openCodexResolve: async () => {
-		const { mergedPath } = get();
-		if (!mergedPath) return;
-
-		const result = await ipc.openCodexTerminal(mergedPath);
-		if (!result.ok) {
-			set({ error: result.error });
-		}
-	},
-}));
+	return preservedResolved;
+}
 
 /**
- * Count lines in replacement text.
- * Empty text means the conflict is replaced with zero lines.
+ * 現在位置に近い未解決コンフリクトの配列インデックスを返す。
+ */
+function getPreferredConflictIndex(
+	conflicts: ConflictRegion[],
+	currentConflictIndex: number,
+): number {
+	const unresolvedIndices = conflicts
+		.map((conflict, index) => (!conflict.resolved ? index : -1))
+		.filter((index) => index >= 0);
+
+	if (unresolvedIndices.length === 0) {
+		return 0;
+	}
+
+	return (
+		unresolvedIndices.find((index) => index >= currentConflictIndex) ??
+		unresolvedIndices[unresolvedIndices.length - 1]
+	);
+}
+
+export const useMergeStore = create<MergeState>((set, get) => {
+	let contentParseRequestId = 0;
+
+	const invalidateContentParse = () => {
+		contentParseRequestId += 1;
+	};
+
+	return {
+		...initialState,
+
+		initMerge: async (local, remote, base, merged) => {
+			invalidateContentParse();
+			set({ isLoading: true, error: null });
+
+			const filesResult = await ipc.readMergeFiles(local, remote, base, merged);
+			if (!filesResult.ok) {
+				set({ error: filesResult.error, isLoading: false });
+				return;
+			}
+
+			const files = filesResult.data;
+
+			const parseResult = await ipc.parseConflicts(files.merged.content);
+			if (!parseResult.ok) {
+				set({ error: parseResult.error, isLoading: false });
+				return;
+			}
+
+			set({
+				localContent: files.local.content,
+				remoteContent: files.remote.content,
+				baseContent: files.base?.content ?? null,
+				mergedContent: files.merged.content,
+				mergedPath: files.merged.path,
+				language: files.language,
+				localLabel: files.localLabel,
+				remoteLabel: files.remoteLabel,
+				conflicts: parseResult.data.conflicts,
+				currentConflictIndex: 0,
+				allResolved: !parseResult.data.hasConflicts,
+				isLoading: false,
+				isDirty: false,
+			});
+
+			// blame 取得は UI をブロックしないようにバックグラウンドで走らせる
+			get().fetchBlame();
+		},
+
+		acceptLocal: (conflictId) => {
+			const { mergedContent, conflicts, resolvedReplacements } = get();
+			if (!mergedContent) return;
+
+			const conflict = conflicts.find((c) => c.id === conflictId);
+			if (!conflict || conflict.resolved) return;
+
+			const replacement = conflict.localContent;
+			const newContent = resolveConflictInContent(
+				mergedContent,
+				conflict,
+				replacement,
+			);
+			const updatedConflicts = markResolvedAndShiftConflicts(
+				conflicts,
+				conflictId,
+				replacement,
+			);
+			if (!updatedConflicts) return;
+			const updatedReplacements = updateResolvedReplacementsAfterResolve(
+				resolvedReplacements,
+				conflictId,
+				conflict,
+				replacement,
+			);
+
+			invalidateContentParse();
+			set({
+				mergedContent: newContent,
+				conflicts: updatedConflicts,
+				allResolved: checkAllResolved(updatedConflicts),
+				isDirty: true,
+				resolvedReplacements: updatedReplacements,
+			});
+		},
+
+		acceptRemote: (conflictId) => {
+			const { mergedContent, conflicts, resolvedReplacements } = get();
+			if (!mergedContent) return;
+
+			const conflict = conflicts.find((c) => c.id === conflictId);
+			if (!conflict || conflict.resolved) return;
+
+			const replacement = conflict.remoteContent;
+			const newContent = resolveConflictInContent(
+				mergedContent,
+				conflict,
+				replacement,
+			);
+			const updatedConflicts = markResolvedAndShiftConflicts(
+				conflicts,
+				conflictId,
+				replacement,
+			);
+			if (!updatedConflicts) return;
+			const updatedReplacements = updateResolvedReplacementsAfterResolve(
+				resolvedReplacements,
+				conflictId,
+				conflict,
+				replacement,
+			);
+
+			invalidateContentParse();
+			set({
+				mergedContent: newContent,
+				conflicts: updatedConflicts,
+				allResolved: checkAllResolved(updatedConflicts),
+				isDirty: true,
+				resolvedReplacements: updatedReplacements,
+			});
+		},
+
+		acceptBoth: (conflictId) => {
+			const { mergedContent, conflicts, resolvedReplacements } = get();
+			if (!mergedContent) return;
+
+			const conflict = conflicts.find((c) => c.id === conflictId);
+			if (!conflict || conflict.resolved) return;
+
+			const replacement = [conflict.localContent, conflict.remoteContent]
+				.filter((c) => c.length > 0)
+				.join("\n");
+			const newContent = resolveConflictInContent(
+				mergedContent,
+				conflict,
+				replacement,
+			);
+			const updatedConflicts = markResolvedAndShiftConflicts(
+				conflicts,
+				conflictId,
+				replacement,
+			);
+			if (!updatedConflicts) return;
+			const updatedReplacements = updateResolvedReplacementsAfterResolve(
+				resolvedReplacements,
+				conflictId,
+				conflict,
+				replacement,
+			);
+
+			invalidateContentParse();
+			set({
+				mergedContent: newContent,
+				conflicts: updatedConflicts,
+				allResolved: checkAllResolved(updatedConflicts),
+				isDirty: true,
+				resolvedReplacements: updatedReplacements,
+			});
+		},
+
+		revertConflict: (conflictId) => {
+			const { mergedContent, conflicts, resolvedReplacements } = get();
+			if (!mergedContent) return;
+
+			const conflict = conflicts.find((c) => c.id === conflictId);
+			if (!conflict?.resolved) return;
+
+			const replacement = resolvedReplacements[conflictId];
+			if (!replacement) return;
+
+			// コンフリクトマーカーを復元する
+			const markerText = buildConflictMarkerText(conflict);
+			const markerLines = markerText.split("\n");
+			const contentLines = mergedContent.split("\n");
+			const resolvedStartLine = findReplacementStartLine(
+				contentLines,
+				replacement,
+			);
+			if (resolvedStartLine === null) {
+				return;
+			}
+			const effectiveReplacement = {
+				...replacement,
+				startLine: resolvedStartLine,
+			};
+			const startLine = effectiveReplacement.startLine;
+			const endExclusive = startLine + effectiveReplacement.lineCount;
+			if (
+				startLine < 0 ||
+				startLine > contentLines.length ||
+				endExclusive > contentLines.length
+			) {
+				return;
+			}
+
+			const before = contentLines.slice(0, startLine);
+			const after = contentLines.slice(endExclusive);
+			const newContent = [...before, ...markerLines, ...after].join("\n");
+
+			const updatedConflicts = markRevertedAndShiftConflicts(
+				conflicts,
+				conflict,
+				effectiveReplacement,
+				markerLines.length,
+			);
+			const updatedReplacements = updateResolvedReplacementsAfterRevert(
+				resolvedReplacements,
+				conflictId,
+				effectiveReplacement,
+				markerLines.length,
+			);
+
+			invalidateContentParse();
+			set({
+				mergedContent: newContent,
+				conflicts: updatedConflicts,
+				resolvedReplacements: updatedReplacements,
+				allResolved: checkAllResolved(updatedConflicts),
+				isDirty: true,
+			});
+		},
+
+		updateMergedContent: (content) => {
+			const requestId = ++contentParseRequestId;
+			const {
+				conflicts: previousConflicts,
+				resolvedReplacements,
+				currentConflictIndex,
+			} = get();
+
+			set({ mergedContent: content, isDirty: true });
+
+			void (async () => {
+				const parseResult = await ipc.parseConflicts(content);
+				if (
+					requestId !== contentParseRequestId ||
+					get().mergedContent !== content
+				) {
+					return;
+				}
+
+				if (!parseResult.ok) {
+					set({ error: parseResult.error });
+					return;
+				}
+
+				const preservedResolved = preserveResolvedConflictsAfterEdit(
+					previousConflicts,
+					parseResult.data.conflicts,
+				);
+				const nextConflictState = buildConflictState(
+					parseResult.data.conflicts,
+					preservedResolved,
+					resolvedReplacements,
+					currentConflictIndex,
+					content,
+				);
+
+				set(nextConflictState);
+			})();
+		},
+
+		goToNextConflict: () => {
+			const { conflicts, currentConflictIndex } = get();
+			const unresolvedIndices = conflicts
+				.map((c, i) => (!c.resolved ? i : -1))
+				.filter((i) => i >= 0);
+			if (unresolvedIndices.length === 0) return null;
+
+			const nextIndex = unresolvedIndices.find((i) => i > currentConflictIndex);
+			const targetIndex = nextIndex ?? unresolvedIndices[0];
+			set({ currentConflictIndex: targetIndex });
+			return conflicts[targetIndex].startLine;
+		},
+
+		goToPrevConflict: () => {
+			const { conflicts, currentConflictIndex } = get();
+			const unresolvedIndices = conflicts
+				.map((c, i) => (!c.resolved ? i : -1))
+				.filter((i) => i >= 0);
+			if (unresolvedIndices.length === 0) return null;
+
+			const prevIndex = [...unresolvedIndices]
+				.reverse()
+				.find((i) => i < currentConflictIndex);
+			const targetIndex =
+				prevIndex ?? unresolvedIndices[unresolvedIndices.length - 1];
+			set({ currentConflictIndex: targetIndex });
+			return conflicts[targetIndex].startLine;
+		},
+
+		save: async () => {
+			const { mergedPath, mergedContent } = get();
+			if (!mergedPath || mergedContent === null) return false;
+
+			set({ isSaving: true, error: null });
+
+			const result = await ipc.writeFile(mergedPath, mergedContent);
+			if (result.ok) {
+				set({ isSaving: false, isDirty: false });
+				return true;
+			}
+			set({ error: result.error, isSaving: false });
+			return false;
+		},
+
+		fetchBlame: async () => {
+			const { mergedPath } = get();
+			if (!mergedPath) return;
+
+			const [localResult, remoteResult] = await Promise.all([
+				ipc.gitBlameForMerge(mergedPath, "local"),
+				ipc.gitBlameForMerge(mergedPath, "remote"),
+			]);
+
+			if (!localResult.ok) {
+				console.warn("[blame] local blame failed:", localResult.error);
+			}
+			if (!remoteResult.ok) {
+				console.warn("[blame] remote blame failed:", remoteResult.error);
+			}
+
+			set({
+				localBlame: localResult.ok ? localResult.data : null,
+				remoteBlame: remoteResult.ok ? remoteResult.data : null,
+			});
+		},
+
+		reloadMergedFile: async () => {
+			const {
+				mergedPath,
+				conflicts: oldConflicts,
+				resolvedReplacements,
+				currentConflictIndex,
+			} = get();
+			if (!mergedPath) return;
+			invalidateContentParse();
+
+			// ここで isLoading を立てるとエディターが unmount され、
+			// decoration と blame tooltip の参照が切れるため避ける。
+			set({ error: null });
+
+			const fileResult = await ipc.readFile(mergedPath);
+			if (!fileResult.ok) {
+				set({ error: fileResult.error });
+				return;
+			}
+
+			const parseResult = await ipc.parseConflicts(fileResult.data.content);
+			if (!parseResult.ok) {
+				set({ error: parseResult.error });
+				return;
+			}
+
+			// 既に解決済みの装飾は維持しつつ、外部ツールで解消された未解決も反映する。
+			const { preservedResolved, externallyResolved } =
+				reconcileConflictsOnReload(oldConflicts, parseResult.data.conflicts);
+			const nextConflictState = buildConflictState(
+				parseResult.data.conflicts,
+				[...preservedResolved, ...externallyResolved],
+				resolvedReplacements,
+				currentConflictIndex,
+				fileResult.data.content,
+			);
+
+			set({
+				mergedContent: fileResult.data.content,
+				isDirty: false,
+				...nextConflictState,
+			});
+		},
+
+		clearError: () => set({ error: null }),
+
+		checkCodexAvailable: async () => {
+			const result = await ipc.checkCodexAvailable();
+			if (result.ok) {
+				set({ codexAvailable: result.data });
+			} else {
+				set({ codexAvailable: false });
+			}
+		},
+
+		openCodexResolve: async () => {
+			const { mergedPath } = get();
+			if (!mergedPath) return;
+
+			const result = await ipc.openCodexTerminal(mergedPath);
+			if (!result.ok) {
+				set({ error: result.error });
+			}
+		},
+	};
+});
+
+/**
+ * 置換テキストの行数を数える。
+ * 空文字は 0 行置換として扱う。
  */
 function countLines(text: string): number {
 	return text === "" ? 0 : text.split("\n").length;
 }
 
 /**
- * Find where a resolved replacement currently exists in content.
- * Prefer stored anchor and fall back to nearest exact text match.
+ * 現在の内容の中で、解決済み置換ブロックがどこにあるかを探す。
+ * 保存済みアンカーを優先し、ずれていたら最も近い完全一致へフォールバックする。
  */
 function findReplacementStartLine(
 	contentLines: string[],
@@ -624,7 +720,76 @@ function findReplacementStartLine(
 }
 
 /**
- * Shift all line indices in a conflict by a delta.
+ * 解決済み置換アンカーを現在の内容に合わせて再配置する。
+ */
+function relocateResolvedReplacements(
+	content: string,
+	replacements: Record<number, ResolvedReplacement>,
+): Record<number, ResolvedReplacement> {
+	const contentLines = content.split("\n");
+	const relocated: Record<number, ResolvedReplacement> = {};
+
+	for (const [idStr, replacement] of Object.entries(replacements)) {
+		const relocatedStartLine = findReplacementStartLine(
+			contentLines,
+			replacement,
+		);
+		const id = Number(idStr);
+
+		relocated[id] =
+			relocatedStartLine === null
+				? replacement
+				: {
+						...replacement,
+						startLine: relocatedStartLine,
+					};
+	}
+
+	return relocated;
+}
+
+/**
+ * パース結果と保持対象の解決済みコンフリクトから次状態を組み立てる。
+ */
+function buildConflictState(
+	newUnresolvedConflicts: ConflictRegion[],
+	preservedResolvedConflicts: ConflictRegion[],
+	resolvedReplacements: Record<number, ResolvedReplacement>,
+	currentConflictIndex: number,
+	content: string,
+): Pick<
+	MergeState,
+	"conflicts" | "currentConflictIndex" | "allResolved" | "resolvedReplacements"
+> {
+	const remappedUnresolved = remapConflictsWithUniqueIds(
+		newUnresolvedConflicts,
+		new Set(preservedResolvedConflicts.map((conflict) => conflict.id)),
+	);
+	const mergedConflicts = [
+		...remappedUnresolved,
+		...preservedResolvedConflicts,
+	];
+	const filteredReplacements = filterResolvedReplacements(
+		resolvedReplacements,
+		preservedResolvedConflicts,
+	);
+
+	return {
+		conflicts: mergedConflicts,
+		currentConflictIndex: getPreferredConflictIndex(
+			mergedConflicts,
+			currentConflictIndex,
+		),
+		allResolved: remappedUnresolved.length === 0,
+		resolvedReplacements: relocateResolvedReplacements(
+			content,
+			filteredReplacements,
+		),
+	};
+}
+
+/**
+ * コンフリクトに含まれる行番号を delta 分だけ平行移動する。
  */
 function shiftConflictLines(
 	conflict: ConflictRegion,
@@ -646,7 +811,7 @@ function shiftConflictLines(
 }
 
 /**
- * Mark one conflict as resolved and shift conflicts that appear after it.
+ * 1 つのコンフリクトを解決済みにし、その後ろにあるコンフリクト行番号をずらす。
  */
 function markResolvedAndShiftConflicts(
 	oldConflicts: ConflictRegion[],
@@ -681,7 +846,7 @@ function markResolvedAndShiftConflicts(
 }
 
 /**
- * Update stored replacement metadata after resolving a conflict.
+ * コンフリクト解決後に、保持している置換メタデータを更新する。
  */
 function updateResolvedReplacementsAfterResolve(
 	oldReplacements: Record<number, ResolvedReplacement>,
@@ -713,7 +878,7 @@ function updateResolvedReplacementsAfterResolve(
 }
 
 /**
- * Build line metadata for a reverted standard conflict block.
+ * revert 後に復元されるコンフリクトブロックの行情報を再構築する。
  */
 function buildRevertedConflict(
 	conflict: ConflictRegion,
@@ -761,7 +926,7 @@ function buildRevertedConflict(
 }
 
 /**
- * Mark one conflict as unresolved and shift conflicts after the reverted block.
+ * 1 つのコンフリクトを未解決に戻し、その後続コンフリクトの行番号をずらす。
  */
 function markRevertedAndShiftConflicts(
 	oldConflicts: ConflictRegion[],
@@ -784,7 +949,7 @@ function markRevertedAndShiftConflicts(
 }
 
 /**
- * Remove reverted conflict metadata and shift remaining replacement anchors.
+ * revert されたコンフリクトのメタデータを消し、残りのアンカーをずらす。
  */
 function updateResolvedReplacementsAfterRevert(
 	oldReplacements: Record<number, ResolvedReplacement>,
@@ -811,7 +976,7 @@ function updateResolvedReplacementsAfterRevert(
 }
 
 /**
- * Keep replacement anchors only for currently preserved resolved conflicts.
+ * 現在も保持対象の解決済みコンフリクトに対応するアンカーだけを残す。
  */
 function filterResolvedReplacements(
 	oldReplacements: Record<number, ResolvedReplacement>,

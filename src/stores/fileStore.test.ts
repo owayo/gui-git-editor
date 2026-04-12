@@ -126,6 +126,34 @@ describe("fileStore", () => {
 			expect(state.currentContent).toBeNull();
 		});
 
+		it("読込失敗時は前回のファイル内容を残さずにクリアする", async () => {
+			const error = makeAppError({
+				code: "FileNotFound",
+				details: { path: "/tmp/missing.txt" },
+			});
+			mockedIpc.readFile.mockResolvedValue({ ok: false, error });
+
+			useFileStore.setState({
+				filePath: "/tmp/previous.txt",
+				fileType: "commit_msg",
+				originalContent: "previous original",
+				currentContent: "previous current",
+				backupPath: "/tmp/previous.txt.backup",
+				isDirty: true,
+			});
+
+			await useFileStore.getState().loadFile("/tmp/missing.txt");
+
+			const state = useFileStore.getState();
+			expect(state.error).toEqual(error);
+			expect(state.filePath).toBeNull();
+			expect(state.fileType).toBeNull();
+			expect(state.originalContent).toBeNull();
+			expect(state.currentContent).toBeNull();
+			expect(state.backupPath).toBeNull();
+			expect(state.isDirty).toBe(false);
+		});
+
 		it("should clear previous error when loading a new file", async () => {
 			useFileStore.setState({
 				error: makeAppError(),
