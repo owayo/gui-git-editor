@@ -72,14 +72,15 @@ pnpm test:all          # 全テスト（JS + Rust）
 - Merge の再読み込みはコンフリクト内容ベースで外部解決を判定し、parse 後のID再採番やID衝突を吸収しつつ、再出現した競合の stale な resolved 状態を保持しない
 - `fileStore` はファイル読込成功時とバックアップ作成失敗時に `backupPath` をクリアし、古いバックアップパスの誤再利用を防止する
 - `stagingStore` と `commitDiffStore` と `commitStore.validate` は request id で非同期レスポンスを突き合わせ、古い diff/status/validation 応答が新しい結果を上書きしない
-- `stagingStore` は同一パスが staged/unstaged の両方に存在する場合でも、ユーザーが選択中の側を維持しつつ、status 更新後の diff を再取得して stale 表示を残さない
+- `stagingStore` は同一パスが staged/unstaged の両方に存在する場合でも、ユーザーが選択中の側を維持しつつ、status 更新後の diff を再取得して stale 表示を残さない。`fetchStatus` のエラーパスでは `isLoadingDiff` もリセットし、スピナーの永続表示を防止する
 - `useKeyboardShortcuts` の undo / redo はグローバル処理するが、input / textarea / contenteditable 上ではネイティブの編集履歴を優先して横取りしない
 - `useKeyboardShortcuts` はマージモード時に空オブジェクトを渡して無効化し、`useMergeKeyboardShortcuts` との二重発火を防止する
-- `useKeyboardShortcuts` の Escape ハンドラは `aria-modal` 要素の存在を確認し、モーダルが開いている場合はモーダル側に処理を委ねてアプリ終了を防止する
+- `useKeyboardShortcuts` と `useMergeKeyboardShortcuts` の Escape ハンドラは `aria-modal` 要素の存在を確認し、モーダルが開いている場合はモーダル側に処理を委ねてアプリ終了を防止する
 - Rust 側の staging コマンドは `git status --porcelain=v1 -z` を使い、空白を含むパスや rename のパスを引用符付き文字列として誤解釈しない
 - Rebase の undo / redo は `isUndoRedoRef` フラグで `pushSnapshot` をスキップし、redo 履歴が即座にクリアされる問題を防止する
 - `commitDiffStore` の `selectFile` は開始時・成功時に `error` をクリアし、diff 取得エラー後の UI 復帰不能を防止する
 - Merge の3パネルリサイズは左右どちらのセパレータでも下限クランプ時の余剰をもう一方のパネルに反映し、合計幅を保存する
+- `check_codex_available` は `tokio::process::Command` で非同期実行し、Tokio ワーカースレッドのブロックを防止する（`check_git_sc_available` と整合）
 - Codex 連携の iTerm2 コマンド送信はリクエスト文字列を改行なしの単一行にし、`write text` が改行を Enter として分割実行する問題を防止する
 - `git_blame_for_merge` は `side` パラメータを `"local"` / `"remote"` のみ許可し、不正値でサイレントに誤結果を返さない
 - `format_unix_timestamp` は負のタイムスタンプを `"unknown"` として扱い、`as u32` キャストでの wrap を防止する
@@ -92,9 +93,9 @@ pnpm test:all          # 全テスト（JS + Rust）
 - `vitest` の `globals: true` 設定済み
 - commit/rebase/merge の表示系（`FileDiffViewer`, `TrailersDisplay`, `RebaseEntryList`, `ConflictNavigator`）と `mergeStore` の競合解決・復元・再読み込み整合性ロジックをテストでカバー
 - `utils/rebase.ts` と `rebaseStore` のテストで、特殊コマンドを含む todo に対する `fixup` / `squash` の検証と `squashAll` の安全性をカバー（`squash`/`fixup` のみの場合に統合先なしと判定するケースを含む）
-- `fileStore`, `stagingStore`, `commitDiffStore` のファイルI/O・Git操作状態管理をテストでカバー（`backupPath` の stale 状態回避、diff/status の競合応答無視、staged/unstaged 両出現時の選択維持と diff 再取得を含む）
+- `fileStore`, `stagingStore`, `commitDiffStore` のファイルI/O・Git操作状態管理をテストでカバー（`backupPath` の stale 状態回避、diff/status の競合応答無視、staged/unstaged 両出現時の選択維持と diff 再取得、`fetchStatus` エラー時の `isLoadingDiff` リセットを含む）
 - `useKeyboardShortcuts` のクロスプラットフォームキーバインド（Cmd/Ctrl）と、入力欄で undo / redo を横取りしない挙動、モーダル表示中の Escape 抑制をテストでカバー
-- `useMergeKeyboardShortcuts` のマージ画面キーバインド（保存/キャンセル/コンフリクト移動）をテストでカバー
+- `useMergeKeyboardShortcuts` のマージ画面キーバインド（保存/キャンセル/コンフリクト移動）とモーダル表示中の Escape 抑制をテストでカバー
 - `useAutoBackup` の自動バックアップ間隔・dirty 状態連動・クリーンアップをテストでカバー
 - `rebaseStore` の `parseContent` / `serialize` IPC連携（成功・失敗・空エントリ）をテストでカバー
 - `mergeStore` の `acceptRemote` / `acceptBoth` / コンフリクトナビゲーション / `save` / `initMerge` / `checkCodexAvailable` / `openCodexResolve` / `fetchBlame` / `reloadMergedFile` エラーパス / `clearError` / `updateMergedContent` をテストでカバー
@@ -106,6 +107,7 @@ pnpm test:all          # 全テスト（JS + Rust）
 - `RebaseEntryItem` の各コマンド状態（pick/drop/squash/fixup/exec）の表示・スタイル切替・squashTarget 表示・aria-selected・キーボード選択をテストでカバー
 - `historyStore` の連続 undo で past が枯渇するまで戻る動作をテストでカバー
 - `BodyTextarea` の行長超過検出・警告表示・省略表示をテストでカバー
+- `BackupRecoveryDialog` のタイトル・ボタン表示、復元/破棄コールバック、aria-modal 属性、フォーカストラップ、Escape での非閉塞をテストでカバー
 - `ErrorDisplay` のエラーメッセージ表示・パス表示・閉じるボタンの条件表示をテストでカバー
 - `FileStatusBadge` の各ステータス（M/A/D/R/C/?）のラベル・背景色・未知ステータスのフォールバックをテストでカバー
 - `commitStore` の `validate` request-ID ガード（古い応答の破棄、単発の正常適用、連続 setSubject での最新結果のみ反映）をテストでカバー

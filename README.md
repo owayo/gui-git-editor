@@ -200,9 +200,9 @@ pnpm check                # Biome lint + format
 pnpm typecheck            # TypeScript 型チェック
 ```
 
-主要UIコンポーネント（`ActionBar`, `SubjectInput`, `FileDiffViewer`, `TrailersDisplay`, `RebaseEntryList`, `RebaseEntryItem`, `ConflictNavigator`, `BodyTextarea`, `ErrorDisplay`, `FileStatusBadge`）に加えて、`mergeStore` のコンフリクト解決/復元ロジック（diff3 revert 含む）、`fileStore` のバックアップパス整合性（古い `backupPath` の残留防止）、`stagingStore` / `commitDiffStore` の競合した非同期応答の無視と、status 更新後の diff 再取得もテストで検証しています。
+主要UIコンポーネント（`ActionBar`, `SubjectInput`, `FileDiffViewer`, `TrailersDisplay`, `RebaseEntryList`, `RebaseEntryItem`, `ConflictNavigator`, `BackupRecoveryDialog`, `BodyTextarea`, `ErrorDisplay`, `FileStatusBadge`）に加えて、`mergeStore` のコンフリクト解決/復元ロジック（diff3 revert 含む）、`fileStore` のバックアップパス整合性（古い `backupPath` の残留防止）、`stagingStore` / `commitDiffStore` の競合した非同期応答の無視と、status 更新後の diff 再取得もテストで検証しています。
 `utils/rebase.ts` と `rebaseStore` では、特殊コマンドを含む rebase todo に対する `fixup` / `squash` の検証と `squashAll` の安全な変換も確認しています。
-`useKeyboardShortcuts` のクロスプラットフォームキーバインドと、input / textarea では undo/redo を横取りしない挙動、`useMergeKeyboardShortcuts` のマージ画面キーバインド（保存/キャンセル/コンフリクト移動）、`useAutoBackup` の自動バックアップ間隔・dirty 状態連動・クリーンアップもカバーしています。
+`useKeyboardShortcuts` のクロスプラットフォームキーバインドと、input / textarea では undo/redo を横取りしない挙動、`useMergeKeyboardShortcuts` のマージ画面キーバインド（保存/キャンセル/コンフリクト移動/モーダル表示中の Escape 抑制）、`useAutoBackup` の自動バックアップ間隔・dirty 状態連動・クリーンアップもカバーしています。
 `rebaseStore` の `parseContent` / `serialize` の IPC 連携（成功・失敗・空エントリ）、`mergeStore` の `acceptRemote` / `acceptBoth` / コンフリクトナビゲーション / `save`、`themeStore` のシステムテーマ変更イベントリスナーもテストでカバーしています。
 `ipc.ts` の全 IPC ラッパーに対し、`invoke` に渡す引数キーが camelCase であることを検証し、snake_case 混入の再発を防止しています。
 `commitStore` の `validate` request-ID ガード（古い応答の破棄、連続入力時の最新結果のみ反映）と、`RewordModal` の splitMessage/joinMessage ヘルパー・キーボードショートカット（Escape/Cmd+Enter）もテストでカバーしています。

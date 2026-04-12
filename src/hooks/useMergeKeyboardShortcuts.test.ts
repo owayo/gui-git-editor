@@ -61,6 +61,42 @@ describe("useMergeKeyboardShortcuts", () => {
 
 			expect(handlers.onCancel).toHaveBeenCalledOnce();
 		});
+
+		it("aria-modal 要素がある場合は onCancel を呼ばない", () => {
+			const modal = document.createElement("div");
+			modal.setAttribute("aria-modal", "true");
+			document.body.appendChild(modal);
+
+			renderHook(() => useMergeKeyboardShortcuts(handlers));
+
+			act(() => {
+				dispatchKeydown({ key: "Escape" });
+			});
+
+			expect(handlers.onCancel).not.toHaveBeenCalled();
+
+			document.body.removeChild(modal);
+		});
+
+		it("aria-modal 要素が除去された後は onCancel を呼ぶ", () => {
+			const modal = document.createElement("div");
+			modal.setAttribute("aria-modal", "true");
+			document.body.appendChild(modal);
+
+			renderHook(() => useMergeKeyboardShortcuts(handlers));
+
+			act(() => {
+				dispatchKeydown({ key: "Escape" });
+			});
+			expect(handlers.onCancel).not.toHaveBeenCalled();
+
+			document.body.removeChild(modal);
+
+			act(() => {
+				dispatchKeydown({ key: "Escape" });
+			});
+			expect(handlers.onCancel).toHaveBeenCalledOnce();
+		});
 	});
 
 	describe("Alt + ArrowDown (次のコンフリクト)", () => {

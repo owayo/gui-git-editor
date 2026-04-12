@@ -106,6 +106,7 @@ describe("stagingStore", () => {
 			const state = useStagingStore.getState();
 			expect(state.error).toBeTruthy();
 			expect(state.isLoadingStatus).toBe(false);
+			expect(state.isLoadingDiff).toBe(false);
 			expect(state.staged).toEqual([]);
 		});
 
