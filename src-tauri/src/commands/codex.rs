@@ -1,12 +1,15 @@
 use crate::error::AppError;
 
-/// Check if the `codex` CLI is available on the system.
-/// Returns `false` on non-macOS platforms since the terminal integration requires iTerm2.
+/// `codex` CLI がシステムで利用可能か確認する。
+/// macOS 以外のプラットフォームでは iTerm2 連携が必要なため `false` を返す。
 #[tauri::command]
 pub async fn check_codex_available() -> Result<bool, AppError> {
     #[cfg(target_os = "macos")]
     {
-        let output = std::process::Command::new("which").arg("codex").output();
+        let output = tokio::process::Command::new("which")
+            .arg("codex")
+            .output()
+            .await;
         match output {
             Ok(result) => Ok(result.status.success()),
             Err(_) => Ok(false),

@@ -171,7 +171,11 @@ export const useStagingStore = create<StagingState>((set, get) => {
 					await loadDiffForSelection(filePath, nextSelectedFile);
 				}
 			} else {
-				set({ error: result.error, isLoadingStatus: false });
+				set({
+					error: result.error,
+					isLoadingStatus: false,
+					isLoadingDiff: false,
+				});
 			}
 		},
 

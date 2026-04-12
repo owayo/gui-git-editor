@@ -25,8 +25,11 @@ export function useMergeKeyboardShortcuts({
 				return;
 			}
 
-			// Escape: Cancel
+			// Escape: Cancel（モーダル表示中はモーダル側に委ねる）
 			if (key === "Escape") {
+				if (document.querySelector("[aria-modal='true']")) {
+					return;
+				}
 				event.preventDefault();
 				onCancel?.();
 				return;
