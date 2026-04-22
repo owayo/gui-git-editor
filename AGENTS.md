@@ -74,6 +74,7 @@ pnpm test:all          # 全テスト（JS + Rust）
 - `fileStore` はファイル読込成功時と読込失敗時、バックアップ作成失敗時に `backupPath` を含む関連状態をクリアし、古い内容やバックアップパスの誤再利用を防止する
 - `stagingStore` と `commitDiffStore` と `commitStore.validate` は request id で非同期レスポンスを突き合わせ、古い diff/status/validation 応答が新しい結果を上書きしない
 - `stagingStore` は同一パスが staged/unstaged の両方に存在する場合でも、ユーザーが選択中の側を維持しつつ、status 更新後の diff を再取得して stale 表示を残さない。`fetchStatus` のエラーパスでは `isLoadingDiff` もリセットし、スピナーの永続表示を防止する
+- `useAutoBackup` はバックアップ作成完了が dirty→clean 遷移より遅れた場合でも stale な `.backup` を残さず、`hasBackup` を React state と同期して UI へ即時反映する
 - `useKeyboardShortcuts` の undo / redo はグローバル処理するが、input / textarea / contenteditable 上ではネイティブの編集履歴を優先して横取りしない
 - `useKeyboardShortcuts` はマージモード時に空オブジェクトを渡して無効化し、`useMergeKeyboardShortcuts` との二重発火を防止する
 - `useKeyboardShortcuts` と `useMergeKeyboardShortcuts` の Escape ハンドラは `aria-modal` 要素の存在を確認し、モーダルが開いている場合はモーダル側に処理を委ねてアプリ終了を防止する
@@ -97,7 +98,7 @@ pnpm test:all          # 全テスト（JS + Rust）
 - `fileStore`, `stagingStore`, `commitDiffStore` のファイルI/O・Git操作状態管理をテストでカバー（`backupPath` の stale 状態回避、diff/status の競合応答無視、staged/unstaged 両出現時の選択維持と diff 再取得、`fetchStatus` エラー時の `isLoadingDiff` リセットを含む）
 - `useKeyboardShortcuts` のクロスプラットフォームキーバインド（Cmd/Ctrl）と、入力欄で undo / redo を横取りしない挙動、モーダル表示中の Escape 抑制をテストでカバー
 - `useMergeKeyboardShortcuts` のマージ画面キーバインド（保存/キャンセル/コンフリクト移動）とモーダル表示中の Escape 抑制をテストでカバー
-- `useAutoBackup` の自動バックアップ間隔・dirty 状態連動・クリーンアップをテストでカバー
+- `useAutoBackup` の自動バックアップ間隔・dirty 状態連動・クリーンアップ・保存完了後に遅延完了したバックアップ削除・`hasBackup` 同期をテストでカバー
 - `rebaseStore` の `parseContent` / `serialize` IPC連携（成功・失敗・空エントリ）をテストでカバー
 - `mergeStore` の `acceptRemote` / `acceptBoth` / コンフリクトナビゲーション / `save` / `initMerge` / `checkCodexAvailable` / `openCodexResolve` / `fetchBlame` / `reloadMergedFile` エラーパス / `clearError` / `updateMergedContent` をテストでカバー
 - `mergeStore` の手動編集後に `acceptLocal` が再解析済みの最新行位置を使って解決する動作と、手動編集後も解決済みアンカーを再配置する挙動をテストでカバー

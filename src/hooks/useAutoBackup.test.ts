@@ -6,6 +6,14 @@ import { useAutoBackup } from "./useAutoBackup";
 vi.mock("../types/ipc");
 const mockedIpc = vi.mocked(ipc);
 
+function createDeferred<T>() {
+	let resolve!: (value: T) => void;
+	const promise = new Promise<T>((resolver) => {
+		resolve = resolver;
+	});
+	return { promise, resolve };
+}
+
 describe("useAutoBackup", () => {
 	beforeEach(() => {
 		vi.useFakeTimers();
@@ -22,7 +30,7 @@ describe("useAutoBackup", () => {
 	});
 
 	it("dirty 状態で初回バックアップを作成する", async () => {
-		renderHook(() =>
+		const { result } = renderHook(() =>
 			useAutoBackup({
 				filePath: "/tmp/file.txt",
 				isDirty: true,
@@ -33,6 +41,7 @@ describe("useAutoBackup", () => {
 		await act(async () => {});
 
 		expect(mockedIpc.createBackup).toHaveBeenCalledWith("/tmp/file.txt");
+		expect(result.current.hasBackup).toBe(true);
 	});
 
 	it("dirty でない場合はバックアップを作成しない", async () => {
@@ -94,7 +103,7 @@ describe("useAutoBackup", () => {
 	});
 
 	it("dirty が false になったらバックアップを削除する", async () => {
-		const { rerender } = renderHook(
+		const { result, rerender } = renderHook(
 			({ isDirty }: { isDirty: boolean }) =>
 				useAutoBackup({
 					filePath: "/tmp/file.txt",
@@ -112,6 +121,7 @@ describe("useAutoBackup", () => {
 		await act(async () => {});
 
 		expect(mockedIpc.deleteBackup).toHaveBeenCalledWith("/tmp/file.txt");
+		expect(result.current.hasBackup).toBe(false);
 	});
 
 	it("アンマウント時にインターバルをクリアする", async () => {
@@ -150,5 +160,36 @@ describe("useAutoBackup", () => {
 		}).not.toThrow();
 
 		await act(async () => {});
+	});
+
+	it("保存完了後に遅れて完了したバックアップを削除する", async () => {
+		const deferred =
+			createDeferred<Awaited<ReturnType<typeof ipc.createBackup>>>();
+		mockedIpc.createBackup.mockReturnValue(deferred.promise);
+
+		const { result, rerender } = renderHook(
+			({ isDirty }: { isDirty: boolean }) =>
+				useAutoBackup({
+					filePath: "/tmp/file.txt",
+					isDirty,
+				}),
+			{ initialProps: { isDirty: true } },
+		);
+
+		await act(async () => {});
+
+		rerender({ isDirty: false });
+		await act(async () => {});
+
+		await act(async () => {
+			deferred.resolve({
+				ok: true,
+				data: "/tmp/file.backup",
+			});
+			await deferred.promise;
+		});
+
+		expect(mockedIpc.deleteBackup).toHaveBeenCalledWith("/tmp/file.txt");
+		expect(result.current.hasBackup).toBe(false);
 	});
 });
