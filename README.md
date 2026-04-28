@@ -97,6 +97,7 @@ git config --global sequence.editor '"/Applications/gui-git-editor.app/Contents/
 
 特殊コマンド（`exec`, `label`, `reset`, `break`, `merge`, `drop`）を含む todo でも、`fixup` / `squash` の統合先は commit 系エントリだけに限定して判定します。
 「すべて1つにまとめる」操作でも、特殊コマンドと `drop` は保持したまま後続コミットだけを `fixup` 化します。
+`merge -c <commit>` と `merge -C <commit>` は保存後も区別を保持し、マージコミットメッセージ編集の有無を変えません。
 
 ### Git マージツールとして設定
 
@@ -207,6 +208,7 @@ pnpm typecheck            # TypeScript 型チェック
 `rebaseStore` の `parseContent` / `serialize` の IPC 連携（成功・失敗・空エントリ）、`mergeStore` の `acceptRemote` / `acceptBoth` / コンフリクトナビゲーション / `save`、`themeStore` のシステムテーマ変更イベントリスナーもテストでカバーしています。
 `ipc.ts` の全 IPC ラッパーに対し、`invoke` に渡す引数キーが camelCase であることを検証し、snake_case 混入の再発を防止しています。
 `commitStore` の `validate` request-ID ガード（古い応答の破棄、連続入力時の最新結果のみ反映）と、`RewordModal` の splitMessage/joinMessage ヘルパー・キーボードショートカット（Escape/Cmd+Enter）もテストでカバーしています。
+Rust 側では、コミットメッセージの subject/body 行長を Unicode 文字数で検証するケースと、rebase todo の `merge -c` / `merge -C` を保存後も区別して保持するケースをテストしています。
 
 ### Tech Stack
 

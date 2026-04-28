@@ -1,21 +1,21 @@
-//! Tauri commands for commit message parsing and serialization
+//! コミットメッセージの解析・シリアライズ用 Tauri コマンド。
 
 use crate::error::AppError;
 use crate::parser::commit::{self, CommitMessage};
 
-/// Parse commit message content into a structured CommitMessage
+/// コミットメッセージ本文を構造化された CommitMessage に解析する。
 #[tauri::command]
 pub fn parse_commit_msg(content: String) -> Result<CommitMessage, AppError> {
     commit::parse_commit_msg(&content)
 }
 
-/// Serialize a CommitMessage struct back to file content
+/// CommitMessage をファイルへ保存する文字列に戻す。
 #[tauri::command]
 pub fn serialize_commit_msg(message: CommitMessage) -> String {
     commit::serialize_commit_msg(&message)
 }
 
-/// Validation result for commit message
+/// コミットメッセージ検証結果。
 #[derive(serde::Serialize)]
 pub struct CommitValidation {
     pub is_valid: bool,
@@ -24,7 +24,7 @@ pub struct CommitValidation {
     pub long_body_lines: Vec<(usize, usize)>,
 }
 
-/// Validate a commit message and return warnings
+/// コミットメッセージを検証し、警告情報を返す。
 #[tauri::command]
 pub fn validate_commit_msg(message: CommitMessage) -> CommitValidation {
     let long_body_lines = message.get_long_body_lines();

@@ -67,6 +67,8 @@ pnpm test:all          # 全テスト（JS + Rust）
 - Rebase エントリ一覧は `role="listbox"` / `role="option"` の ARIA 構造を採用し、項目選択はキーボード操作に対応
 - Rebase の `fixup` / `squash` の統合先判定（`hasSquashTargetBeforeIndex`）は `pick` / `reword` / `edit` のみを対象とし、`squash` / `fixup` 自体や `exec` などの特殊コマンドを統合先としない（`findSquashTarget` と整合）
 - Rebase の「すべて1つにまとめる」は commit 系エントリだけを `fixup` 化し、`exec`・`label`・`drop` などの特殊行は保持する
+- Rebase の `merge -c <commit>` / `merge -C <commit>` は保存後も区別を保持する。`-c` はマージコミットメッセージ編集を要求するため、`-C` に正規化してはいけない
+- コミットメッセージ検証の subject/body 行長は UTF-8 バイト数ではなく Unicode 文字数で判定する。日本語 subject を byte length で過大判定しない
 - Merge の競合解決は `mergeStore` で行アンカー付きの解決済み置換情報を保持し、連続解決・revert 時の位置ずれを防止
 - diff3 形式（`|||||||` を含む）の競合を revert した場合も、BASE セクション付きで復元する
 - Merge の再読み込みはコンフリクト内容ベースで外部解決を判定し、parse 後のID再採番やID衝突を吸収しつつ、再出現した競合の stale な resolved 状態を保持しない
@@ -95,6 +97,8 @@ pnpm test:all          # 全テスト（JS + Rust）
 - `vitest` の `globals: true` 設定済み
 - commit/rebase/merge の表示系（`FileDiffViewer`, `TrailersDisplay`, `RebaseEntryList`, `ConflictNavigator`）と `mergeStore` の競合解決・復元・再読み込み整合性ロジックをテストでカバー
 - `utils/rebase.ts` と `rebaseStore` のテストで、特殊コマンドを含む todo に対する `fixup` / `squash` の検証と `squashAll` の安全性をカバー（`squash`/`fixup` のみの場合に統合先なしと判定するケースを含む）
+- Rust 側の rebase parser テストで `merge -c` と `merge -C` の保存時の区別保持をカバー
+- Rust 側の commit parser テストで、日本語などの Unicode subject/body 行長を文字数で検証するケースをカバー
 - `fileStore`, `stagingStore`, `commitDiffStore` のファイルI/O・Git操作状態管理をテストでカバー（`backupPath` の stale 状態回避、diff/status の競合応答無視、staged/unstaged 両出現時の選択維持と diff 再取得、`fetchStatus` エラー時の `isLoadingDiff` リセットを含む）
 - `useKeyboardShortcuts` のクロスプラットフォームキーバインド（Cmd/Ctrl）と、入力欄で undo / redo を横取りしない挙動、モーダル表示中の Escape 抑制をテストでカバー
 - `useMergeKeyboardShortcuts` のマージ画面キーバインド（保存/キャンセル/コンフリクト移動）とモーダル表示中の Escape 抑制をテストでカバー

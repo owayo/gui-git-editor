@@ -132,6 +132,7 @@ describe("RebaseEntryItem", () => {
 	it("特殊コマンド（merge）の value がオブジェクトの場合 JSON.stringify される", () => {
 		const mergeValue = {
 			commit: "abc123",
+			edit_message: false,
 			label: "feature",
 			message: null,
 		};

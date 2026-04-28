@@ -1,4 +1,4 @@
-// Git file types
+// Git ファイル種別。
 export type GitFileType =
 	| "rebase_todo"
 	| "commit_msg"
@@ -8,7 +8,7 @@ export type GitFileType =
 	| "merge"
 	| "unknown";
 
-// Merge file paths from CLI arguments
+// CLI 引数から渡されるマージ用ファイルパス。
 export interface MergeFilePaths {
 	local: string;
 	remote: string;
@@ -16,7 +16,7 @@ export interface MergeFilePaths {
 	merged: string;
 }
 
-// Rebase command types
+// Rebase コマンド種別。
 export type RebaseCommandType =
 	| { type: "pick" }
 	| { type: "reword" }
@@ -30,10 +30,15 @@ export type RebaseCommandType =
 	| { type: "reset"; value: string }
 	| {
 			type: "merge";
-			value: { commit: string | null; label: string; message: string | null };
+			value: {
+				commit: string | null;
+				edit_message: boolean;
+				label: string;
+				message: string | null;
+			};
 	  };
 
-// Rebase entry
+// Rebase エントリ。
 export interface RebaseEntry {
 	id: string;
 	command: RebaseCommandType;
@@ -41,19 +46,19 @@ export interface RebaseEntry {
 	message: string;
 }
 
-// Rebase todo file
+// Rebase todo ファイル。
 export interface RebaseTodoFile {
 	entries: RebaseEntry[];
 	comments: string[];
 }
 
-// Git trailer (metadata like Signed-off-by)
+// Signed-off-by などの Git trailer。
 export interface Trailer {
 	key: string;
 	value: string;
 }
 
-// Commit message
+// コミットメッセージ。
 export interface CommitMessage {
 	subject: string;
 	body: string;
@@ -62,13 +67,13 @@ export interface CommitMessage {
 	diff_content: string | null;
 }
 
-// Merge file content from backend
+// バックエンドから返るマージ用ファイル内容。
 export interface MergeFileContent {
 	path: string;
 	content: string;
 }
 
-// All merge files returned from backend
+// バックエンドから返る全マージ用ファイル。
 export interface MergeFiles {
 	local: MergeFileContent;
 	remote: MergeFileContent;
@@ -79,7 +84,7 @@ export interface MergeFiles {
 	remoteLabel: string;
 }
 
-// A single conflict region parsed from conflict markers
+// コンフリクトマーカーから解析した 1 つのコンフリクト領域。
 export interface ConflictRegion {
 	id: number;
 	startLine: number;
@@ -96,14 +101,14 @@ export interface ConflictRegion {
 	resolved: boolean;
 }
 
-// Result of parsing conflict markers
+// コンフリクトマーカー解析結果。
 export interface ParseConflictsResult {
 	conflicts: ConflictRegion[];
 	hasConflicts: boolean;
 	totalConflicts: number;
 }
 
-// A single line's git blame information
+// 1 行分の git blame 情報。
 export interface BlameLine {
 	lineNumber: number;
 	hash: string;
@@ -112,7 +117,7 @@ export interface BlameLine {
 	summary: string;
 }
 
-// File status from git status --porcelain
+// git status --porcelain から得るファイル状態。
 export interface FileStatus {
 	path: string;
 	originalPath: string | null;
@@ -120,7 +125,7 @@ export interface FileStatus {
 	worktreeStatus: string;
 }
 
-// Git status result with categorized files
+// 分類済みファイルを含む Git status 結果。
 export interface GitStatusResult {
 	staged: FileStatus[];
 	unstaged: FileStatus[];
@@ -129,29 +134,29 @@ export interface GitStatusResult {
 	branchName: string;
 }
 
-// File info from commit diff-tree
+// commit diff-tree から得るファイル情報。
 export interface CommitFileInfo {
 	path: string;
 	originalPath: string | null;
 	status: string;
 }
 
-// Commit validation result
+// コミットメッセージ検証結果。
 export interface CommitValidation {
 	is_valid: boolean;
 	subject_too_long: boolean;
 	subject_length: number;
-	long_body_lines: [number, number][]; // [line_number, length]
+	long_body_lines: [number, number][]; // [行番号, 文字数]
 }
 
-// File content from backend
+// バックエンドから返るファイル内容。
 export interface FileContent {
 	path: string;
 	content: string;
 	file_type: GitFileType;
 }
 
-// Simple command types for UI
+// UI で直接選べる基本コマンド。
 export const SIMPLE_COMMANDS = [
 	"pick",
 	"reword",
@@ -162,7 +167,7 @@ export const SIMPLE_COMMANDS = [
 ] as const;
 export type SimpleCommand = (typeof SIMPLE_COMMANDS)[number];
 
-// Command colors for UI
+// コマンド表示色。
 export const COMMAND_COLORS: Record<SimpleCommand, string> = {
 	pick: "bg-green-500",
 	reword: "bg-yellow-500",
@@ -172,7 +177,7 @@ export const COMMAND_COLORS: Record<SimpleCommand, string> = {
 	drop: "bg-red-500",
 };
 
-// Command labels
+// コマンドラベル。
 export const COMMAND_LABELS: Record<SimpleCommand, string> = {
 	pick: "Pick",
 	reword: "Reword",

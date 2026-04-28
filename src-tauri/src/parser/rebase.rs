@@ -20,13 +20,14 @@ pub enum RebaseCommand {
     Reset(String),
     Merge {
         commit: Option<String>,
+        edit_message: bool,
         label: String,
         message: Option<String>,
     },
 }
 
 impl RebaseCommand {
-    /// Parse command from string (supports both full and short forms)
+    /// コマンド文字列を解析する（フル形式と短縮形式の両方に対応）。
     pub fn from_str(s: &str) -> Option<Self> {
         match s.to_lowercase().as_str() {
             "pick" | "p" => Some(RebaseCommand::Pick),
@@ -40,7 +41,7 @@ impl RebaseCommand {
         }
     }
 
-    /// Convert command to short form for output
+    /// 出力用にコマンドを短縮形式へ変換する。
     pub fn to_short(&self) -> &str {
         match self {
             RebaseCommand::Pick => "p",
@@ -83,7 +84,7 @@ pub struct RebaseTodoFile {
     pub comments: Vec<String>,
 }
 
-/// Parse git-rebase-todo file content
+/// git-rebase-todo の内容を解析する。
 pub fn parse_rebase_todo(content: &str) -> Result<RebaseTodoFile, AppError> {
     let mut entries = Vec::new();
     let mut comments = Vec::new();
@@ -92,7 +93,7 @@ pub fn parse_rebase_todo(content: &str) -> Result<RebaseTodoFile, AppError> {
     for (line_num, line) in content.lines().enumerate() {
         let trimmed = line.trim();
 
-        // Skip empty lines
+        // 空行はコメントセクション内だけ保持する。
         if trimmed.is_empty() {
             if in_comments_section {
                 comments.push(String::new());
@@ -100,14 +101,14 @@ pub fn parse_rebase_todo(content: &str) -> Result<RebaseTodoFile, AppError> {
             continue;
         }
 
-        // Handle comment lines
+        // コメント行を扱う。
         if trimmed.starts_with('#') {
             in_comments_section = true;
             comments.push(line.to_string());
             continue;
         }
 
-        // Parse command line
+        // コマンド行を解析する。
         let parts: Vec<&str> = trimmed.splitn(3, char::is_whitespace).collect();
 
         if parts.is_empty() {
@@ -116,7 +117,7 @@ pub fn parse_rebase_todo(content: &str) -> Result<RebaseTodoFile, AppError> {
 
         let command_str = parts[0];
 
-        // Handle special commands
+        // 特殊コマンドを扱う。
         match command_str.to_lowercase().as_str() {
             "exec" | "x" => {
                 let exec_command = if parts.len() > 1 {
@@ -158,16 +159,17 @@ pub fn parse_rebase_todo(content: &str) -> Result<RebaseTodoFile, AppError> {
                 continue;
             }
             "merge" | "m" => {
-                // merge [-C <commit> | -c <commit>] <label> [# <oneline>]
+                // 構文: merge [-C <commit> | -c <commit>] <label> [# <oneline>]
                 let rest = if parts.len() > 1 {
                     parts[1..].join(" ")
                 } else {
                     String::new()
                 };
-                let (commit, label, message) = parse_merge_args(&rest);
+                let (commit, edit_message, label, message) = parse_merge_args(&rest);
                 entries.push(RebaseEntry::new(
                     RebaseCommand::Merge {
                         commit,
+                        edit_message,
                         label,
                         message,
                     },
@@ -179,7 +181,7 @@ pub fn parse_rebase_todo(content: &str) -> Result<RebaseTodoFile, AppError> {
             _ => {}
         }
 
-        // Standard command: <command> <hash> <message>
+        // 標準コマンド: <command> <hash> <message>
         let command = RebaseCommand::from_str(command_str).ok_or_else(|| AppError::ParseError {
             line: line_num + 1,
             message: format!("Unknown command: {}", command_str),
@@ -194,9 +196,10 @@ pub fn parse_rebase_todo(content: &str) -> Result<RebaseTodoFile, AppError> {
     Ok(RebaseTodoFile { entries, comments })
 }
 
-/// Parse merge command arguments
-fn parse_merge_args(args: &str) -> (Option<String>, String, Option<String>) {
+/// merge コマンドの引数を解析する。
+fn parse_merge_args(args: &str) -> (Option<String>, bool, String, Option<String>) {
     let mut commit = None;
+    let mut edit_message = false;
     let mut label = String::new();
     let mut message = None;
 
@@ -208,12 +211,13 @@ fn parse_merge_args(args: &str) -> (Option<String>, String, Option<String>) {
 
         if (part == "-C" || part == "-c") && i + 1 < parts.len() {
             commit = Some(parts[i + 1].to_string());
+            edit_message = part == "-c";
             i += 2;
             continue;
         }
 
         if part.starts_with('#') {
-            // Rest is the message
+            // 残りは oneline メッセージとして扱う。
             message = Some(
                 parts[i..]
                     .join(" ")
@@ -231,22 +235,22 @@ fn parse_merge_args(args: &str) -> (Option<String>, String, Option<String>) {
         i += 1;
     }
 
-    (commit, label, message)
+    (commit, edit_message, label, message)
 }
 
-/// Serialize RebaseTodoFile back to git-rebase-todo format
+/// RebaseTodoFile を git-rebase-todo 形式へ戻す。
 pub fn serialize_rebase_todo(file: &RebaseTodoFile) -> String {
     let mut lines = Vec::new();
 
     for entry in &file.entries {
         match &entry.command {
             RebaseCommand::Reword => {
-                // For reword, convert to pick + exec to apply the message without opening editor
+                // reword はエディタを開かずにメッセージを適用するため pick + exec に変換する。
                 let subject = entry.message.lines().next().unwrap_or(&entry.message);
                 lines.push(format!("pick {} {}", entry.commit_hash, subject));
 
-                // Use base64 encoding to safely pass multi-line messages through shell
-                // --quiet suppresses git commit output, --no-edit prevents editor from opening
+                // 複数行メッセージをシェル経由で安全に渡すため base64 化する。
+                // --quiet は出力を抑制し、--no-edit はエディタ起動を防ぐ。
                 let encoded = STANDARD.encode(&entry.message);
                 lines.push(format!(
                     "exec echo {} | base64 -d | git commit --amend --quiet --no-edit -F -",
@@ -258,7 +262,7 @@ pub fn serialize_rebase_todo(file: &RebaseTodoFile) -> String {
             | RebaseCommand::Squash
             | RebaseCommand::Fixup
             | RebaseCommand::Drop => {
-                // Only output the subject line (first line) - git rebase-todo format requires single-line entries
+                // git-rebase-todo は 1 行形式なので subject 行だけを出力する。
                 let subject = entry.message.lines().next().unwrap_or(&entry.message);
                 lines.push(format!(
                     "{} {} {}",
@@ -273,12 +277,14 @@ pub fn serialize_rebase_todo(file: &RebaseTodoFile) -> String {
             RebaseCommand::Reset(label) => lines.push(format!("t {}", label)),
             RebaseCommand::Merge {
                 commit,
+                edit_message,
                 label,
                 message,
             } => {
                 let mut parts = vec!["m".to_string()];
                 if let Some(c) = commit {
-                    parts.push(format!("-C {}", c));
+                    let option = if *edit_message { "-c" } else { "-C" };
+                    parts.push(format!("{} {}", option, c));
                 }
                 parts.push(label.clone());
                 if let Some(msg) = message {
@@ -289,9 +295,9 @@ pub fn serialize_rebase_todo(file: &RebaseTodoFile) -> String {
         }
     }
 
-    // Append comments
+    // コメントを末尾に追加する。
     if !file.comments.is_empty() {
-        lines.push(String::new()); // Empty line before comments
+        lines.push(String::new()); // コメントの前に空行を入れる。
         lines.extend(file.comments.clone());
     }
 
@@ -348,6 +354,69 @@ squash ghi9012 Third commit
         assert_eq!(
             result.entries[0].command,
             RebaseCommand::Exec("npm run test".to_string())
+        );
+    }
+
+    #[test]
+    fn test_parse_merge_command_preserves_edit_message_flag() {
+        let content = "m -c abc1234 feature-label # merge subject\n";
+        let result = parse_rebase_todo(content).unwrap();
+
+        assert_eq!(result.entries.len(), 1);
+        assert_eq!(
+            result.entries[0].command,
+            RebaseCommand::Merge {
+                commit: Some("abc1234".to_string()),
+                edit_message: true,
+                label: "feature-label".to_string(),
+                message: Some("merge subject".to_string()),
+            },
+        );
+    }
+
+    #[test]
+    fn test_serialize_merge_command_preserves_uppercase_commit_option() {
+        let file = RebaseTodoFile {
+            entries: vec![RebaseEntry {
+                id: "1".to_string(),
+                command: RebaseCommand::Merge {
+                    commit: Some("abc1234".to_string()),
+                    edit_message: false,
+                    label: "feature-label".to_string(),
+                    message: Some("merge subject".to_string()),
+                },
+                commit_hash: String::new(),
+                message: String::new(),
+            }],
+            comments: vec![],
+        };
+
+        assert_eq!(
+            serialize_rebase_todo(&file),
+            "m -C abc1234 feature-label # merge subject",
+        );
+    }
+
+    #[test]
+    fn test_serialize_merge_command_preserves_lowercase_edit_option() {
+        let file = RebaseTodoFile {
+            entries: vec![RebaseEntry {
+                id: "1".to_string(),
+                command: RebaseCommand::Merge {
+                    commit: Some("abc1234".to_string()),
+                    edit_message: true,
+                    label: "feature-label".to_string(),
+                    message: Some("merge subject".to_string()),
+                },
+                commit_hash: String::new(),
+                message: String::new(),
+            }],
+            comments: vec![],
+        };
+
+        assert_eq!(
+            serialize_rebase_todo(&file),
+            "m -c abc1234 feature-label # merge subject",
         );
     }
 

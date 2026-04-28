@@ -1,37 +1,37 @@
-//! Commit message parser and serializer
+//! コミットメッセージのパーサーとシリアライザー
 //!
-//! Handles parsing of COMMIT_EDITMSG, MERGE_MSG, SQUASH_MSG, and TAG_EDITMSG files.
+//! COMMIT_EDITMSG、MERGE_MSG、SQUASH_MSG、TAG_EDITMSG の解析を扱う。
 
 use serde::{Deserialize, Serialize};
 
 use crate::error::AppError;
 
-/// Represents a parsed commit message with its components
+/// 解析済みコミットメッセージの各要素を表す。
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct CommitMessage {
-    /// The first line of the commit message (subject line)
+    /// コミットメッセージの 1 行目（subject）。
     pub subject: String,
-    /// The body of the commit message (after the blank line)
+    /// 空行より後の本文。
     pub body: String,
-    /// Git trailers (e.g., "Signed-off-by:", "Co-authored-by:")
+    /// Git trailer（例: "Signed-off-by:"、"Co-authored-by:"）。
     pub trailers: Vec<Trailer>,
-    /// Comment lines (lines starting with #)
+    /// `#` で始まるコメント行。
     pub comments: Vec<String>,
-    /// Diff content shown in verbose mode (after the scissors line)
+    /// verbose モードで scissors 行の後ろに表示される diff。
     pub diff_content: Option<String>,
 }
 
-/// Represents a git trailer (key-value metadata)
+/// Git trailer の key-value メタデータ。
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct Trailer {
     pub key: String,
     pub value: String,
 }
 
-/// The scissors line that separates the commit message from the diff
+/// コミットメッセージと diff を分離する scissors 行。
 const SCISSORS_LINE: &str = "# ------------------------ >8 ------------------------";
 
-/// Known trailer keys
+/// よく使われる trailer key。
 const KNOWN_TRAILER_KEYS: &[&str] = &[
     "Signed-off-by",
     "Co-authored-by",
@@ -47,7 +47,7 @@ const KNOWN_TRAILER_KEYS: &[&str] = &[
 ];
 
 impl CommitMessage {
-    /// Create a new empty commit message
+    /// 空のコミットメッセージを作る。
     pub fn new() -> Self {
         Self {
             subject: String::new(),
@@ -58,30 +58,31 @@ impl CommitMessage {
         }
     }
 
-    /// Check if the subject line exceeds the recommended length (50 chars)
+    /// subject が推奨文字数（50 文字）を超えているかを返す。
     pub fn is_subject_too_long(&self) -> bool {
-        self.subject.len() > 50
+        self.subject_length() > 50
     }
 
-    /// Get the length of the subject line
+    /// subject の文字数を返す。
     pub fn subject_length(&self) -> usize {
-        self.subject.len()
+        character_count(&self.subject)
     }
 
-    /// Check if any body line exceeds the recommended length (72 chars)
+    /// 本文に推奨文字数（72 文字）を超える行があるかを返す。
     #[cfg(test)]
     pub fn has_long_body_lines(&self) -> bool {
-        self.body.lines().any(|line| line.len() > 72)
+        self.body.lines().any(|line| character_count(line) > 72)
     }
 
-    /// Get lines that exceed the recommended 72 character limit
+    /// 本文から推奨 72 文字を超える行と文字数を返す。
     pub fn get_long_body_lines(&self) -> Vec<(usize, usize)> {
         self.body
             .lines()
             .enumerate()
             .filter_map(|(i, line)| {
-                if line.len() > 72 {
-                    Some((i + 1, line.len()))
+                let length = character_count(line);
+                if length > 72 {
+                    Some((i + 1, length))
                 } else {
                     None
                 }
@@ -90,33 +91,37 @@ impl CommitMessage {
     }
 }
 
+fn character_count(text: &str) -> usize {
+    text.chars().count()
+}
+
 impl Default for CommitMessage {
     fn default() -> Self {
         Self::new()
     }
 }
 
-/// Parse a commit message file content into a CommitMessage struct
+/// コミットメッセージファイルの内容を CommitMessage に解析する。
 pub fn parse_commit_msg(content: &str) -> Result<CommitMessage, AppError> {
     let mut message = CommitMessage::new();
     let mut lines: Vec<&str> = content.lines().collect();
 
-    // Check for scissors line and extract diff content
+    // scissors 行がある場合は diff 部分を分離する。
     if let Some(scissors_pos) = lines.iter().position(|line| *line == SCISSORS_LINE) {
-        // Everything after scissors is diff content
+        // scissors 行より後ろはすべて diff として扱う。
         let diff_lines: Vec<&str> = lines.drain(scissors_pos..).skip(1).collect();
         if !diff_lines.is_empty() {
             message.diff_content = Some(diff_lines.join("\n"));
         }
     }
 
-    // Separate comments from content lines
+    // コメント行と本文行を分ける。
     let (content_lines, comment_lines): (Vec<&str>, Vec<&str>) =
         lines.iter().partition(|line| !line.starts_with('#'));
 
     message.comments = comment_lines.iter().map(|s| s.to_string()).collect();
 
-    // Parse subject, body, and trailers from content lines
+    // 本文行から subject、body、trailer を解析する。
     let content_text = content_lines.join("\n");
     let trimmed = content_text.trim();
 
@@ -124,17 +129,17 @@ pub fn parse_commit_msg(content: &str) -> Result<CommitMessage, AppError> {
         return Ok(message);
     }
 
-    // Split into paragraphs by blank lines
+    // 空行区切りで段落に分ける。
     let parts: Vec<&str> = trimmed.split("\n\n").collect();
 
     if parts.is_empty() {
         return Ok(message);
     }
 
-    // First non-empty part is the subject
+    // 最初の空でない段落を subject とする。
     message.subject = parts[0].lines().next().unwrap_or("").to_string();
 
-    // Check if first part has multiple lines (treat additional lines as body start)
+    // 先頭段落が複数行なら、2 行目以降を body の先頭として扱う。
     let subject_part_lines: Vec<&str> = parts[0].lines().collect();
     let mut body_parts: Vec<String> = Vec::new();
 
@@ -142,14 +147,14 @@ pub fn parse_commit_msg(content: &str) -> Result<CommitMessage, AppError> {
         body_parts.push(subject_part_lines[1..].join("\n"));
     }
 
-    // Remaining parts are body and/or trailers
+    // 残りの段落は body または trailer として扱う。
     if parts.len() > 1 {
         for part in &parts[1..] {
             body_parts.push(part.to_string());
         }
     }
 
-    // Try to extract trailers from the last body part
+    // 最後の body 段落から trailer を抽出する。
     if let Some(last_part) = body_parts.last() {
         let (remaining_body, trailers) = extract_trailers(last_part);
 
@@ -167,20 +172,20 @@ pub fn parse_commit_msg(content: &str) -> Result<CommitMessage, AppError> {
     Ok(message)
 }
 
-/// Extract trailers from a text block
+/// テキストブロックから trailer を抽出する。
 fn extract_trailers(text: &str) -> (String, Vec<Trailer>) {
     let lines: Vec<&str> = text.lines().collect();
     let mut trailers = Vec::new();
     let mut non_trailer_lines = Vec::new();
     let mut in_trailer_block = false;
 
-    // Process lines in reverse to find trailing trailer block
+    // 末尾の trailer ブロックを見つけるために後ろから処理する。
     for line in lines.iter().rev() {
         if let Some(trailer) = parse_trailer_line(line) {
             trailers.push(trailer);
             in_trailer_block = true;
         } else if in_trailer_block && line.trim().is_empty() {
-            // Allow blank lines within trailer block
+            // trailer ブロック内の空行は許容する。
             continue;
         } else {
             in_trailer_block = false;
@@ -194,16 +199,16 @@ fn extract_trailers(text: &str) -> (String, Vec<Trailer>) {
     (non_trailer_lines.join("\n"), trailers)
 }
 
-/// Parse a single line as a trailer if it matches the format "Key: Value"
+/// 1 行が "Key: Value" 形式なら trailer として解析する。
 fn parse_trailer_line(line: &str) -> Option<Trailer> {
     let trimmed = line.trim();
 
-    // Check for "Key: Value" format
+    // "Key: Value" 形式か確認する。
     if let Some((key, value)) = trimmed.split_once(':') {
         let key = key.trim();
         let value = value.trim();
 
-        // Validate key format (should be a valid trailer key)
+        // trailer key として妥当な形式か確認する。
         if is_valid_trailer_key(key) && !value.is_empty() {
             return Some(Trailer {
                 key: key.to_string(),
@@ -215,9 +220,9 @@ fn parse_trailer_line(line: &str) -> Option<Trailer> {
     None
 }
 
-/// Check if a key is a valid trailer key
+/// key が trailer key として妥当かを返す。
 fn is_valid_trailer_key(key: &str) -> bool {
-    // Known keys are always valid
+    // 既知の key は常に許可する。
     if KNOWN_TRAILER_KEYS
         .iter()
         .any(|k| k.eq_ignore_ascii_case(key))
@@ -225,45 +230,45 @@ fn is_valid_trailer_key(key: &str) -> bool {
         return true;
     }
 
-    // Custom keys should be PascalCase or kebab-case with letters
+    // カスタム key は英字始まりで、英数字またはハイフンを許可する。
     if key.is_empty() {
         return false;
     }
 
     let chars: Vec<char> = key.chars().collect();
 
-    // First char must be a letter
+    // 先頭は英字である必要がある。
     if !chars[0].is_ascii_alphabetic() {
         return false;
     }
 
-    // Rest can be letters, digits, or hyphens
+    // 2 文字目以降は英数字またはハイフンを許可する。
     chars[1..]
         .iter()
         .all(|c| c.is_ascii_alphanumeric() || *c == '-')
 }
 
-/// Serialize a CommitMessage struct back to file content
+/// CommitMessage をコミットメッセージファイル形式へ戻す。
 pub fn serialize_commit_msg(message: &CommitMessage) -> String {
     let mut parts: Vec<String> = Vec::new();
 
-    // Subject line
+    // subject 行。
     if !message.subject.is_empty() {
         parts.push(message.subject.clone());
     }
 
-    // Body
+    // body。
     if !message.body.is_empty() {
-        parts.push(String::new()); // Blank line after subject
+        parts.push(String::new()); // subject の後ろに空行を入れる。
         parts.push(message.body.clone());
     }
 
-    // Trailers
+    // trailer。
     if !message.trailers.is_empty() {
         if !message.body.is_empty() {
-            parts.push(String::new()); // Blank line before trailers
+            parts.push(String::new()); // trailer の前に空行を入れる。
         } else if !message.subject.is_empty() {
-            parts.push(String::new()); // Blank line after subject if no body
+            parts.push(String::new()); // body がない場合は subject の後ろに空行を入れる。
         }
 
         for trailer in &message.trailers {
@@ -273,7 +278,7 @@ pub fn serialize_commit_msg(message: &CommitMessage) -> String {
 
     let mut result = parts.join("\n");
 
-    // Add comments
+    // コメントを追加する。
     if !message.comments.is_empty() {
         if !result.is_empty() {
             result.push_str("\n\n");
@@ -281,7 +286,7 @@ pub fn serialize_commit_msg(message: &CommitMessage) -> String {
         result.push_str(&message.comments.join("\n"));
     }
 
-    // Add diff content after scissors line
+    // scissors 行の後ろに diff を追加する。
     if let Some(diff) = &message.diff_content {
         result.push('\n');
         result.push_str(SCISSORS_LINE);
@@ -404,6 +409,20 @@ mod tests {
     }
 
     #[test]
+    fn test_subject_length_counts_unicode_characters() {
+        let message = CommitMessage {
+            subject: "機能改善".repeat(10),
+            body: String::new(),
+            trailers: vec![],
+            comments: vec![],
+            diff_content: None,
+        };
+
+        assert_eq!(message.subject_length(), 40);
+        assert!(!message.is_subject_too_long());
+    }
+
+    #[test]
     fn test_long_body_lines() {
         let message = CommitMessage {
             subject: "Test".to_string(),
@@ -416,7 +435,21 @@ mod tests {
         assert!(message.has_long_body_lines());
         let long_lines = message.get_long_body_lines();
         assert_eq!(long_lines.len(), 1);
-        assert_eq!(long_lines[0], (2, 80)); // Line 2, length 80
+        assert_eq!(long_lines[0], (2, 80)); // 2 行目、80 文字。
+    }
+
+    #[test]
+    fn test_long_body_lines_count_unicode_characters() {
+        let message = CommitMessage {
+            subject: "Test".to_string(),
+            body: format!("{}\n{}", "詳細".repeat(36), "説明".repeat(37)),
+            trailers: vec![],
+            comments: vec![],
+            diff_content: None,
+        };
+
+        let long_lines = message.get_long_body_lines();
+        assert_eq!(long_lines, vec![(2, 74)]);
     }
 
     #[test]
