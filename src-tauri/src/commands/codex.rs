@@ -44,15 +44,17 @@ pub async fn open_codex_terminal(merged_path: String) -> Result<(), AppError> {
 
 #[cfg(target_os = "macos")]
 async fn open_codex_terminal_macos(merged_path: String) -> Result<(), AppError> {
-    use std::process::Command;
+    // git 解決と osascript 実行は同期 std::process では Tokio ランタイムをブロックするため、
+    // tokio::process::Command を使用する（check_codex_available / check_git_sc_available と整合）
+    use tokio::process::Command;
 
-    // Resolve the git repository root directory for --cd
+    // --cd で渡すために git リポジトリのルートを解決する
     let file_dir = std::path::Path::new(&merged_path)
         .parent()
         .map(|p| p.to_string_lossy().to_string())
         .unwrap_or_else(|| ".".to_string());
 
-    let project_dir = resolve_git_root(&file_dir).unwrap_or(file_dir);
+    let project_dir = resolve_git_root(&file_dir).await.unwrap_or(file_dir);
 
     // iTerm2 の write text は改行を Enter として送信するため、
     // リクエスト文字列は改行なしの単一行にする
@@ -98,6 +100,7 @@ async fn open_codex_terminal_macos(merged_path: String) -> Result<(), AppError> 
         .arg("-e")
         .arg(&apple_script)
         .output()
+        .await
         .map_err(|e| AppError::IoError {
             message: format!("Failed to launch iTerm2: {}", e),
         })?;
@@ -112,12 +115,14 @@ async fn open_codex_terminal_macos(merged_path: String) -> Result<(), AppError> 
     Ok(())
 }
 
-/// Resolve the git repository root from a directory path.
+/// 指定ディレクトリから git リポジトリのルートを解決する。
+/// Tokio ランタイムをブロックしないよう非同期版の Command を使用する。
 #[cfg(target_os = "macos")]
-fn resolve_git_root(dir: &str) -> Option<String> {
-    let output = std::process::Command::new("git")
+async fn resolve_git_root(dir: &str) -> Option<String> {
+    let output = tokio::process::Command::new("git")
         .args(["-C", dir, "rev-parse", "--show-toplevel"])
         .output()
+        .await
         .ok()?;
 
     if output.status.success() {
