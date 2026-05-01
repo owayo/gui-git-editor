@@ -3,7 +3,7 @@ import { useThemeStore } from "./themeStore";
 
 describe("themeStore", () => {
 	beforeEach(() => {
-		// Reset to system theme
+		// system テーマへ戻す。
 		useThemeStore.setState({
 			theme: "system",
 			resolvedTheme: "light",

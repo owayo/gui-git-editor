@@ -11,7 +11,7 @@ pub struct FileContent {
     pub file_type: GitFileType,
 }
 
-/// Read file and detect its type
+/// ファイルを読み込み、種別を判定する。
 #[tauri::command]
 pub async fn read_file(path: String) -> Result<FileContent, AppError> {
     let file_path = Path::new(&path);
@@ -36,7 +36,7 @@ pub async fn read_file(path: String) -> Result<FileContent, AppError> {
     })
 }
 
-/// Write content to file
+/// 内容をファイルへ書き込む。
 #[tauri::command]
 pub async fn write_file(path: String, content: String) -> Result<(), AppError> {
     let file_path = Path::new(&path);
@@ -51,7 +51,7 @@ pub async fn write_file(path: String, content: String) -> Result<(), AppError> {
     Ok(())
 }
 
-/// Create a backup of the file
+/// ファイルのバックアップを作成する。
 #[tauri::command]
 pub async fn create_backup(path: String) -> Result<String, AppError> {
     let file_path = Path::new(&path);
@@ -68,7 +68,7 @@ pub async fn create_backup(path: String) -> Result<String, AppError> {
     Ok(backup_path)
 }
 
-/// Restore file from backup
+/// バックアップからファイルを復元する。
 #[tauri::command]
 pub async fn restore_backup(backup_path: String, target_path: String) -> Result<(), AppError> {
     let backup = Path::new(&backup_path);
@@ -81,13 +81,13 @@ pub async fn restore_backup(backup_path: String, target_path: String) -> Result<
         message: e.to_string(),
     })?;
 
-    // Remove backup file after restore
+    // 復元後はバックアップファイルを削除する。
     let _ = fs::remove_file(backup);
 
     Ok(())
 }
 
-/// Check if a backup file exists
+/// バックアップファイルが存在するか確認する。
 #[tauri::command]
 pub async fn check_backup_exists(path: String) -> Result<Option<String>, AppError> {
     let backup_path = format!("{}.backup", path);
@@ -100,7 +100,7 @@ pub async fn check_backup_exists(path: String) -> Result<Option<String>, AppErro
     }
 }
 
-/// Delete backup file
+/// バックアップファイルを削除する。
 #[tauri::command]
 pub async fn delete_backup(path: String) -> Result<(), AppError> {
     let backup_path = format!("{}.backup", path);
@@ -115,7 +115,7 @@ pub async fn delete_backup(path: String) -> Result<(), AppError> {
     Ok(())
 }
 
-/// Exit the application with specified code.
+/// 指定した終了コードでアプリケーションを終了する。
 #[tauri::command]
 pub fn exit_app(code: i32) {
     std::process::exit(code);

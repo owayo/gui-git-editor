@@ -53,13 +53,13 @@ export function MergeEditor({ filePaths }: MergeEditorProps) {
 	const [isResizing, setIsResizing] = useState(false);
 	const [resizeIndex, setResizeIndex] = useState<number | null>(null);
 
-	// Track editor mount state for decoration hooks
+	// decoration hook 用にエディタのマウント状態を追跡する。
 	const [localReady, setLocalReady] = useState(false);
 	const [mergedReady, setMergedReady] = useState(false);
 	const [remoteReady, setRemoteReady] = useState(false);
 	const containerRef = useRef<HTMLDivElement>(null);
 
-	// Editor refs for scroll sync
+	// スクロール同期用のエディタ ref。
 	const localEditorRef =
 		useRef<MonacoEditor.editor.IStandaloneCodeEditor | null>(null);
 	const mergedEditorRef =
@@ -67,10 +67,10 @@ export function MergeEditor({ filePaths }: MergeEditorProps) {
 	const remoteEditorRef =
 		useRef<MonacoEditor.editor.IStandaloneCodeEditor | null>(null);
 
-	// Scroll sync lock to prevent infinite loops
+	// 無限ループを防ぐためのスクロール同期ロック。
 	const isScrollSyncing = useRef(false);
 
-	// Apply conflict decorations to all editors
+	// すべてのエディタへコンフリクト decoration を適用する。
 	useConflictDecorations(
 		mergedEditorRef,
 		conflicts,
@@ -92,11 +92,11 @@ export function MergeEditor({ filePaths }: MergeEditorProps) {
 		remoteReady,
 	);
 
-	// Apply blame tooltips to side panels
+	// サイドパネルへ blame ツールチップを適用する。
 	useBlameDecorations(localEditorRef, localBlame, localReady);
 	useBlameDecorations(remoteEditorRef, remoteBlame, remoteReady);
 
-	// Keyboard shortcut handlers
+	// キーボードショートカットのハンドラ。
 	const handleShortcutSave = useCallback(async () => {
 		if (!allResolved) return;
 		const success = await save();
@@ -123,7 +123,7 @@ export function MergeEditor({ filePaths }: MergeEditorProps) {
 		}
 	}, [goToPrevConflict]);
 
-	// Register merge keyboard shortcuts
+	// マージ用キーボードショートカットを登録する。
 	useMergeKeyboardShortcuts({
 		onSave: handleShortcutSave,
 		onCancel: handleShortcutCancel,
@@ -131,7 +131,7 @@ export function MergeEditor({ filePaths }: MergeEditorProps) {
 		onPrevConflict: handlePrevConflict,
 	});
 
-	// Initialize merge on mount
+	// マウント時にマージ状態を初期化する。
 	useEffect(() => {
 		initMerge(
 			filePaths.local,
@@ -141,7 +141,7 @@ export function MergeEditor({ filePaths }: MergeEditorProps) {
 		);
 	}, [filePaths, initMerge]);
 
-	// Update window title with branch names
+	// ブランチ名を含むウィンドウタイトルへ更新する。
 	useEffect(() => {
 		const mergedFileName =
 			filePaths.merged.split("/").pop() ?? filePaths.merged;
@@ -152,7 +152,7 @@ export function MergeEditor({ filePaths }: MergeEditorProps) {
 		getCurrentWindow().setTitle(title);
 	}, [localLabel, remoteLabel, filePaths.merged]);
 
-	// Scroll sync handler
+	// スクロール同期ハンドラ。
 	const handleScrollChange = useCallback(
 		(sourceEditor: "local" | "merged" | "remote") => (scrollTop: number) => {
 			if (isScrollSyncing.current) return;
@@ -177,7 +177,7 @@ export function MergeEditor({ filePaths }: MergeEditorProps) {
 		[],
 	);
 
-	// Panel resize handlers
+	// パネルリサイズハンドラ。
 	const handleResizeStart = useCallback(
 		(index: number) => (e: ReactMouseEvent) => {
 			e.preventDefault();
@@ -265,7 +265,7 @@ export function MergeEditor({ filePaths }: MergeEditorProps) {
 
 	return (
 		<div className="flex h-full flex-col">
-			{/* Toolbar */}
+			{/* ツールバー */}
 			<div className="flex items-center gap-2 border-b border-gray-200 px-3 py-1.5 dark:border-gray-700">
 				<button
 					type="button"
@@ -284,7 +284,7 @@ export function MergeEditor({ filePaths }: MergeEditorProps) {
 				<CodexResolveButton />
 			</div>
 
-			{/* Conflict actions list */}
+			{/* コンフリクト操作一覧 */}
 			{conflicts.filter((c) => !c.resolved).length > 0 && (
 				<div className="flex flex-wrap items-center gap-2 border-b border-gray-200 px-3 py-1 dark:border-gray-700">
 					{conflicts.map((conflict) => (
@@ -298,7 +298,7 @@ export function MergeEditor({ filePaths }: MergeEditorProps) {
 				</div>
 			)}
 
-			{/* BASE panel (togglable) */}
+			{/* BASE パネル（表示切替可能） */}
 			{showBase && baseContent !== null && (
 				<div className="h-48 border-b border-gray-200 dark:border-gray-700">
 					<MonacoPanel
@@ -316,7 +316,7 @@ export function MergeEditor({ filePaths }: MergeEditorProps) {
 				className="flex flex-1 overflow-hidden"
 				style={{ cursor: isResizing ? "col-resize" : undefined }}
 			>
-				{/* LOCAL panel */}
+				{/* LOCAL パネル */}
 				<div
 					style={{
 						flex: `${panelSizes[0] / totalSize}`,
@@ -335,7 +335,7 @@ export function MergeEditor({ filePaths }: MergeEditorProps) {
 					/>
 				</div>
 
-				{/* biome-ignore lint/a11y/useSemanticElements: div is appropriate for drag-based resizer */}
+				{/* biome-ignore lint/a11y/useSemanticElements: ドラッグリサイズ用なので div を使う */}
 				<div
 					role="separator"
 					tabIndex={0}
@@ -345,7 +345,7 @@ export function MergeEditor({ filePaths }: MergeEditorProps) {
 					onMouseDown={handleResizeStart(0)}
 				/>
 
-				{/* MERGED panel */}
+				{/* MERGED パネル */}
 				<div
 					style={{
 						flex: `${panelSizes[1] / totalSize}`,
@@ -363,7 +363,7 @@ export function MergeEditor({ filePaths }: MergeEditorProps) {
 					/>
 				</div>
 
-				{/* biome-ignore lint/a11y/useSemanticElements: div is appropriate for drag-based resizer */}
+				{/* biome-ignore lint/a11y/useSemanticElements: ドラッグリサイズ用なので div を使う */}
 				<div
 					role="separator"
 					tabIndex={0}
@@ -375,7 +375,7 @@ export function MergeEditor({ filePaths }: MergeEditorProps) {
 					onMouseDown={handleResizeStart(1)}
 				/>
 
-				{/* REMOTE panel */}
+				{/* REMOTE パネル */}
 				<div
 					style={{
 						flex: `${panelSizes[2] / totalSize}`,

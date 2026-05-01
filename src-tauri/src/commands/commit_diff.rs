@@ -12,8 +12,9 @@ pub struct CommitFileInfo {
     pub status: String,
 }
 
-/// Parse the output of `git diff-tree --no-commit-id -r --name-status`.
-/// Each line is `STATUS\tPATH` or `STATUS\tOLD_PATH\tNEW_PATH` for renames/copies.
+/// `git diff-tree --no-commit-id -r --name-status` の通常出力を解析する。
+/// 各行は `STATUS\tPATH`、または rename/copy の場合は `STATUS\tOLD_PATH\tNEW_PATH`。
+#[cfg(test)]
 pub fn parse_diff_tree_output(output: &str) -> Vec<CommitFileInfo> {
     let mut files = Vec::new();
 
@@ -28,7 +29,7 @@ pub fn parse_diff_tree_output(output: &str) -> Vec<CommitFileInfo> {
         }
 
         let raw_status = parts[0];
-        // R100, C100 etc. -> take first character
+        // R100 / C100 などは先頭文字だけを状態として扱う。
         let status = raw_status.chars().next().unwrap_or('?').to_string();
 
         let (path, original_path) = if (status == "R" || status == "C") && parts.len() >= 3 {
@@ -47,7 +48,46 @@ pub fn parse_diff_tree_output(output: &str) -> Vec<CommitFileInfo> {
     files
 }
 
-/// Get the list of files changed in a specific commit.
+/// `git diff-tree --name-status -z` の NUL 区切り出力を解析する。
+pub fn parse_diff_tree_output_z(output: &[u8]) -> Vec<CommitFileInfo> {
+    let mut files = Vec::new();
+    let mut fields = output
+        .split(|byte| *byte == 0)
+        .filter(|field| !field.is_empty());
+
+    while let Some(raw_status_bytes) = fields.next() {
+        let raw_status = String::from_utf8_lossy(raw_status_bytes);
+        let status = raw_status.chars().next().unwrap_or('?').to_string();
+
+        let Some(first_path_bytes) = fields.next() else {
+            break;
+        };
+        let first_path = String::from_utf8_lossy(first_path_bytes).to_string();
+
+        let (path, original_path) = if status == "R" || status == "C" {
+            if let Some(second_path_bytes) = fields.next() {
+                (
+                    String::from_utf8_lossy(second_path_bytes).to_string(),
+                    Some(first_path),
+                )
+            } else {
+                (first_path, None)
+            }
+        } else {
+            (first_path, None)
+        };
+
+        files.push(CommitFileInfo {
+            path,
+            original_path,
+            status,
+        });
+    }
+
+    files
+}
+
+/// 指定したコミットで変更されたファイル一覧を取得する。
 #[tauri::command]
 pub async fn git_commit_files(
     file_path: String,
@@ -63,6 +103,9 @@ pub async fn git_commit_files(
             "--no-commit-id",
             "-r",
             "--name-status",
+            "-M",
+            "-C",
+            "-z",
             &commit_hash,
         ])
         .output()
@@ -78,11 +121,10 @@ pub async fn git_commit_files(
         });
     }
 
-    let stdout = String::from_utf8_lossy(&output.stdout);
-    Ok(parse_diff_tree_output(&stdout))
+    Ok(parse_diff_tree_output_z(&output.stdout))
 }
 
-/// Get the diff for a specific file in a commit.
+/// 指定したコミット内の特定ファイルの差分を取得する。
 #[tauri::command]
 pub async fn git_commit_diff(
     file_path: String,
@@ -175,5 +217,29 @@ mod tests {
         assert_eq!(files[2].path, "renamed.rs");
         assert_eq!(files[2].original_path.as_deref(), Some("old.rs"));
         assert_eq!(files[3].status, "D");
+    }
+
+    #[test]
+    fn test_parse_diff_tree_z_with_tab_in_path() {
+        let output = b"A\0a\tb.txt\0M\0dir/name with spaces.rs\0";
+        let files = parse_diff_tree_output_z(output);
+
+        assert_eq!(files.len(), 2);
+        assert_eq!(files[0].status, "A");
+        assert_eq!(files[0].path, "a\tb.txt");
+        assert!(files[0].original_path.is_none());
+        assert_eq!(files[1].status, "M");
+        assert_eq!(files[1].path, "dir/name with spaces.rs");
+    }
+
+    #[test]
+    fn test_parse_diff_tree_z_rename_with_tab_in_path() {
+        let output = b"R100\0old\tname.rs\0new\tname.rs\0";
+        let files = parse_diff_tree_output_z(output);
+
+        assert_eq!(files.len(), 1);
+        assert_eq!(files[0].status, "R");
+        assert_eq!(files[0].path, "new\tname.rs");
+        assert_eq!(files[0].original_path.as_deref(), Some("old\tname.rs"));
     }
 }

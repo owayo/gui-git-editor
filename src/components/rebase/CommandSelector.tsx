@@ -16,7 +16,7 @@ interface CommandSelectorProps {
 	value: SimpleCommand;
 	onChange: (command: SimpleCommand) => void;
 	disabled?: boolean;
-	/** Commands that should be disabled (shown but not selectable) */
+	/** 無効化するコマンド（表示はするが選択できない）。 */
 	disabledCommands?: SimpleCommand[];
 }
 

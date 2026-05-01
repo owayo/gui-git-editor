@@ -26,7 +26,7 @@ export function TrailersDisplay({
 
 	return (
 		<div className="space-y-2">
-			{/* Trailers */}
+			{/* Trailer */}
 			{trailers.length > 0 && (
 				<div className="rounded-lg border border-gray-200 dark:border-gray-700">
 					<button
@@ -69,7 +69,7 @@ export function TrailersDisplay({
 				</div>
 			)}
 
-			{/* Comments */}
+			{/* コメント */}
 			{comments.length > 0 && (
 				<div className="rounded-lg border border-gray-200 dark:border-gray-700">
 					<button
@@ -94,7 +94,7 @@ export function TrailersDisplay({
 				</div>
 			)}
 
-			{/* Diff content */}
+			{/* 差分内容 */}
 			{diffContent && (
 				<div className="rounded-lg border border-gray-200 dark:border-gray-700">
 					<button

@@ -27,7 +27,7 @@ export function CodexResolveButton() {
 	const [isLaunching, setIsLaunching] = useState(false);
 	const [isReloading, setIsReloading] = useState(false);
 
-	// Check codex availability on mount
+	// マウント時に codex の利用可否を確認する。
 	useEffect(() => {
 		checkCodexAvailable();
 	}, [checkCodexAvailable]);
@@ -50,7 +50,7 @@ export function CodexResolveButton() {
 		setCodexLaunched(false);
 	}, [reloadMergedFile]);
 
-	// Still checking availability
+	// まだ利用可否を確認中。
 	if (codexAvailable === null) {
 		return null;
 	}

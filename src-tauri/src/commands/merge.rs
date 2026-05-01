@@ -5,7 +5,7 @@ use std::fs;
 use std::path::Path;
 use tokio::process::Command;
 
-/// A single line's git blame information.
+/// 1 行分の git blame 情報。
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct BlameLine {
@@ -16,7 +16,7 @@ pub struct BlameLine {
     pub summary: String, // first line of commit message
 }
 
-/// A single file's content with its path.
+/// パス付きの単一ファイル内容。
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct MergeFileContent {
@@ -24,7 +24,7 @@ pub struct MergeFileContent {
     pub content: String,
 }
 
-/// All merge file contents returned to the frontend.
+/// フロントエンドへ返すマージ関連ファイル一式。
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct MergeFiles {
@@ -37,7 +37,7 @@ pub struct MergeFiles {
     pub remote_label: String,
 }
 
-/// Detect programming language from file extension.
+/// ファイル拡張子からプログラミング言語を判定する。
 fn detect_language(path: &str) -> String {
     let ext = Path::new(path)
         .extension()
@@ -81,7 +81,7 @@ fn detect_language(path: &str) -> String {
     .to_string()
 }
 
-/// Read a single file, returning an error with the path if not found.
+/// 単一ファイルを読み込み、見つからない場合はパス付きエラーを返す。
 fn read_file_content(path: &str) -> Result<MergeFileContent, AppError> {
     let file_path = Path::new(path);
     if !file_path.exists() {
@@ -103,18 +103,18 @@ fn read_file_content(path: &str) -> Result<MergeFileContent, AppError> {
     })
 }
 
-/// Detect branch names from git repository state.
-/// Returns (local_label, remote_label), falling back to ("LOCAL", "REMOTE") on any error.
+/// Git リポジトリの状態からブランチ名を判定する。
+/// エラー時は ("LOCAL", "REMOTE") へフォールバックする。
 async fn detect_branch_names(merged_path: &str) -> (String, String) {
     let fallback = ("LOCAL".to_string(), "REMOTE".to_string());
 
-    // Derive working directory from the merged file path
+    // merged ファイルのパスから作業ディレクトリを求める。
     let work_dir = match Path::new(merged_path).parent() {
         Some(dir) => dir.to_string_lossy().to_string(),
         None => return fallback,
     };
 
-    // Get git repo root
+    // Git リポジトリのルートを取得する。
     let git_root = match Command::new("git")
         .args(["-C", &work_dir, "rev-parse", "--show-toplevel"])
         .output()
@@ -126,7 +126,7 @@ async fn detect_branch_names(merged_path: &str) -> (String, String) {
         _ => return fallback,
     };
 
-    // Get current branch name (LOCAL side)
+    // 現在のブランチ名（LOCAL 側）を取得する。
     let local_label = match Command::new("git")
         .args(["-C", &git_root, "rev-parse", "--abbrev-ref", "HEAD"])
         .output()
@@ -138,30 +138,30 @@ async fn detect_branch_names(merged_path: &str) -> (String, String) {
         _ => return fallback,
     };
 
-    // Detect remote branch name based on git operation context
+    // Git 操作中の状態から REMOTE 側ブランチ名を判定する。
     let git_dir = Path::new(&git_root).join(".git");
     let remote_label = detect_remote_label(&git_dir, &git_root).await;
 
     (local_label, remote_label)
 }
 
-/// Detect the remote (incoming) branch label from git state files.
+/// Git 状態ファイルから REMOTE 側（取り込み側）のブランチラベルを判定する。
 async fn detect_remote_label(git_dir: &Path, git_root: &str) -> String {
-    // Check for merge context: .git/MERGE_HEAD exists
+    // merge 中か確認する: .git/MERGE_HEAD が存在する。
     let merge_head = git_dir.join("MERGE_HEAD");
     if merge_head.exists() {
-        // Try parsing MERGE_MSG for branch name
+        // MERGE_MSG からブランチ名を取り出す。
         let merge_msg_path = git_dir.join("MERGE_MSG");
         if let Ok(msg) = fs::read_to_string(&merge_msg_path) {
             if let Some(first_line) = msg.lines().next() {
-                // Pattern: "Merge branch 'feature-branch'" or "Merge branch 'feature-branch' into main"
+                // 例: "Merge branch 'feature-branch'" / "Merge branch 'feature-branch' into main"
                 if let Some(start) = first_line.find("Merge branch '") {
                     let after = &first_line[start + 14..];
                     if let Some(end) = after.find('\'') {
                         return after[..end].to_string();
                     }
                 }
-                // Pattern: "Merge remote-tracking branch 'origin/feature-branch'"
+                // 例: "Merge remote-tracking branch 'origin/feature-branch'"
                 if let Some(start) = first_line.find("Merge remote-tracking branch '") {
                     let after = &first_line[start + 30..];
                     if let Some(end) = after.find('\'') {
@@ -171,7 +171,7 @@ async fn detect_remote_label(git_dir: &Path, git_root: &str) -> String {
             }
         }
 
-        // Fallback: use git name-rev
+        // フォールバックとして git name-rev を使う。
         if let Ok(output) = Command::new("git")
             .args(["-C", git_root, "name-rev", "--name-only", "MERGE_HEAD"])
             .output()
@@ -179,7 +179,7 @@ async fn detect_remote_label(git_dir: &Path, git_root: &str) -> String {
         {
             if output.status.success() {
                 let name = String::from_utf8_lossy(&output.stdout).trim().to_string();
-                // Strip ~N suffix (e.g., "feature-branch~2" -> "feature-branch")
+                // ~N suffix を取り除く（例: "feature-branch~2" -> "feature-branch"）。
                 let clean = name.split('~').next().unwrap_or(&name).to_string();
                 if !clean.is_empty() && clean != "undefined" {
                     return clean;
@@ -188,18 +188,18 @@ async fn detect_remote_label(git_dir: &Path, git_root: &str) -> String {
         }
     }
 
-    // Check for rebase context: .git/rebase-merge/ exists
+    // rebase 中か確認する: .git/rebase-merge/ が存在する。
     let rebase_merge = git_dir.join("rebase-merge");
     if rebase_merge.is_dir() {
         let head_name = rebase_merge.join("head-name");
         if let Ok(content) = fs::read_to_string(&head_name) {
             let name = content.trim();
-            // Strip "refs/heads/" prefix
+            // "refs/heads/" prefix を取り除く。
             return name.strip_prefix("refs/heads/").unwrap_or(name).to_string();
         }
     }
 
-    // Check for rebase-apply context
+    // rebase-apply 形式の rebase 中か確認する。
     let rebase_apply = git_dir.join("rebase-apply");
     if rebase_apply.is_dir() {
         let head_name = rebase_apply.join("head-name");
@@ -212,7 +212,7 @@ async fn detect_remote_label(git_dir: &Path, git_root: &str) -> String {
     "REMOTE".to_string()
 }
 
-/// Read all merge files (LOCAL, REMOTE, BASE, MERGED) at once.
+/// マージ関連ファイル（LOCAL、REMOTE、BASE、MERGED）をまとめて読み込む。
 #[tauri::command]
 pub async fn read_merge_files(
     local: String,
@@ -242,13 +242,13 @@ pub async fn read_merge_files(
     })
 }
 
-/// Parse conflict markers in the given content.
+/// 指定された内容のコンフリクトマーカーを解析する。
 #[tauri::command]
 pub async fn parse_conflicts(content: String) -> Result<ParseConflictsResult, AppError> {
     Ok(parse_conflict_markers(&content))
 }
 
-/// Parse `git blame --line-porcelain` output into BlameLine entries.
+/// `git blame --line-porcelain` の出力を BlameLine の配列へ変換する。
 fn parse_line_porcelain(output: &str) -> Vec<BlameLine> {
     let mut results: Vec<BlameLine> = Vec::new();
     let mut current_hash = String::new();
@@ -260,7 +260,7 @@ fn parse_line_porcelain(output: &str) -> Vec<BlameLine> {
 
     for line in output.lines() {
         if line.starts_with('\t') {
-            // Content line marks end of a block
+            // 内容行は blame ブロックの終端を示す。
             let date = format_unix_timestamp(current_time + current_tz_offset);
             results.push(BlameLine {
                 line_number: current_line,
@@ -282,10 +282,10 @@ fn parse_line_porcelain(output: &str) -> Vec<BlameLine> {
         } else if let Some(rest) = line.strip_prefix("summary ") {
             current_summary = rest.to_string();
         } else {
-            // Hash line: "<hash> <orig_line> <final_line> [<num_lines>]"
+            // ハッシュ行: "<hash> <orig_line> <final_line> [<num_lines>]"
             let parts: Vec<&str> = line.split_whitespace().collect();
             if parts.len() >= 3 && parts[0].len() >= 7 {
-                // Validate that first part looks like a hex hash
+                // 先頭フィールドが 16 進ハッシュらしい形式か検証する。
                 if parts[0].chars().all(|c| c.is_ascii_hexdigit()) {
                     current_hash = parts[0].to_string();
                     current_line = parts[2].parse::<usize>().unwrap_or(0);
@@ -297,7 +297,7 @@ fn parse_line_porcelain(output: &str) -> Vec<BlameLine> {
     results
 }
 
-/// Parse a timezone offset string (e.g., "+0900", "-0500") into seconds.
+/// タイムゾーンオフセット文字列（例: "+0900", "-0500"）を秒数へ変換する。
 fn parse_tz_offset(tz: &str) -> i64 {
     let tz = tz.trim();
     if tz.len() < 5 {
@@ -314,16 +314,16 @@ fn parse_tz_offset(tz: &str) -> i64 {
     }
 }
 
-/// Format a Unix timestamp to YYYY-MM-DD without external crates.
+/// 外部 crate を使わず Unix timestamp を YYYY-MM-DD 形式へ変換する。
 fn format_unix_timestamp(timestamp: i64) -> String {
     if timestamp <= 0 {
         return "unknown".to_string();
     }
 
-    // Simple days-based calculation
+    // 日数ベースの簡易計算を行う。
     let secs_per_day: i64 = 86400;
     let mut days = timestamp / secs_per_day;
-    // Shift epoch from 1970-01-01 to 0000-03-01 for easier month calculation
+    // 月計算を単純化するため epoch を 1970-01-01 から 0000-03-01 基準へずらす。
     days += 719468;
 
     let era = if days >= 0 { days } else { days - 146096 } / 146097;
@@ -339,24 +339,24 @@ fn format_unix_timestamp(timestamp: i64) -> String {
     format!("{:04}-{:02}-{:02}", y, m, d)
 }
 
-/// Determine the git ref for the given side of a merge.
+/// 指定されたマージ側に対応する Git ref を判定する。
 async fn determine_merge_ref(git_dir: &Path, side: &str) -> String {
     if side == "local" {
         return "HEAD".to_string();
     }
 
-    // remote side: try MERGE_HEAD, then REBASE_HEAD, then CHERRY_PICK_HEAD
+    // remote 側は MERGE_HEAD、REBASE_HEAD、CHERRY_PICK_HEAD の順に試す。
     for ref_name in &["MERGE_HEAD", "REBASE_HEAD", "CHERRY_PICK_HEAD"] {
         if git_dir.join(ref_name).exists() {
             return ref_name.to_string();
         }
     }
 
-    // Fallback
+    // フォールバック。
     "HEAD".to_string()
 }
 
-/// Get git blame information for a merge file on the given side.
+/// 指定された側のマージファイルに対する git blame 情報を取得する。
 #[tauri::command]
 pub async fn git_blame_for_merge(
     merged_path: String,
@@ -369,7 +369,7 @@ pub async fn git_blame_for_merge(
         });
     }
 
-    // Get working directory from merged path
+    // merged パスから作業ディレクトリを取得する。
     let work_dir = Path::new(&merged_path)
         .parent()
         .ok_or_else(|| AppError::CommandError {
@@ -378,7 +378,7 @@ pub async fn git_blame_for_merge(
         .to_string_lossy()
         .to_string();
 
-    // Get git repo root
+    // Git リポジトリのルートを取得する。
     let root_output = Command::new("git")
         .args(["-C", &work_dir, "rev-parse", "--show-toplevel"])
         .output()
@@ -397,7 +397,7 @@ pub async fn git_blame_for_merge(
         .trim()
         .to_string();
 
-    // Calculate relative path from git root
+    // Git ルートからの相対パスを計算する。
     let abs_merged = fs::canonicalize(&merged_path).map_err(|e| AppError::CommandError {
         message: format!("Failed to canonicalize path: {}", e),
     })?;
@@ -412,11 +412,11 @@ pub async fn git_blame_for_merge(
         .to_string_lossy()
         .to_string();
 
-    // Determine ref based on side
+    // side に応じた ref を判定する。
     let git_dir = Path::new(&git_root).join(".git");
     let git_ref = determine_merge_ref(&git_dir, &side).await;
 
-    // Run git blame
+    // git blame を実行する。
     let blame_output = Command::new("git")
         .args([
             "-C",

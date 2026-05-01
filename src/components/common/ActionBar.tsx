@@ -16,7 +16,7 @@ interface ActionBarProps {
 	isSaving?: boolean;
 	isDirty?: boolean;
 	saveLabel?: string;
-	/** Validation error message - disables save button when present */
+	/** 検証エラーメッセージ。存在する場合は保存ボタンを無効にする。 */
 	validationError?: string | null;
 }
 
@@ -35,7 +35,7 @@ export function ActionBar({
 	const canSave = isDirty && !isSaving && !validationError;
 	return (
 		<div className="flex items-center justify-between border-t border-gray-200 bg-gray-100 px-4 py-2 dark:border-gray-700 dark:bg-gray-800">
-			{/* Left side: Undo/Redo */}
+			{/* 左側: Undo/Redo */}
 			<div className="flex items-center gap-1">
 				{onUndo && (
 					<button
@@ -63,7 +63,7 @@ export function ActionBar({
 				)}
 			</div>
 
-			{/* Center: Status */}
+			{/* 中央: ステータス */}
 			<output
 				aria-live="polite"
 				aria-atomic="true"
@@ -94,7 +94,7 @@ export function ActionBar({
 				) : null}
 			</output>
 
-			{/* Right side: Cancel, Save */}
+			{/* 右側: キャンセル、保存 */}
 			<div className="flex items-center gap-2">
 				<button
 					type="button"

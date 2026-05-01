@@ -7,12 +7,12 @@ interface HistorySnapshot {
 }
 
 interface HistoryState {
-	// State
+	// 状態。
 	past: HistorySnapshot[];
 	future: HistorySnapshot[];
 	maxHistory: number;
 
-	// Actions
+	// 操作。
 	pushSnapshot: (entries: RebaseEntry[]) => void;
 	undo: () => RebaseEntry[] | null;
 	redo: () => RebaseEntry[] | null;
@@ -37,7 +37,7 @@ export const useHistoryStore = create<HistoryState>((set, get) => ({
 
 			const newPast = [...state.past, snapshot];
 
-			// Limit history size
+			// 履歴サイズを制限する。
 			if (newPast.length > state.maxHistory) {
 				newPast.shift();
 			}
@@ -62,7 +62,7 @@ export const useHistoryStore = create<HistoryState>((set, get) => ({
 			future: [snapshot, ...state.future],
 		}));
 
-		// Return the previous state (one before the popped one)
+		// pop したものの 1 つ前の状態を返す。
 		if (newPast.length > 0) {
 			return newPast[newPast.length - 1].entries;
 		}

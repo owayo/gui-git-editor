@@ -10,7 +10,7 @@ import type {
 import { SIMPLE_COMMANDS } from "../../types/git";
 import { CommandSelector } from "./CommandSelector";
 
-/** Extract subject line only (first line, without leading #) */
+/** subject 行だけを取り出す（先頭 # を除いた最初の行）。 */
 function getSubject(message: string): string {
 	const firstLine = message.split("\n")[0];
 	return firstLine.replace(/^#\s*/, "");
@@ -21,9 +21,9 @@ interface RebaseEntryItemProps {
 	isSelected: boolean;
 	isFirst?: boolean;
 	isLast?: boolean;
-	/** Whether this entry can be set to squash/fixup (has valid target before it) */
+	/** このエントリを squash/fixup にできるか（前方に有効な統合先があるか）。 */
 	canSquashOrFixup?: boolean;
-	/** The target commit for squash/fixup (the commit this will be merged into) */
+	/** squash/fixup の統合先コミット。 */
 	squashTarget?: RebaseEntry | null;
 	onSelect: () => void;
 	onCommandChange: (command: RebaseCommandType) => void;
@@ -53,10 +53,10 @@ export function RebaseEntryItem({
 		isDragging,
 	} = useSortable({ id: entry.id });
 
-	// Ref for scroll-into-view when selected via keyboard
+	// キーボード選択時にスクロール表示するための ref。
 	const itemRef = useRef<HTMLDivElement>(null);
 
-	// Combine dnd-kit ref with our scroll ref
+	// dnd-kit の ref とスクロール用 ref を結合する。
 	const combinedRef = useCallback(
 		(node: HTMLDivElement | null) => {
 			setNodeRef(node);
@@ -65,7 +65,7 @@ export function RebaseEntryItem({
 		[setNodeRef],
 	);
 
-	// Scroll selected item into view
+	// 選択中の項目を表示範囲へスクロールする。
 	useEffect(() => {
 		if (isSelected && itemRef.current) {
 			itemRef.current.scrollIntoView({
@@ -82,8 +82,8 @@ export function RebaseEntryItem({
 
 	const handleKeyDown = useCallback(
 		(event: KeyboardEvent<HTMLDivElement>) => {
-			// Only treat key events on the row itself as selection commands.
-			// Nested interactive controls (command selector, drag handle) manage their own keys.
+			// 行自体のキーイベントだけを選択コマンドとして扱う。
+			// 内側の操作要素（コマンドセレクタ、ドラッグハンドル）は自身でキーを扱う。
 			if (event.target !== event.currentTarget) {
 				return;
 			}
@@ -102,14 +102,14 @@ export function RebaseEntryItem({
 	const isSquashOrFixup = commandType === "squash" || commandType === "fixup";
 	const isSpecialCommand = simpleCommand === null;
 
-	// Build container classes based on command type and selection state
-	// Command type: background tint (purple for squash/fixup, red for drop)
-	// Selection: left border indicator + background highlight + slight lift
+	// コマンド種別と選択状態からコンテナの class を組み立てる。
+	// コマンド種別: 背景色（squash/fixup は紫系、drop は赤系）。
+	// 選択状態: 左ボーダー、背景ハイライト、わずかな浮き上がり。
 	const getContainerClasses = () => {
 		const baseClasses =
 			"group flex flex-col rounded-lg border p-3 transition-all scroll-my-12";
 
-		// Selection indicator - prominent left border + ring + background highlight
+		// 選択表示: 目立つ左ボーダー、ring、背景ハイライト。
 		const selectionClasses = isSelected
 			? "border-l-[6px] border-l-blue-500 bg-gradient-to-r from-blue-100/80 via-blue-50/60 to-transparent dark:from-blue-900/40 dark:via-blue-900/20 dark:to-transparent ring-2 ring-blue-400/50 dark:ring-blue-400/40 shadow-md -translate-y-0.5"
 			: "border-l-4 border-l-transparent";
@@ -126,7 +126,7 @@ export function RebaseEntryItem({
 			return `${baseClasses} border-purple-200 bg-purple-50/50 dark:border-purple-700 dark:bg-purple-900/20 ${selectionClasses}`;
 		}
 
-		// Normal state (pick, reword, edit)
+		// 通常状態（pick、reword、edit）。
 		return `${baseClasses} border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-800 ${selectionClasses}`;
 	};
 
@@ -141,23 +141,23 @@ export function RebaseEntryItem({
 			aria-selected={isSelected}
 			tabIndex={0}
 		>
-			{/* Main row */}
+			{/* メイン行 */}
 			<div className="flex flex-1 items-center gap-3">
-				{/* Status indicator for squash/fixup */}
+				{/* squash/fixup の状態表示 */}
 				{isSquashOrFixup && (
 					<div className="flex items-center" title="前のコミットに統合されます">
 						<ArrowUpIcon className="h-4 w-4 text-purple-500 dark:text-purple-400" />
 					</div>
 				)}
 
-				{/* Status indicator for drop */}
+				{/* drop の状態表示 */}
 				{isDropped && (
 					<div className="flex items-center" title="このコミットは削除されます">
 						<XMarkIcon className="h-4 w-4 text-red-500 dark:text-red-400" />
 					</div>
 				)}
 
-				{/* Drag handle */}
+				{/* ドラッグハンドル */}
 				<button
 					type="button"
 					aria-label={`${getSubject(entry.message)}を移動`}
@@ -168,7 +168,7 @@ export function RebaseEntryItem({
 					<Bars3Icon className="h-5 w-5" aria-hidden="true" />
 				</button>
 
-				{/* Command selector */}
+				{/* コマンドセレクタ */}
 				{simpleCommand ? (
 					<CommandSelector
 						value={simpleCommand}
@@ -181,7 +181,7 @@ export function RebaseEntryItem({
 					</span>
 				)}
 
-				{/* Commit hash */}
+				{/* コミットハッシュ */}
 				<span
 					className={`font-mono text-sm ${
 						isDropped
@@ -194,7 +194,7 @@ export function RebaseEntryItem({
 					{entry.commit_hash.slice(0, 7)}
 				</span>
 
-				{/* Commit message */}
+				{/* コミットメッセージ */}
 				<span
 					className={`flex-1 truncate text-sm ${
 						isDropped
@@ -208,7 +208,7 @@ export function RebaseEntryItem({
 					{getSubject(entry.message)}
 				</span>
 
-				{/* Special command value indicator */}
+				{/* 特殊コマンド値の表示 */}
 				{isSpecialCommand && "value" in entry.command && (
 					<span className="rounded bg-gray-200 px-2 py-0.5 text-xs text-gray-600 dark:bg-gray-700 dark:text-gray-400">
 						{typeof entry.command.value === "string"
@@ -218,7 +218,7 @@ export function RebaseEntryItem({
 				)}
 			</div>
 
-			{/* Squash/fixup target indicator */}
+			{/* squash/fixup 統合先の表示 */}
 			{isSquashOrFixup && squashTarget && (
 				<div className="mt-1 flex items-center gap-1 pl-8 text-xs text-purple-600 dark:text-purple-400">
 					<span>→</span>

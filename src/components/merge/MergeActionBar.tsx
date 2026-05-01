@@ -20,7 +20,7 @@ export function MergeActionBar() {
 
 	return (
 		<div className="flex items-center justify-between border-t border-gray-200 bg-gray-100 px-4 py-2 dark:border-gray-700 dark:bg-gray-800">
-			{/* Left: status */}
+			{/* 左側: ステータス */}
 			<output aria-live="polite" className="flex items-center gap-2 text-sm">
 				{isSaving ? (
 					<span className="text-blue-600 dark:text-blue-400">保存中...</span>
@@ -47,7 +47,7 @@ export function MergeActionBar() {
 				) : null}
 			</output>
 
-			{/* Right: actions */}
+			{/* 右側: 操作 */}
 			<div className="flex items-center gap-2">
 				<button
 					type="button"

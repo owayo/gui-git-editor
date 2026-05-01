@@ -12,12 +12,12 @@ import type {
 	RebaseTodoFile,
 } from "./git";
 
-// Result type for IPC calls
+// IPC 呼び出し結果。
 export type IpcResult<T> =
 	| { ok: true; data: T }
 	| { ok: false; error: AppError };
 
-// Wrap invoke to handle errors consistently
+// invoke をラップし、エラー処理を一貫させる。
 async function safeInvoke<T>(
 	command: string,
 	args?: Record<string, unknown>,
@@ -30,7 +30,7 @@ async function safeInvoke<T>(
 	}
 }
 
-// File operations
+// ファイル操作。
 export async function readFile(path: string): Promise<IpcResult<FileContent>> {
 	return safeInvoke<FileContent>("read_file", { path });
 }
@@ -70,7 +70,7 @@ export async function exitApp(code: number): Promise<void> {
 	await invoke("exit_app", { code });
 }
 
-// Rebase operations
+// Rebase 操作。
 export async function parseRebaseTodo(
 	content: string,
 ): Promise<IpcResult<RebaseTodoFile>> {
@@ -106,7 +106,7 @@ export async function generateCommitMessageFromStaged(
 	return result;
 }
 
-// Commit message operations
+// コミットメッセージ操作。
 export async function parseCommitMsg(
 	content: string,
 ): Promise<IpcResult<CommitMessage>> {
@@ -125,7 +125,7 @@ export async function validateCommitMsg(
 	return safeInvoke<CommitValidation>("validate_commit_msg", { message });
 }
 
-// Merge operations
+// マージ操作。
 export async function readMergeFiles(
 	local: string,
 	remote: string,
@@ -146,7 +146,7 @@ export async function parseConflicts(
 	return safeInvoke<ParseConflictsResult>("parse_conflicts", { content });
 }
 
-// Git blame for merge
+// マージ用 Git blame。
 export async function gitBlameForMerge(
 	mergedPath: string,
 	side: "local" | "remote",
@@ -154,12 +154,12 @@ export async function gitBlameForMerge(
 	return safeInvoke<BlameLine[]>("git_blame_for_merge", { mergedPath, side });
 }
 
-// git-sc availability check
+// git-sc の利用可否確認。
 export async function checkGitScAvailable(): Promise<IpcResult<boolean>> {
 	return safeInvoke<boolean>("check_git_sc_available");
 }
 
-// Codex CLI operations
+// Codex CLI 操作。
 export async function checkCodexAvailable(): Promise<IpcResult<boolean>> {
 	return safeInvoke<boolean>("check_codex_available");
 }
@@ -170,7 +170,7 @@ export async function openCodexTerminal(
 	return safeInvoke<void>("open_codex_terminal", { mergedPath });
 }
 
-// Staging operations
+// ステージング操作。
 export async function gitStatus(
 	filePath: string,
 ): Promise<IpcResult<GitStatusResult>> {
@@ -203,7 +203,7 @@ export async function gitDiffFile(
 	return safeInvoke<string>("git_diff_file", { filePath, target, staged });
 }
 
-// Commit diff operations
+// コミット差分操作。
 export async function gitCommitFiles(
 	filePath: string,
 	commitHash: string,

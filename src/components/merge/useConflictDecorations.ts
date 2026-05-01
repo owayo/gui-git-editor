@@ -9,9 +9,9 @@ interface ResolvedReplacement {
 }
 
 /**
- * Apply conflict-related decorations to the MERGED panel Monaco editor.
- * - Unresolved conflicts: marker lines (red), LOCAL content, REMOTE content
- * - Resolved conflicts: red background on the replacement text region
+ * MERGED パネルの Monaco editor にコンフリクト関連の decoration を適用する。
+ * - 未解決コンフリクト: マーカー行（赤）、LOCAL 内容、REMOTE 内容
+ * - 解決済みコンフリクト: 置換テキスト領域の赤背景
  */
 export function useConflictDecorations(
 	editorRef: React.RefObject<MonacoEditor.editor.IStandaloneCodeEditor | null>,
@@ -21,7 +21,7 @@ export function useConflictDecorations(
 ) {
 	const decorationIds = useRef<string[]>([]);
 
-	// biome-ignore lint/correctness/useExhaustiveDependencies: editorReady triggers re-run when editor mounts (editorRef.current is null until then)
+	// biome-ignore lint/correctness/useExhaustiveDependencies: エディタのマウント時に再実行するため editorReady を依存に含める
 	useEffect(() => {
 		const editor = editorRef.current;
 		if (!editor) return;
@@ -34,7 +34,7 @@ export function useConflictDecorations(
 
 		for (const conflict of conflicts) {
 			if (conflict.resolved) {
-				// Use stored line anchors to decorate resolved replacement blocks.
+				// 保存済み行アンカーを使って解決済み置換ブロックを装飾する。
 				const replacement = resolvedReplacements[conflict.id];
 				if (replacement === undefined) continue;
 
@@ -53,7 +53,7 @@ export function useConflictDecorations(
 				continue;
 			}
 
-			// <<<<<<< marker line
+			// <<<<<<< マーカー行。
 			decorations.push({
 				range: new monaco.Range(
 					conflict.startLine + 1,
@@ -68,7 +68,7 @@ export function useConflictDecorations(
 				},
 			});
 
-			// LOCAL content lines
+			// LOCAL 内容行。
 			if (conflict.localEndLine > conflict.localStartLine) {
 				decorations.push({
 					range: new monaco.Range(
@@ -84,7 +84,7 @@ export function useConflictDecorations(
 				});
 			}
 
-			// REMOTE content lines
+			// REMOTE 内容行。
 			if (conflict.remoteEndLine > conflict.remoteStartLine) {
 				decorations.push({
 					range: new monaco.Range(
@@ -100,7 +100,7 @@ export function useConflictDecorations(
 				});
 			}
 
-			// ======= separator line
+			// ======= 区切り行。
 			const separatorLine = conflict.baseStartLine
 				? (conflict.baseEndLine ?? conflict.localEndLine) + 1
 				: conflict.localEndLine + 1;
@@ -112,7 +112,7 @@ export function useConflictDecorations(
 				},
 			});
 
-			// >>>>>>> marker line
+			// >>>>>>> マーカー行。
 			decorations.push({
 				range: new monaco.Range(
 					conflict.endLine + 1,

@@ -106,6 +106,7 @@ export const useStagingStore = create<StagingState>((set, get) => {
 			selectedFile,
 			diffContent: null,
 			isLoadingDiff: true,
+			error: null,
 		});
 
 		const result = await ipc.gitDiffFile(
@@ -124,9 +125,9 @@ export const useStagingStore = create<StagingState>((set, get) => {
 		}
 
 		if (result.ok) {
-			set({ diffContent: result.data, isLoadingDiff: false });
+			set({ diffContent: result.data, isLoadingDiff: false, error: null });
 		} else {
-			set({ diffContent: null, isLoadingDiff: false });
+			set({ diffContent: null, isLoadingDiff: false, error: result.error });
 		}
 	};
 

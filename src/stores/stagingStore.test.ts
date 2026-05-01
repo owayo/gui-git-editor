@@ -475,9 +475,10 @@ describe("stagingStore", () => {
 		});
 
 		it("should set diffContent to null on failure", async () => {
+			const error = { message: "diff failed" } as never;
 			mockedIpc.gitDiffFile.mockResolvedValue({
 				ok: false,
-				error: { message: "diff failed" } as never,
+				error,
 			});
 
 			await useStagingStore
@@ -491,6 +492,23 @@ describe("stagingStore", () => {
 			});
 			expect(state.diffContent).toBeNull();
 			expect(state.isLoadingDiff).toBe(false);
+			expect(state.error).toBe(error);
+		});
+
+		it("should clear previous error when selecting a file", async () => {
+			useStagingStore.setState({
+				error: { message: "previous error" } as never,
+			});
+			mockedIpc.gitDiffFile.mockResolvedValue({
+				ok: true,
+				data: "diff content",
+			});
+
+			await useStagingStore
+				.getState()
+				.selectFile("src/main.ts", true, filePath);
+
+			expect(useStagingStore.getState().error).toBeNull();
 		});
 
 		it("should set isLoadingDiff to true during execution", async () => {

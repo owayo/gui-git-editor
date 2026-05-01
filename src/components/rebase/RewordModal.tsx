@@ -7,14 +7,14 @@ import { getModifierKey } from "../../utils/platform";
 interface RewordModalProps {
 	isOpen: boolean;
 	commitHash: string;
-	/** Additional hashes for squash/fixup commits */
+	/** squash/fixup 対象の追加ハッシュ。 */
 	relatedHashes?: string[];
 	initialMessage: string;
 	onSave: (message: string) => void;
 	onCancel: () => void;
 }
 
-/** Split a full commit message into subject + body. */
+/** コミットメッセージ全体を subject と body に分割する。 */
 function splitMessage(msg: string): { subject: string; body: string } {
 	const lines = msg.split("\n");
 	const subject = lines[0] || "";
@@ -23,7 +23,7 @@ function splitMessage(msg: string): { subject: string; body: string } {
 	return { subject, body };
 }
 
-/** Join subject + body into a full commit message. */
+/** subject と body を結合してコミットメッセージ全体に戻す。 */
 function joinMessage(subject: string, body: string): string {
 	if (body.trim()) {
 		return `${subject}\n\n${body}`;
@@ -50,7 +50,7 @@ export function RewordModal({
 		checkGitScAvailable().then((r) => setGitScAvailable(r.ok ? r.data : false));
 	}, []);
 
-	// Reset when modal opens
+	// モーダルを開いたときに初期化する。
 	useEffect(() => {
 		if (isOpen) {
 			const { subject: s, body: b } = splitMessage(initialMessage);
@@ -64,7 +64,7 @@ export function RewordModal({
 		}
 	}, [isOpen, initialMessage]);
 
-	// Keyboard shortcuts
+	// キーボードショートカット。
 	const handleKeyDown = useCallback(
 		(event: KeyboardEvent) => {
 			if (!isOpen) return;
@@ -133,7 +133,7 @@ export function RewordModal({
 				aria-labelledby="reword-modal-title"
 				className="mx-4 w-full max-w-2xl rounded-lg bg-white shadow-xl dark:bg-gray-800"
 			>
-				{/* Header */}
+				{/* ヘッダー */}
 				<div className="flex items-center justify-between border-b border-gray-200 px-4 py-3 dark:border-gray-700">
 					<div>
 						<h2
@@ -187,7 +187,7 @@ export function RewordModal({
 					</div>
 				</div>
 
-				{/* Body */}
+				{/* 本文 */}
 				<div className="space-y-4 p-4">
 					{generateError && (
 						<div
@@ -199,7 +199,7 @@ export function RewordModal({
 						</div>
 					)}
 
-					{/* Commit subject */}
+					{/* コミット subject */}
 					<div className="space-y-1">
 						<div className="flex items-center justify-between">
 							<label
@@ -257,7 +257,7 @@ export function RewordModal({
 					</div>
 				</div>
 
-				{/* Footer */}
+				{/* フッター */}
 				<div className="flex items-center justify-between border-t border-gray-200 px-4 py-3 dark:border-gray-700">
 					<p className="text-xs text-gray-500 dark:text-gray-400">
 						<kbd className="rounded bg-gray-200 px-1.5 py-0.5 font-mono dark:bg-gray-700">

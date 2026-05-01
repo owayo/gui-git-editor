@@ -68,21 +68,21 @@ function App() {
 	const isLoading = fileLoading || rebaseLoading || commitLoading;
 	const error = fileError || rebaseError || commitError;
 
-	// Check if file is a commit message type
+	// ファイルがコミットメッセージ系か判定する。
 	const isCommitType =
 		fileType === "commit_msg" ||
 		fileType === "merge_msg" ||
 		fileType === "squash_msg" ||
 		fileType === "tag_msg";
 
-	// Load file from CLI arguments on mount
+	// マウント時に CLI 引数からファイルを読み込む。
 	useEffect(() => {
 		async function loadFromCli() {
 			try {
 				const matches = await getMatches();
 				const args = matches.args;
 
-				// Check for merge mode
+				// マージモードか確認する。
 				if (args.merge?.occurrences && args.merge.occurrences > 0) {
 					const local = args.local?.value;
 					const remote = args.remote?.value;
@@ -103,7 +103,7 @@ function App() {
 						setIsMergeMode(true);
 						setMergeFilePaths(paths);
 
-						// Set window title for merge mode
+						// マージモード用にウィンドウタイトルを設定する。
 						const mergedFileName = merged.split("/").pop() ?? merged;
 						await getCurrentWindow().setTitle(`マージ: ${mergedFileName}`);
 						return;
@@ -122,21 +122,21 @@ function App() {
 		loadFromCli();
 	}, [loadFile]);
 
-	// Parse rebase content when file is loaded
+	// ファイル読み込み後に rebase 内容を解析する。
 	useEffect(() => {
 		if (fileType === "rebase_todo" && currentContent) {
 			parseContent(currentContent);
 		}
 	}, [fileType, currentContent, parseContent]);
 
-	// Parse commit content when file is loaded
+	// ファイル読み込み後にコミットメッセージ内容を解析する。
 	useEffect(() => {
 		if (isCommitType && currentContent) {
 			parseCommitContent(currentContent);
 		}
 	}, [isCommitType, currentContent, parseCommitContent]);
 
-	// Handle save
+	// 保存処理。
 	const handleSave = useCallback(async () => {
 		let success = false;
 
@@ -168,7 +168,7 @@ function App() {
 		saveFile,
 	]);
 
-	// Handle cancel
+	// キャンセル処理。
 	const handleCancel = useCallback(async () => {
 		await exitApp(1);
 	}, []);
@@ -176,7 +176,7 @@ function App() {
 	// undo/redo 経由の entries 変更では pushSnapshot をスキップするためのフラグ
 	const isUndoRedoRef = useRef(false);
 
-	// Handle undo
+	// undo 処理。
 	const handleUndo = useCallback(() => {
 		const previousEntries = undo();
 		if (previousEntries) {
@@ -185,7 +185,7 @@ function App() {
 		}
 	}, [undo, setEntries]);
 
-	// Handle redo
+	// redo 処理。
 	const handleRedo = useCallback(() => {
 		const nextEntries = redo();
 		if (nextEntries) {
@@ -194,7 +194,7 @@ function App() {
 		}
 	}, [redo, setEntries]);
 
-	// Push snapshot when entries change
+	// entries が変更されたら履歴スナップショットを追加する。
 	useEffect(() => {
 		if (entries.length > 0) {
 			if (isUndoRedoRef.current) {
@@ -205,8 +205,8 @@ function App() {
 		}
 	}, [entries, pushSnapshot]);
 
-	// Clear history when file changes
-	// biome-ignore lint/correctness/useExhaustiveDependencies: filePath is intentionally included to trigger history clear on file change
+	// ファイルが変わったら履歴をクリアする。
+	// biome-ignore lint/correctness/useExhaustiveDependencies: ファイル変更時に履歴をクリアするため filePath を意図的に含める
 	useEffect(() => {
 		clearHistory();
 	}, [filePath, clearHistory]);
@@ -230,7 +230,7 @@ function App() {
 		clearCommitError();
 	}, [clearFileError, clearRebaseError, clearCommitError]);
 
-	// Show loading state
+	// 読み込み状態を表示する。
 	if (isLoading) {
 		return (
 			<div className="flex h-screen flex-col bg-white dark:bg-gray-900">
@@ -239,7 +239,7 @@ function App() {
 		);
 	}
 
-	// Render merge mode
+	// マージモードを表示する。
 	if (isMergeMode && mergeFilePaths) {
 		return (
 			<div className="flex h-screen flex-col bg-white dark:bg-gray-900">
@@ -251,7 +251,7 @@ function App() {
 		);
 	}
 
-	// Show error if no file is loaded
+	// ファイルが読み込まれていない場合はエラーを表示する。
 	if (!filePath) {
 		return (
 			<div className="flex h-screen flex-col items-center justify-center bg-white dark:bg-gray-900">

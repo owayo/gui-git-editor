@@ -13,7 +13,7 @@ pub enum GitFileType {
     Unknown,
 }
 
-/// Detect Git file type from file path
+/// ファイルパスから Git ファイル種別を判定する。
 pub fn detect_file_type(path: &Path) -> GitFileType {
     let file_name = path.file_name().and_then(|n| n.to_str()).unwrap_or("");
 

@@ -18,14 +18,14 @@ export function useMergeKeyboardShortcuts({
 			const { key, ctrlKey, metaKey, altKey } = event;
 			const modKey = ctrlKey || metaKey;
 
-			// Ctrl/Cmd + S: Save and exit
+			// Ctrl/Cmd + S: 保存して終了
 			if (modKey && key === "s") {
 				event.preventDefault();
 				onSave?.();
 				return;
 			}
 
-			// Escape: Cancel（モーダル表示中はモーダル側に委ねる）
+			// Escape: キャンセル（モーダル表示中はモーダル側に委ねる）
 			if (key === "Escape") {
 				if (document.querySelector("[aria-modal='true']")) {
 					return;
@@ -35,14 +35,14 @@ export function useMergeKeyboardShortcuts({
 				return;
 			}
 
-			// Alt + ArrowDown: Next conflict
+			// Alt + ArrowDown: 次のコンフリクト
 			if (altKey && key === "ArrowDown") {
 				event.preventDefault();
 				onNextConflict?.();
 				return;
 			}
 
-			// Alt + ArrowUp: Previous conflict
+			// Alt + ArrowUp: 前のコンフリクト
 			if (altKey && key === "ArrowUp") {
 				event.preventDefault();
 				onPrevConflict?.();

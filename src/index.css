@@ -1,8 +1,8 @@
 @import "tailwindcss";
 
-/* Custom theme configuration for Tailwind CSS v4 */
+/* Tailwind CSS v4 用のカスタムテーマ設定 */
 @theme {
-	/* Color palette for Git commands */
+	/* Git コマンド用のカラーパレット */
 	--color-pick: #22c55e;
 	--color-reword: #eab308;
 	--color-edit: #3b82f6;
@@ -16,7 +16,7 @@
 	--color-merge: #14b8a6;
 }
 
-/* Base styles */
+/* ベーススタイル */
 body {
 	@apply bg-white text-gray-900 dark:bg-gray-900 dark:text-gray-100;
 	font-family:
@@ -24,12 +24,12 @@ body {
 		Arial, sans-serif;
 }
 
-/* Prevent text selection during drag */
+/* ドラッグ中のテキスト選択を防ぐ */
 .dragging {
 	user-select: none;
 }
 
-/* Screen reader only - visually hidden but accessible */
+/* スクリーンリーダー専用: 視覚的には隠しつつアクセシブルにする */
 .sr-only {
 	position: absolute;
 	width: 1px;
@@ -42,13 +42,13 @@ body {
 	border-width: 0;
 }
 
-/* Focus visible styles for keyboard navigation */
+/* キーボード操作用の focus-visible スタイル */
 :focus-visible {
 	outline: 2px solid #3b82f6;
 	outline-offset: 2px;
 }
 
-/* Reduce motion for users who prefer it */
+/* 動きを減らす設定を選んだユーザー向けの調整 */
 @media (prefers-reduced-motion: reduce) {
 	*,
 	*::before,
@@ -59,7 +59,7 @@ body {
 	}
 }
 
-/* Conflict marker decorations for Monaco Editor */
+/* Monaco Editor のコンフリクトマーカー decoration */
 .conflict-marker-line {
 	background-color: rgba(239, 68, 68, 0.15) !important;
 }
@@ -83,13 +83,13 @@ body {
 	margin-left: 3px;
 }
 
-/* Blame glyph margin indicator */
+/* blame glyph margin のインジケータ */
 .blame-glyph {
 	opacity: 0;
 	width: 2px !important;
 }
 
-/* Dark mode adjustments for conflict decorations */
+/* コンフリクト decoration のダークモード調整 */
 .dark .conflict-marker-line {
 	background-color: rgba(239, 68, 68, 0.2) !important;
 }

@@ -4,7 +4,7 @@ import ReactDOM from "react-dom/client";
 import App from "./App";
 import "./index.css";
 
-// Forward Rust logs to browser console
+// Rust 側のログをブラウザコンソールへ転送する。
 attachConsole();
 
 ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(

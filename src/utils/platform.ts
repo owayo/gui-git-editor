@@ -1,9 +1,9 @@
 /**
- * Platform detection utilities
+ * プラットフォーム判定ユーティリティ。
  */
 
 /**
- * Check if the current platform is macOS
+ * 現在のプラットフォームが macOS か判定する。
  */
 export function isMac(): boolean {
 	if (typeof navigator === "undefined") return false;
@@ -11,18 +11,18 @@ export function isMac(): boolean {
 }
 
 /**
- * Get the modifier key symbol based on platform
- * @returns "⌘" for Mac, "Ctrl" for other platforms
+ * プラットフォームに応じた修飾キー表記を返す。
+ * @returns Mac では "⌘"、それ以外では "Ctrl"
  */
 export function getModifierKey(): string {
 	return isMac() ? "⌘" : "Ctrl";
 }
 
 /**
- * Get keyboard shortcut display text
- * @param key - The key (e.g., "S", "Z")
- * @param withShift - Whether Shift is also required
- * @returns Formatted shortcut (e.g., "⌘+S" or "Ctrl+S")
+ * キーボードショートカットの表示文字列を返す。
+ * @param key - キー（例: "S", "Z"）
+ * @param withShift - Shift も必要かどうか
+ * @returns 整形済みショートカット（例: "⌘+S" または "Ctrl+S"）
  */
 export function getShortcut(key: string, withShift = false): string {
 	const modifier = getModifierKey();

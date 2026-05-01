@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 
-/// A single conflict region parsed from conflict markers in a file.
+/// ファイル内のコンフリクトマーカーから解析された単一のコンフリクト領域。
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct ConflictRegion {
@@ -19,7 +19,7 @@ pub struct ConflictRegion {
     pub resolved: bool,
 }
 
-/// Result of parsing conflict markers from a file.
+/// ファイル内のコンフリクトマーカー解析結果。
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct ParseConflictsResult {
@@ -28,22 +28,22 @@ pub struct ParseConflictsResult {
     pub total_conflicts: usize,
 }
 
-/// Conflict marker constants
+/// コンフリクトマーカー定数。
 const MARKER_LOCAL: &str = "<<<<<<<";
 const MARKER_BASE: &str = "|||||||";
 const MARKER_SEPARATOR: &str = "=======";
 const MARKER_REMOTE: &str = ">>>>>>>";
 
-/// Internal state machine for parsing conflict markers.
+/// コンフリクトマーカー解析用の内部状態機械。
 enum ParserState {
-    /// Outside any conflict region
+    /// コンフリクト領域の外側。
     Normal,
-    /// Inside LOCAL section (after <<<<<<< before ||||||| or =======)
+    /// LOCAL セクション内（<<<<<<< の後、||||||| または ======= の前）。
     InLocal {
         conflict_start: usize,
         local_start: usize,
     },
-    /// Inside BASE section (after ||||||| before =======), diff3 only
+    /// BASE セクション内（||||||| の後、======= の前）。diff3 のみ。
     InBase {
         conflict_start: usize,
         local_start: usize,
@@ -51,7 +51,7 @@ enum ParserState {
         local_lines: Vec<String>,
         base_start: usize,
     },
-    /// Inside REMOTE section (after ======= before >>>>>>>)
+    /// REMOTE セクション内（======= の後、>>>>>>> の前）。
     InRemote {
         conflict_start: usize,
         local_start: usize,
@@ -64,10 +64,10 @@ enum ParserState {
     },
 }
 
-/// Parse conflict markers from file content.
+/// ファイル内容からコンフリクトマーカーを解析する。
 ///
-/// Supports both standard and diff3 style markers:
-/// - Standard: `<<<<<<<` ... `=======` ... `>>>>>>>`
+/// 標準形式と diff3 形式の両方を扱う。
+/// - 標準形式: `<<<<<<<` ... `=======` ... `>>>>>>>`
 /// - diff3: `<<<<<<<` ... `|||||||` ... `=======` ... `>>>>>>>`
 pub fn parse_conflict_markers(content: &str) -> ParseConflictsResult {
     let lines: Vec<&str> = content.lines().collect();
@@ -95,7 +95,7 @@ pub fn parse_conflict_markers(content: &str) -> ParseConflictsResult {
                 local_start,
             } => {
                 if line.starts_with(MARKER_BASE) {
-                    // diff3 style: entering BASE section
+                    // diff3 形式: BASE セクションに入る。
                     let cs = *conflict_start;
                     let ls = *local_start;
                     let le = line_num;
@@ -109,7 +109,7 @@ pub fn parse_conflict_markers(content: &str) -> ParseConflictsResult {
                         base_start: line_num + 1,
                     };
                 } else if line.starts_with(MARKER_SEPARATOR) {
-                    // Standard style: entering REMOTE section
+                    // 標準形式: REMOTE セクションに入る。
                     let cs = *conflict_start;
                     let ls = *local_start;
                     let le = line_num;

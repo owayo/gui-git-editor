@@ -3,8 +3,8 @@ import { useEffect, useRef } from "react";
 import type { ConflictRegion } from "../../types/git";
 
 /**
- * Find line ranges in a side panel file where conflict content appears.
- * Searches sequentially since conflicts appear in file order.
+ * サイドパネルファイル内でコンフリクト内容が現れる行範囲を探す。
+ * コンフリクトはファイル順に現れるため、前方から順に検索する。
  */
 function findContentLineRanges(
 	fileLines: string[],
@@ -20,7 +20,7 @@ function findContentLineRanges(
 		if (!content) continue;
 
 		const contentLines = content.split("\n");
-		// Remove trailing empty line if content ends with \n
+		// 内容が \n で終わる場合の末尾空行を取り除く。
 		if (
 			contentLines.length > 0 &&
 			contentLines[contentLines.length - 1] === ""
@@ -52,9 +52,8 @@ function findContentLineRanges(
 }
 
 /**
- * Apply red conflict background decorations to LOCAL or REMOTE side panels.
- * Highlights persist even after conflicts are resolved in MERGED,
- * since the side panel files never change.
+ * LOCAL または REMOTE サイドパネルへ赤いコンフリクト背景 decoration を適用する。
+ * サイドパネルのファイル内容は変わらないため、MERGED 側で解決してもハイライトは残す。
  */
 export function useSidePanelConflictDecorations(
 	editorRef: React.RefObject<MonacoEditor.editor.IStandaloneCodeEditor | null>,
@@ -65,7 +64,7 @@ export function useSidePanelConflictDecorations(
 ) {
 	const decorationIds = useRef<string[]>([]);
 
-	// biome-ignore lint/correctness/useExhaustiveDependencies: editorReady triggers re-run when editor mounts (editorRef.current is null until then)
+	// biome-ignore lint/correctness/useExhaustiveDependencies: エディタのマウント時に再実行するため editorReady を依存に含める
 	useEffect(() => {
 		const editor = editorRef.current;
 		if (!editor || !fileContent) return;

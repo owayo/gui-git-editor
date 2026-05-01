@@ -2,7 +2,7 @@ import { fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import { ActionBar } from "./ActionBar";
 
-// Mock the theme store
+// theme store をモック化する。
 vi.mock("../../stores", () => ({
 	useThemeStore: () => ({
 		resolvedTheme: "light",
@@ -92,7 +92,7 @@ describe("ActionBar", () => {
 	it("shows saving message when saving", () => {
 		render(<ActionBar {...defaultProps} isSaving={true} />);
 
-		// Status area shows "保存中...", button shows "処理中..."
+		// ステータス領域には「保存中...」、ボタンには「処理中...」が表示される。
 		expect(screen.getByText("保存中...")).toBeInTheDocument();
 		expect(screen.getByText("処理中...")).toBeInTheDocument();
 	});

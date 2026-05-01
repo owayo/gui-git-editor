@@ -4,11 +4,11 @@ import { persist } from "zustand/middleware";
 type Theme = "light" | "dark" | "system";
 
 interface ThemeState {
-	// State
+	// 状態。
 	theme: Theme;
 	resolvedTheme: "light" | "dark";
 
-	// Actions
+	// 操作。
 	setTheme: (theme: Theme) => void;
 	toggleTheme: () => void;
 }
@@ -70,7 +70,7 @@ export const useThemeStore = create<ThemeState>()(
 	),
 );
 
-// Listen for system theme changes
+// システムテーマ変更を監視する。
 if (typeof window !== "undefined") {
 	window
 		.matchMedia("(prefers-color-scheme: dark)")

@@ -5,19 +5,19 @@ use crate::parser::{
     parse_rebase_todo as parse_todo, serialize_rebase_todo as serialize_todo, RebaseTodoFile,
 };
 
-/// Parse git-rebase-todo content
+/// git-rebase-todo の内容を解析する。
 #[tauri::command]
 pub fn parse_rebase_todo(content: String) -> Result<RebaseTodoFile, AppError> {
     parse_todo(&content)
 }
 
-/// Serialize RebaseTodoFile to git-rebase-todo format
+/// RebaseTodoFile を git-rebase-todo 形式へ変換する。
 #[tauri::command]
 pub fn serialize_rebase_todo(file: RebaseTodoFile) -> String {
     serialize_todo(&file)
 }
 
-/// Check if git-sc is available on the system.
+/// システム上で git-sc が利用可能か確認する。
 #[tauri::command]
 pub async fn check_git_sc_available() -> Result<bool, AppError> {
     let output = Command::new("which")
@@ -30,7 +30,7 @@ pub async fn check_git_sc_available() -> Result<bool, AppError> {
     Ok(output.status.success())
 }
 
-/// Generate commit message using git-sc for specified commit hashes
+/// 指定したコミットハッシュを対象に git-sc でコミットメッセージを生成する。
 #[tauri::command]
 pub async fn generate_commit_message(
     hashes: Vec<String>,
@@ -52,8 +52,8 @@ pub async fn generate_commit_message(
     run_git_sc(&args).await
 }
 
-/// Generate commit message using git-sc for staged changes (dry run mode).
-/// Parses the dry-run output to extract the commit message between separator lines.
+/// ステージ済み変更を対象に git-sc でコミットメッセージを生成する（dry-run mode）。
+/// dry-run の出力を解析し、区切り線に挟まれたコミットメッセージを取り出す。
 #[tauri::command]
 pub async fn generate_commit_message_from_staged(with_body: bool) -> Result<String, AppError> {
     let mut args = vec!["--dry-run".to_string()];
@@ -66,9 +66,9 @@ pub async fn generate_commit_message_from_staged(with_body: bool) -> Result<Stri
     Ok(parse_dry_run_output(&raw))
 }
 
-/// Extract the commit message from `git-sc --dry-run` output.
+/// `git-sc --dry-run` の出力からコミットメッセージを取り出す。
 ///
-/// The output format is:
+/// 出力形式:
 /// ```text
 /// Using prefix rule for ...
 /// Generating commit message...
@@ -84,7 +84,7 @@ pub async fn generate_commit_message_from_staged(with_body: bool) -> Result<Stri
 fn parse_dry_run_output(output: &str) -> String {
     let lines: Vec<&str> = output.lines().collect();
 
-    // Find separator lines (lines composed of '─' U+2500)
+    // 区切り線（'─' U+2500 だけで構成された行）を探す。
     let sep_indices: Vec<usize> = lines
         .iter()
         .enumerate()
@@ -103,11 +103,11 @@ fn parse_dry_run_output(output: &str) -> String {
         }
     }
 
-    // Fallback: return raw output
+    // フォールバックとして生の出力を返す。
     output.to_string()
 }
 
-/// Run git-sc with the given arguments
+/// 指定された引数で git-sc を実行する。
 async fn run_git_sc(args: &[String]) -> Result<String, AppError> {
     log::debug!("[CMD] git-sc {}", args.join(" "));
 

@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { Trailer } from "../types/git";
 import { useCommitStore } from "./commitStore";
 
-// Mock IPC module
+// IPC モジュールをモック化する。
 vi.mock("../types/ipc", () => ({
 	parseCommitMsg: vi.fn(),
 	serializeCommitMsg: vi.fn(),

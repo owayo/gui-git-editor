@@ -4,7 +4,7 @@ import type { CommitMessage, CommitValidation, Trailer } from "../types/git";
 import * as ipc from "../types/ipc";
 
 interface CommitState {
-	// State
+	// 状態。
 	subject: string;
 	body: string;
 	trailers: Trailer[];
@@ -17,10 +17,10 @@ interface CommitState {
 	originalSubject: string;
 	originalBody: string;
 
-	// Derived
+	// 派生値。
 	getMessage: () => CommitMessage;
 
-	// Actions
+	// 操作。
 	parseContent: (content: string) => Promise<boolean>;
 	serialize: () => Promise<string | null>;
 	setSubject: (subject: string) => void;
@@ -80,7 +80,7 @@ export const useCommitStore = create<CommitState>((set, get) => {
 					originalSubject: msg.subject,
 					originalBody: msg.body,
 				});
-				// Validate after parsing
+				// 解析後に検証する。
 				await get().validate();
 				return true;
 			} else {
@@ -110,7 +110,7 @@ export const useCommitStore = create<CommitState>((set, get) => {
 				subject,
 				isDirty: subject !== originalSubject || body !== originalBody,
 			});
-			// Debounced validation would be better in production
+			// 本番では debounce した検証が望ましい。
 			get().validate();
 		},
 

@@ -36,7 +36,7 @@ impl From<std::io::Error> for AppError {
     }
 }
 
-// Tauri requires errors to be serializable
+// Tauri へ返すエラーはシリアライズ可能である必要がある。
 impl serde::ser::Serialize for AppErrorWrapper {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where

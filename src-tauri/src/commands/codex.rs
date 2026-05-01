@@ -22,10 +22,10 @@ pub async fn check_codex_available() -> Result<bool, AppError> {
     }
 }
 
-/// Open an iTerm2 tab/window running the codex command to resolve merge conflicts.
+/// マージコンフリクト解決用の codex コマンドを iTerm2 のタブまたはウィンドウで開く。
 ///
-/// Uses `osascript` (AppleScript) on macOS to open iTerm2 with the codex command.
-/// Only available on macOS.
+/// macOS では `osascript`（AppleScript）で iTerm2 を開いて codex コマンドを実行する。
+/// macOS でのみ利用できる。
 #[tauri::command]
 pub async fn open_codex_terminal(merged_path: String) -> Result<(), AppError> {
     #[cfg(target_os = "macos")]
@@ -134,7 +134,7 @@ async fn resolve_git_root(dir: &str) -> Option<String> {
     None
 }
 
-/// Escape a string for use inside a double-quoted shell argument.
+/// ダブルクォートされた shell 引数の中で安全に使えるよう文字列をエスケープする。
 #[cfg(target_os = "macos")]
 fn shell_escape(s: &str) -> String {
     s.replace('\\', "\\\\")
@@ -143,7 +143,7 @@ fn shell_escape(s: &str) -> String {
         .replace('`', "\\`")
 }
 
-/// Escape a string for use inside an AppleScript double-quoted string.
+/// AppleScript のダブルクォート文字列内で安全に使えるよう文字列をエスケープする。
 #[cfg(target_os = "macos")]
 fn escape_applescript(s: &str) -> String {
     s.replace('\\', "\\\\").replace('"', "\\\"")

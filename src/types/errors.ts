@@ -17,16 +17,16 @@ export interface AppError {
 }
 
 export function getErrorMessage(error: AppError | unknown): string {
-	// Handle non-AppError cases
+	// AppError 以外の値を扱う。
 	if (!error || typeof error !== "object") {
 		return `Unknown error: ${String(error)}`;
 	}
 
 	const appError = error as AppError;
 
-	// Check if it has the expected structure
+	// 期待する構造を持つか確認する。
 	if (!appError.code || !appError.details) {
-		// Might be a raw error or different structure
+		// 生のエラー、または別構造のエラーの可能性がある。
 		if (
 			"message" in error &&
 			typeof (error as { message: string }).message === "string"

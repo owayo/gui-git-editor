@@ -68,7 +68,7 @@ export function StagingArea({ filePath }: StagingAreaProps) {
 
 	return (
 		<div className="flex h-full flex-col">
-			{/* Repo info */}
+			{/* リポジトリ情報 */}
 			{repoRoot && (
 				<div className="mb-2 space-y-1 rounded-lg bg-gray-50 px-3 py-2 dark:bg-gray-800/50">
 					<div className="flex items-center gap-1.5 text-xs text-gray-600 dark:text-gray-400">
@@ -105,7 +105,7 @@ export function StagingArea({ filePath }: StagingAreaProps) {
 				</div>
 			)}
 
-			{/* Header */}
+			{/* ヘッダー */}
 			<div className="mb-2 flex items-center justify-between">
 				<h3 className="text-sm font-semibold text-gray-800 dark:text-gray-200">
 					変更ファイル
@@ -142,7 +142,7 @@ export function StagingArea({ filePath }: StagingAreaProps) {
 				</div>
 			</div>
 
-			{/* Error */}
+			{/* エラー */}
 			{error && (
 				<div className="mb-2 rounded-md bg-red-50 px-3 py-2 text-xs text-red-700 dark:bg-red-900/20 dark:text-red-300">
 					{getErrorMessage(error)}
@@ -152,21 +152,21 @@ export function StagingArea({ filePath }: StagingAreaProps) {
 				</div>
 			)}
 
-			{/* Loading */}
+			{/* 読み込み中 */}
 			{isLoadingStatus && totalChanges === 0 && (
 				<div className="flex items-center justify-center py-8 text-sm text-gray-500">
 					読み込み中...
 				</div>
 			)}
 
-			{/* Empty state */}
+			{/* 空状態 */}
 			{!isLoadingStatus && totalChanges === 0 && (
 				<div className="flex items-center justify-center py-8 text-sm text-gray-500 dark:text-gray-400">
 					変更されたファイルはありません
 				</div>
 			)}
 
-			{/* File lists */}
+			{/* ファイル一覧 */}
 			<div className="flex-1 space-y-2 overflow-auto">
 				<FileList
 					title="ステージ済み"
@@ -199,7 +199,7 @@ export function StagingArea({ filePath }: StagingAreaProps) {
 				/>
 			</div>
 
-			{/* Diff viewer */}
+			{/* 差分ビューア */}
 			{selectedFile && (
 				<div className="mt-2 max-h-64 overflow-auto rounded-lg border border-gray-200 dark:border-gray-700">
 					<div className="border-b border-gray-200 bg-gray-50 px-3 py-1.5 text-xs font-medium text-gray-600 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-400">

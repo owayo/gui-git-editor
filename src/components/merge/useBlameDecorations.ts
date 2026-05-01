@@ -3,9 +3,9 @@ import { useEffect, useRef } from "react";
 import type { BlameLine } from "../../types/git";
 
 /**
- * Apply git blame hover tooltips to a Monaco editor.
- * Shows blame info when hovering over the glyph margin or line number area.
- * Groups consecutive lines with the same commit hash into a single decoration.
+ * Monaco editor に git blame の hover tooltip を適用する。
+ * glyph margin または行番号領域の hover 時に blame 情報を表示する。
+ * 同じコミットハッシュの連続行は 1 つの decoration にまとめる。
  */
 export function useBlameDecorations(
 	editorRef: React.RefObject<MonacoEditor.editor.IStandaloneCodeEditor | null>,
@@ -14,7 +14,7 @@ export function useBlameDecorations(
 ) {
 	const decorationIds = useRef<string[]>([]);
 
-	// biome-ignore lint/correctness/useExhaustiveDependencies: editorReady triggers re-run when editor mounts
+	// biome-ignore lint/correctness/useExhaustiveDependencies: エディタのマウント時に再実行するため editorReady を依存に含める
 	useEffect(() => {
 		const editor = editorRef.current;
 		if (!editor || !blameData || blameData.length === 0) {
@@ -25,7 +25,7 @@ export function useBlameDecorations(
 			.monaco;
 		if (!monaco) return;
 
-		// Group consecutive lines with the same commit hash
+		// 同じコミットハッシュの連続行をまとめる。
 		const groups: Array<{
 			startLine: number;
 			endLine: number;

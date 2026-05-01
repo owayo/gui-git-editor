@@ -14,9 +14,9 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use tauri::Manager;
 use tauri_plugin_cli::CliExt;
 
-/// Whether the app was launched in merge mode (--merge flag).
-/// When true, closing the window without explicit save exits with code 1
-/// so that `git mergetool` treats it as a cancellation.
+/// アプリがマージモード（--merge フラグ）で起動されたか。
+/// true の場合、明示的に保存せずウィンドウを閉じると終了コード 1 で終了し、
+/// `git mergetool` にはキャンセルとして扱わせる。
 static IS_MERGE_MODE: AtomicBool = AtomicBool::new(false);
 
 /// ウィンドウをカーソルがあるモニターの中央に配置する

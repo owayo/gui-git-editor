@@ -1,7 +1,7 @@
 import "@testing-library/jest-dom";
 import { vi } from "vitest";
 
-// Mock Tauri API
+// Tauri API をモック化する。
 vi.mock("@tauri-apps/api/core", () => ({
 	invoke: vi.fn(),
 }));
@@ -21,7 +21,7 @@ globalThis.ResizeObserver = class ResizeObserver {
 	disconnect() {}
 } as unknown as typeof globalThis.ResizeObserver;
 
-// Mock window.matchMedia for dark mode detection
+// ダークモード判定用に window.matchMedia をモック化する。
 Object.defineProperty(window, "matchMedia", {
 	writable: true,
 	value: vi.fn().mockImplementation((query: string) => ({

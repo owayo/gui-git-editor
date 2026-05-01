@@ -57,9 +57,9 @@ export function CommitEditor() {
 
 	return (
 		<div className="flex h-full gap-0">
-			{/* Left: Message editor */}
+			{/* 左側: メッセージエディタ */}
 			<div className="flex min-w-0 flex-1 flex-col gap-4">
-				{/* Header */}
+				{/* ヘッダー */}
 				<div className="flex items-center justify-between">
 					<h2 className="text-lg font-semibold text-gray-800 dark:text-gray-200">
 						コミットメッセージ
@@ -88,34 +88,34 @@ export function CommitEditor() {
 					)}
 				</div>
 
-				{/* Error display */}
+				{/* エラー表示 */}
 				{generateError && (
 					<div className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-700 dark:bg-red-900/20 dark:text-red-300">
 						{generateError}
 					</div>
 				)}
 
-				{/* Instructions */}
+				{/* 説明 */}
 				<div className="rounded-lg bg-blue-50 p-3 text-sm text-blue-700 dark:bg-blue-900/20 dark:text-blue-300">
 					<p>Subject は 50 文字以内、Description は各行 72 文字以内を推奨</p>
 				</div>
 
-				{/* Subject input */}
+				{/* Subject 入力 */}
 				<SubjectInput value={subject} onChange={setSubject} />
 
-				{/* Body textarea */}
+				{/* Body 入力 */}
 				<div className="flex-1">
 					<BodyTextarea value={body} onChange={setBody} />
 				</div>
 
-				{/* Trailers and comments */}
+				{/* Trailer とコメント */}
 				<TrailersDisplay
 					trailers={trailers}
 					comments={comments}
 					diffContent={diffContent}
 				/>
 
-				{/* Keyboard shortcuts help */}
+				{/* キーボードショートカット */}
 				<div className="flex flex-wrap gap-4 border-t border-gray-200 pt-3 text-xs text-gray-500 dark:border-gray-700 dark:text-gray-500">
 					<span>
 						<kbd className="rounded bg-gray-200 px-1.5 py-0.5 font-mono dark:bg-gray-700">
@@ -132,10 +132,10 @@ export function CommitEditor() {
 				</div>
 			</div>
 
-			{/* Divider */}
+			{/* 区切り線 */}
 			<div className="w-px bg-gray-200 dark:bg-gray-700" />
 
-			{/* Right: Staging area */}
+			{/* 右側: ステージング領域 */}
 			{filePath && (
 				<div className="w-[460px] shrink-0 overflow-hidden pl-4">
 					<StagingArea filePath={filePath} />

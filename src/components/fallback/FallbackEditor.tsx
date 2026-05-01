@@ -6,21 +6,21 @@ export function FallbackEditor() {
 
 	return (
 		<div className="flex h-full flex-col gap-4">
-			{/* Header */}
+			{/* ヘッダー */}
 			<div className="flex items-center justify-between">
 				<h2 className="text-lg font-semibold text-gray-800 dark:text-gray-200">
 					テキストエディタ
 				</h2>
 			</div>
 
-			{/* Instructions */}
+			{/* 説明 */}
 			<div className="rounded-lg bg-yellow-50 p-3 text-sm text-yellow-700 dark:bg-yellow-900/20 dark:text-yellow-300">
 				<p>
 					このファイル形式は認識されませんでした。プレーンテキストとして編集できます。
 				</p>
 			</div>
 
-			{/* Text editor */}
+			{/* テキストエディタ */}
 			<div className="flex-1">
 				<textarea
 					value={currentContent ?? ""}
@@ -30,7 +30,7 @@ export function FallbackEditor() {
 				/>
 			</div>
 
-			{/* Keyboard shortcuts help */}
+			{/* キーボードショートカット */}
 			<div className="flex flex-wrap gap-4 border-t border-gray-200 pt-3 text-xs text-gray-500 dark:border-gray-700 dark:text-gray-500">
 				<span>
 					<kbd className="rounded bg-gray-200 px-1.5 py-0.5 font-mono dark:bg-gray-700">

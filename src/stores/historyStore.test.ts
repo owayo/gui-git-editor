@@ -30,7 +30,7 @@ describe("historyStore", () => {
 
 		const state = useHistoryStore.getState();
 		expect(state.past).toHaveLength(1);
-		// With only 1 snapshot (the initial state), there's nothing to undo to
+		// 初期状態の 1 スナップショットだけでは undo 先がない。
 		expect(state.canUndo()).toBe(false);
 	});
 
@@ -92,10 +92,10 @@ describe("historyStore", () => {
 		useHistoryStore.getState().pushSnapshot(entries2);
 		useHistoryStore.getState().undo();
 
-		// Future should have one entry
+		// future には 1 件入る。
 		expect(useHistoryStore.getState().future).toHaveLength(1);
 
-		// Push new snapshot clears future
+		// 新しいスナップショットを push すると future はクリアされる。
 		useHistoryStore.getState().pushSnapshot(entries3);
 		expect(useHistoryStore.getState().future).toHaveLength(0);
 		expect(useHistoryStore.getState().canRedo()).toBe(false);
@@ -143,7 +143,7 @@ describe("historyStore", () => {
 		const entries = [makeEntry("1", "first")];
 		useHistoryStore.getState().pushSnapshot(entries);
 
-		// Mutate original
+		// 元データを変更する。
 		entries[0].message = "mutated";
 
 		const snapshot = useHistoryStore.getState().past[0];

@@ -17,11 +17,10 @@ export function BackupRecoveryDialog({
 	const dialogRef = useRef<HTMLDivElement>(null);
 	const restoreButtonRef = useRef<HTMLButtonElement>(null);
 
-	// Focus trap and keyboard handling
-	// Note: Escape key intentionally does NOT close this dialog
-	// because discarding backup is a destructive action that should require explicit user action
+	// フォーカストラップとキーボード操作。
+	// Escape では意図的に閉じない。バックアップ破棄は破壊的操作なので明示的な操作を必須にする。
 	const handleKeyDown = useCallback((e: KeyboardEvent) => {
-		// Focus trap
+		// フォーカストラップ。
 		if (e.key === "Tab" && dialogRef.current) {
 			const focusableElements = dialogRef.current.querySelectorAll(
 				'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])',
@@ -41,12 +40,12 @@ export function BackupRecoveryDialog({
 		}
 	}, []);
 
-	// Focus management and event listeners
+	// フォーカス管理とイベントリスナー。
 	useEffect(() => {
-		// Focus the restore button when dialog opens
+		// ダイアログを開いたときに復元ボタンへフォーカスする。
 		restoreButtonRef.current?.focus();
 
-		// Add keyboard event listener
+		// キーボードイベントリスナーを追加する。
 		document.addEventListener("keydown", handleKeyDown);
 
 		return () => {
