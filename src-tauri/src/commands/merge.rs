@@ -340,20 +340,25 @@ fn format_unix_timestamp(timestamp: i64) -> String {
 }
 
 /// 指定されたマージ側に対応する Git ref を判定する。
-async fn determine_merge_ref(git_dir: &Path, side: &str) -> String {
+///
+/// remote 側で MERGE_HEAD/REBASE_HEAD/CHERRY_PICK_HEAD のいずれも存在しない
+/// 場合は HEAD にフォールバックせずエラーを返す。HEAD を返すと local と同じ
+/// blame 結果となり、ユーザーに誤った差分元を提示してしまうため。
+async fn determine_merge_ref(git_dir: &Path, side: &str) -> Result<String, AppError> {
     if side == "local" {
-        return "HEAD".to_string();
+        return Ok("HEAD".to_string());
     }
 
     // remote 側は MERGE_HEAD、REBASE_HEAD、CHERRY_PICK_HEAD の順に試す。
     for ref_name in &["MERGE_HEAD", "REBASE_HEAD", "CHERRY_PICK_HEAD"] {
         if git_dir.join(ref_name).exists() {
-            return ref_name.to_string();
+            return Ok(ref_name.to_string());
         }
     }
 
-    // フォールバック。
-    "HEAD".to_string()
+    Err(AppError::CommandError {
+        message: "Cannot determine remote merge ref: MERGE_HEAD, REBASE_HEAD, and CHERRY_PICK_HEAD are absent".to_string(),
+    })
 }
 
 /// 指定された側のマージファイルに対する git blame 情報を取得する。
@@ -414,7 +419,7 @@ pub async fn git_blame_for_merge(
 
     // side に応じた ref を判定する。
     let git_dir = Path::new(&git_root).join(".git");
-    let git_ref = determine_merge_ref(&git_dir, &side).await;
+    let git_ref = determine_merge_ref(&git_dir, &side).await?;
 
     // git blame を実行する。
     let blame_output = Command::new("git")
@@ -579,5 +584,63 @@ filename src/main.rs
         assert_eq!(parse_tz_offset("+0530"), 19800); // 5h30m
         assert_eq!(parse_tz_offset(""), 0);
         assert_eq!(parse_tz_offset("abc"), 0);
+    }
+
+    /// `determine_merge_ref` 用に空の git_dir を作る。
+    /// 並列実行時の衝突を避けるため uuid v4 を使用する。
+    fn make_test_git_dir() -> std::path::PathBuf {
+        let dir = std::env::temp_dir().join(format!(
+            "gui-git-editor-determine-ref-{}-{}",
+            std::process::id(),
+            uuid::Uuid::new_v4()
+        ));
+        fs::create_dir_all(&dir).unwrap();
+        dir
+    }
+
+    #[test]
+    fn test_determine_merge_ref_local_returns_head() {
+        let dir = make_test_git_dir();
+        let result = tauri::async_runtime::block_on(determine_merge_ref(&dir, "local")).unwrap();
+        assert_eq!(result, "HEAD");
+        let _ = fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn test_determine_merge_ref_remote_prefers_merge_head() {
+        let dir = make_test_git_dir();
+        fs::write(dir.join("MERGE_HEAD"), "abc1234").unwrap();
+        fs::write(dir.join("REBASE_HEAD"), "def5678").unwrap();
+        let result = tauri::async_runtime::block_on(determine_merge_ref(&dir, "remote")).unwrap();
+        assert_eq!(result, "MERGE_HEAD");
+        let _ = fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn test_determine_merge_ref_remote_falls_back_to_rebase_head() {
+        let dir = make_test_git_dir();
+        fs::write(dir.join("REBASE_HEAD"), "def5678").unwrap();
+        let result = tauri::async_runtime::block_on(determine_merge_ref(&dir, "remote")).unwrap();
+        assert_eq!(result, "REBASE_HEAD");
+        let _ = fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn test_determine_merge_ref_remote_falls_back_to_cherry_pick_head() {
+        let dir = make_test_git_dir();
+        fs::write(dir.join("CHERRY_PICK_HEAD"), "ghi9012").unwrap();
+        let result = tauri::async_runtime::block_on(determine_merge_ref(&dir, "remote")).unwrap();
+        assert_eq!(result, "CHERRY_PICK_HEAD");
+        let _ = fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn test_determine_merge_ref_remote_returns_error_when_no_state() {
+        // remote 側で state ファイルがない場合は HEAD にフォールバックせず
+        // エラーを返すことを確認する（local と同一 blame のサイレント誤結果を防止）
+        let dir = make_test_git_dir();
+        let result = tauri::async_runtime::block_on(determine_merge_ref(&dir, "remote"));
+        assert!(result.is_err());
+        let _ = fs::remove_dir_all(&dir);
     }
 }

@@ -88,7 +88,10 @@ pnpm test:all          # 全テスト（JS + Rust）
 - `check_codex_available` / `open_codex_terminal_macos` / `resolve_git_root` は `tokio::process::Command` で非同期実行し、Tokio ワーカースレッドのブロックを防止する（`check_git_sc_available` と整合）
 - Codex 連携の iTerm2 コマンド送信はリクエスト文字列を改行なしの単一行にし、`write text` が改行を Enter として分割実行する問題を防止する
 - `git_blame_for_merge` は `side` パラメータを `"local"` / `"remote"` のみ許可し、不正値でサイレントに誤結果を返さない
+- `git_blame_for_merge` の `determine_merge_ref` は remote 側で `MERGE_HEAD` / `REBASE_HEAD` / `CHERRY_PICK_HEAD` のいずれも存在しない場合に HEAD へフォールバックせずエラーを返す（local と同じ blame 結果を「remote 側の結果」として返すサイレント誤結果を防止）
 - `format_unix_timestamp` は負のタイムスタンプを `"unknown"` として扱い、`as u32` キャストでの wrap を防止する
+- Rust 側の commit diff コマンド (`git_commit_files` / `git_commit_diff`) は `git diff-tree --root` を指定して、親を持たない最初のコミットでも diff 行と差分本体を取得できる
+- `mergeStore.buildConflictMarkerText` は LOCAL / BASE / REMOTE セクションが空のコンフリクトでも、revert 時に余計な空行を挿入せず元の構造のまま復元する
 
 ## Testing Conventions
 
@@ -101,6 +104,9 @@ pnpm test:all          # 全テスト（JS + Rust）
 - Rust 側の rebase parser テストで `merge -c` と `merge -C` の保存時の区別保持をカバー
 - Rust 側の commit parser テストで、日本語などの Unicode subject/body 行長を文字数で検証するケースをカバー
 - Rust 側の commit diff parser テストで、`git diff-tree --name-status -z` の NUL 区切り出力に含まれるタブ付きパスと rename パスをカバー
+- Rust 側の commit diff コマンドテストで、親を持たない最初のコミット（`--root` 指定が必須）に対する `git_commit_files` / `git_commit_diff` の動作をカバー
+- Rust 側の `determine_merge_ref` テストで、local 側の HEAD 返却・remote 側の MERGE_HEAD 優先・REBASE_HEAD/CHERRY_PICK_HEAD へのフォールバック・state 不在時のエラー返却をカバー
+- `mergeStore` の revert で LOCAL / REMOTE / diff3 BASE が空のコンフリクトを余計な空行なしで復元する動作をテストでカバー
 - `fileStore`, `stagingStore`, `commitDiffStore` のファイルI/O・Git操作状態管理をテストでカバー（`backupPath` の stale 状態回避、diff/status の競合応答無視、staged/unstaged 両出現時の選択維持と diff 再取得、`fetchStatus` エラー時の `isLoadingDiff` リセット、diff 取得エラー時の `error` 設定を含む）
 - `useKeyboardShortcuts` のクロスプラットフォームキーバインド（Cmd/Ctrl）と、入力欄で undo / redo を横取りしない挙動、モーダル表示中の Escape 抑制をテストでカバー
 - `useMergeKeyboardShortcuts` のマージ画面キーバインド（保存/キャンセル/コンフリクト移動）とモーダル表示中の Escape 抑制をテストでカバー

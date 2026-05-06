@@ -35,7 +35,7 @@ Interactive rebase、commit message編集、squash、rewordなどをすべてサ
 - 🌙 **ダークモード** - システムテーマに自動追従
 - 🔀 **Merge Tool** - 3パネルビューでコンフリクト解決（LOCAL / MERGED / REMOTE）
 - 📂 **堅牢なステージング表示** - 空白を含むファイル名や rename を含む差分でも正しく一覧化・選択
-- 🧾 **堅牢なコミット差分一覧** - タブを含むパスや rename/copy を含むコミットでも変更ファイルを正しく一覧化
+- 🧾 **堅牢なコミット差分一覧** - タブを含むパスや rename/copy、親を持たない最初のコミットでも変更ファイルと差分を正しく表示
 - 🔁 **差分の自動再同期** - ステージ状態の更新後も、選択中ファイルの diff を再取得して古い表示を残さない
 - 🤖 **Codex 連携** - [Codex CLI](https://github.com/openai/codex) + iTerm2 でコンフリクトを自動解決
 - ♿ **アクセシビリティ** - ARIA属性、フォーカス管理対応（Rebase項目のTab/Enter選択を含む）

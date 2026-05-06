@@ -168,17 +168,13 @@ mod tests {
     use std::fs;
     use std::path::Path;
     use std::process::Command as StdCommand;
-    use std::time::{SystemTime, UNIX_EPOCH};
 
+    /// 並列実行時の衝突を避けるため uuid v4 でユニーク化したテスト用リポジトリを作成する。
     fn create_test_repo() -> std::path::PathBuf {
-        let unique = SystemTime::now()
-            .duration_since(UNIX_EPOCH)
-            .unwrap()
-            .as_nanos();
         let repo = std::env::temp_dir().join(format!(
             "gui-git-editor-commit-diff-test-{}-{}",
             std::process::id(),
-            unique
+            uuid::Uuid::new_v4()
         ));
         fs::create_dir_all(&repo).unwrap();
         run_git(&repo, &["init"]);
@@ -329,7 +325,12 @@ mod tests {
         cleanup_test_repo(&repo);
 
         assert!(diff.starts_with("diff --git a/a.txt b/a.txt"));
-        assert!(!diff.lines().next().unwrap_or("").chars().all(|c| c.is_ascii_hexdigit()));
+        assert!(!diff
+            .lines()
+            .next()
+            .unwrap_or("")
+            .chars()
+            .all(|c| c.is_ascii_hexdigit()));
         assert!(diff.contains("+hello"));
     }
 }
