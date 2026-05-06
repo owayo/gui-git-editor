@@ -263,6 +263,83 @@ describe("mergeStore", () => {
 		expect(state.conflicts[0].baseEndLine).toBe(5);
 	});
 
+	it("revert は LOCAL が空のコンフリクトを余計な空行なしで復元する", () => {
+		const mergedContent = [
+			"before",
+			"<<<<<<< LOCAL",
+			"=======",
+			"remote",
+			">>>>>>> REMOTE",
+			"after",
+		].join("\n");
+
+		useMergeStore.setState({
+			mergedContent,
+			conflicts: [makeConflict(0, 1, "", "remote")],
+		});
+
+		useMergeStore.getState().acceptLocal(0);
+		expect(useMergeStore.getState().mergedContent).toBe(
+			["before", "after"].join("\n"),
+		);
+
+		useMergeStore.getState().revertConflict(0);
+
+		expect(useMergeStore.getState().mergedContent).toBe(mergedContent);
+	});
+
+	it("revert は REMOTE が空のコンフリクトを余計な空行なしで復元する", () => {
+		const mergedContent = [
+			"before",
+			"<<<<<<< LOCAL",
+			"local",
+			"=======",
+			">>>>>>> REMOTE",
+			"after",
+		].join("\n");
+
+		useMergeStore.setState({
+			mergedContent,
+			conflicts: [makeConflict(0, 1, "local", "")],
+		});
+
+		useMergeStore.getState().acceptRemote(0);
+		expect(useMergeStore.getState().mergedContent).toBe(
+			["before", "after"].join("\n"),
+		);
+
+		useMergeStore.getState().revertConflict(0);
+
+		expect(useMergeStore.getState().mergedContent).toBe(mergedContent);
+	});
+
+	it("revert は BASE が空の diff3 コンフリクトを余計な空行なしで復元する", () => {
+		const mergedContent = [
+			"before",
+			"<<<<<<< LOCAL",
+			"local",
+			"||||||| BASE",
+			"=======",
+			"remote",
+			">>>>>>> REMOTE",
+			"after",
+		].join("\n");
+
+		useMergeStore.setState({
+			mergedContent,
+			conflicts: [makeConflict(0, 1, "local", "remote", "")],
+		});
+
+		useMergeStore.getState().acceptLocal(0);
+		expect(useMergeStore.getState().mergedContent).toBe(
+			["before", "local", "after"].join("\n"),
+		);
+
+		useMergeStore.getState().revertConflict(0);
+
+		expect(useMergeStore.getState().mergedContent).toBe(mergedContent);
+	});
+
 	it("reload 時は parse 後に再採番された ID ではなく内容で外部解決を判定する", async () => {
 		const reloadedContent = [
 			"A",

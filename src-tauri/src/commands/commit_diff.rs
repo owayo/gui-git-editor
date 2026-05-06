@@ -100,6 +100,7 @@ pub async fn git_commit_files(
             "-C",
             &git_root,
             "diff-tree",
+            "--root",
             "--no-commit-id",
             "-r",
             "--name-status",
@@ -138,6 +139,8 @@ pub async fn git_commit_diff(
             "-C",
             &git_root,
             "diff-tree",
+            "--root",
+            "--no-commit-id",
             "-p",
             &commit_hash,
             "--",
@@ -162,6 +165,48 @@ pub async fn git_commit_diff(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::fs;
+    use std::path::Path;
+    use std::process::Command as StdCommand;
+    use std::time::{SystemTime, UNIX_EPOCH};
+
+    fn create_test_repo() -> std::path::PathBuf {
+        let unique = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap()
+            .as_nanos();
+        let repo = std::env::temp_dir().join(format!(
+            "gui-git-editor-commit-diff-test-{}-{}",
+            std::process::id(),
+            unique
+        ));
+        fs::create_dir_all(&repo).unwrap();
+        run_git(&repo, &["init"]);
+        run_git(&repo, &["config", "user.email", "test@example.com"]);
+        run_git(&repo, &["config", "user.name", "Test User"]);
+        run_git(&repo, &["config", "commit.gpgsign", "false"]);
+        repo
+    }
+
+    fn run_git(repo: &Path, args: &[&str]) -> String {
+        let output = StdCommand::new("git")
+            .arg("-C")
+            .arg(repo)
+            .args(args)
+            .output()
+            .unwrap();
+        assert!(
+            output.status.success(),
+            "git {:?} failed: {}",
+            args,
+            String::from_utf8_lossy(&output.stderr)
+        );
+        String::from_utf8_lossy(&output.stdout).trim().to_string()
+    }
+
+    fn cleanup_test_repo(repo: &Path) {
+        let _ = fs::remove_dir_all(repo);
+    }
 
     #[test]
     fn test_parse_diff_tree_basic() {
@@ -241,5 +286,50 @@ mod tests {
         assert_eq!(files[0].status, "R");
         assert_eq!(files[0].path, "new\tname.rs");
         assert_eq!(files[0].original_path.as_deref(), Some("old\tname.rs"));
+    }
+
+    #[test]
+    fn test_git_commit_files_handles_root_commit() {
+        let repo = create_test_repo();
+        let file_path = repo.join("a.txt");
+        fs::write(&file_path, "hello\n").unwrap();
+        run_git(&repo, &["add", "a.txt"]);
+        run_git(&repo, &["commit", "-m", "initial"]);
+        let commit_hash = run_git(&repo, &["rev-parse", "HEAD"]);
+
+        let files = tauri::async_runtime::block_on(git_commit_files(
+            file_path.to_string_lossy().to_string(),
+            commit_hash,
+        ))
+        .unwrap();
+
+        cleanup_test_repo(&repo);
+
+        assert_eq!(files.len(), 1);
+        assert_eq!(files[0].status, "A");
+        assert_eq!(files[0].path, "a.txt");
+    }
+
+    #[test]
+    fn test_git_commit_diff_handles_root_commit_without_hash_header() {
+        let repo = create_test_repo();
+        let file_path = repo.join("a.txt");
+        fs::write(&file_path, "hello\n").unwrap();
+        run_git(&repo, &["add", "a.txt"]);
+        run_git(&repo, &["commit", "-m", "initial"]);
+        let commit_hash = run_git(&repo, &["rev-parse", "HEAD"]);
+
+        let diff = tauri::async_runtime::block_on(git_commit_diff(
+            file_path.to_string_lossy().to_string(),
+            commit_hash,
+            "a.txt".to_string(),
+        ))
+        .unwrap();
+
+        cleanup_test_repo(&repo);
+
+        assert!(diff.starts_with("diff --git a/a.txt b/a.txt"));
+        assert!(!diff.lines().next().unwrap_or("").chars().all(|c| c.is_ascii_hexdigit()));
+        assert!(diff.contains("+hello"));
     }
 }

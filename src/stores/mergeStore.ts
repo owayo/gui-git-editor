@@ -111,10 +111,23 @@ function checkAllResolved(conflicts: ConflictRegion[]): boolean {
  * パーサーは接頭辞だけを見ればよいため、ラベルは汎用名を使う。
  */
 function buildConflictMarkerText(conflict: ConflictRegion): string {
+	const markerLines = ["<<<<<<< LOCAL"];
+	const appendContent = (content: string) => {
+		if (content !== "") {
+			markerLines.push(...content.split("\n"));
+		}
+	};
+
+	appendContent(conflict.localContent);
 	if (conflict.baseContent !== null) {
-		return `<<<<<<< LOCAL\n${conflict.localContent}\n||||||| BASE\n${conflict.baseContent}\n=======\n${conflict.remoteContent}\n>>>>>>> REMOTE`;
+		markerLines.push("||||||| BASE");
+		appendContent(conflict.baseContent);
 	}
-	return `<<<<<<< LOCAL\n${conflict.localContent}\n=======\n${conflict.remoteContent}\n>>>>>>> REMOTE`;
+	markerLines.push("=======");
+	appendContent(conflict.remoteContent);
+	markerLines.push(">>>>>>> REMOTE");
+
+	return markerLines.join("\n");
 }
 
 /**
