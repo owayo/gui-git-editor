@@ -2,7 +2,7 @@ use crate::error::AppError;
 use crate::parser::{parse_conflict_markers, ParseConflictsResult};
 use serde::{Deserialize, Serialize};
 use std::fs;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use tokio::process::Command;
 
 /// 1 行分の git blame 情報。
@@ -139,10 +139,37 @@ async fn detect_branch_names(merged_path: &str) -> (String, String) {
     };
 
     // Git 操作中の状態から REMOTE 側ブランチ名を判定する。
-    let git_dir = Path::new(&git_root).join(".git");
-    let remote_label = detect_remote_label(&git_dir, &git_root).await;
+    let remote_label = match resolve_git_dir(&git_root).await {
+        Ok(git_dir) => detect_remote_label(&git_dir, &git_root).await,
+        Err(_) => "REMOTE".to_string(),
+    };
 
     (local_label, remote_label)
+}
+
+/// 通常リポジトリと linked worktree の両方で実体の Git directory を解決する。
+async fn resolve_git_dir(git_root: &str) -> Result<PathBuf, AppError> {
+    let output = Command::new("git")
+        .args(["-C", git_root, "rev-parse", "--git-dir"])
+        .output()
+        .await
+        .map_err(|e| AppError::CommandError {
+            message: format!("Failed to run git rev-parse --git-dir: {}", e),
+        })?;
+
+    if !output.status.success() {
+        return Err(AppError::CommandError {
+            message: "Cannot determine git directory".to_string(),
+        });
+    }
+
+    let git_dir = String::from_utf8_lossy(&output.stdout).trim().to_string();
+    let git_dir_path = PathBuf::from(&git_dir);
+    if git_dir_path.is_absolute() {
+        Ok(git_dir_path)
+    } else {
+        Ok(Path::new(git_root).join(git_dir_path))
+    }
 }
 
 /// Git 状態ファイルから REMOTE 側（取り込み側）のブランチラベルを判定する。
@@ -418,7 +445,7 @@ pub async fn git_blame_for_merge(
         .to_string();
 
     // side に応じた ref を判定する。
-    let git_dir = Path::new(&git_root).join(".git");
+    let git_dir = resolve_git_dir(&git_root).await?;
     let git_ref = determine_merge_ref(&git_dir, &side).await?;
 
     // git blame を実行する。
@@ -452,6 +479,7 @@ pub async fn git_blame_for_merge(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::process::Command as StdCommand;
 
     #[test]
     fn test_detect_language_rust() {
@@ -598,6 +626,40 @@ filename src/main.rs
         dir
     }
 
+    /// `resolve_git_dir` 用に実際の Git リポジトリを作成する。
+    fn make_test_repo() -> std::path::PathBuf {
+        let repo = std::env::temp_dir().join(format!(
+            "gui-git-editor-merge-repo-test-{}-{}",
+            std::process::id(),
+            uuid::Uuid::new_v4()
+        ));
+        fs::create_dir_all(&repo).unwrap();
+        run_git(&repo, &["init"]);
+        run_git(&repo, &["config", "user.email", "test@example.com"]);
+        run_git(&repo, &["config", "user.name", "Test User"]);
+        run_git(&repo, &["config", "commit.gpgsign", "false"]);
+        fs::write(repo.join("file.txt"), "base\n").unwrap();
+        run_git(&repo, &["add", "file.txt"]);
+        run_git(&repo, &["commit", "-m", "initial"]);
+        repo
+    }
+
+    fn run_git(repo: &Path, args: &[&str]) -> String {
+        let output = StdCommand::new("git")
+            .arg("-C")
+            .arg(repo)
+            .args(args)
+            .output()
+            .unwrap();
+        assert!(
+            output.status.success(),
+            "git {:?} failed: {}",
+            args,
+            String::from_utf8_lossy(&output.stderr)
+        );
+        String::from_utf8_lossy(&output.stdout).trim().to_string()
+    }
+
     #[test]
     fn test_determine_merge_ref_local_returns_head() {
         let dir = make_test_git_dir();
@@ -642,5 +704,31 @@ filename src/main.rs
         let result = tauri::async_runtime::block_on(determine_merge_ref(&dir, "remote"));
         assert!(result.is_err());
         let _ = fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn test_resolve_git_dir_handles_linked_worktree_git_file() {
+        let repo = make_test_repo();
+        let worktree = std::env::temp_dir().join(format!(
+            "gui-git-editor-merge-worktree-test-{}-{}",
+            std::process::id(),
+            uuid::Uuid::new_v4()
+        ));
+        let worktree_arg = worktree.to_string_lossy().to_string();
+        run_git(&repo, &["worktree", "add", "-b", "feature", &worktree_arg]);
+        assert!(worktree.join(".git").is_file());
+
+        let git_dir = tauri::async_runtime::block_on(resolve_git_dir(&worktree_arg)).unwrap();
+        assert!(git_dir.is_dir());
+
+        fs::write(git_dir.join("MERGE_HEAD"), "abc1234").unwrap();
+        let result =
+            tauri::async_runtime::block_on(determine_merge_ref(&git_dir, "remote")).unwrap();
+
+        run_git(&repo, &["worktree", "remove", "--force", &worktree_arg]);
+        let _ = fs::remove_dir_all(&repo);
+        let _ = fs::remove_dir_all(&worktree);
+
+        assert_eq!(result, "MERGE_HEAD");
     }
 }

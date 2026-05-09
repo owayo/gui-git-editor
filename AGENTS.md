@@ -82,6 +82,7 @@ pnpm test:all          # 全テスト（JS + Rust）
 - `useKeyboardShortcuts` と `useMergeKeyboardShortcuts` の Escape ハンドラは `aria-modal` 要素の存在を確認し、モーダルが開いている場合はモーダル側に処理を委ねてアプリ終了を防止する
 - Rust 側の staging コマンドは `git status --porcelain=v1 -z` を使い、空白を含むパスや rename のパスを引用符付き文字列として誤解釈しない
 - Rust 側の commit diff コマンドは `git diff-tree --name-status -z -M -C` を使い、タブを含むパスや rename/copy をタブ区切りテキストとして誤解釈しない
+- `pnpm.overrides` で `monaco-editor` 経由の `dompurify` をパッチ済み版へ固定し、production 依存の既知 XSS 脆弱性が再混入しないようにする
 - Rebase の undo / redo は `isUndoRedoRef` フラグで `pushSnapshot` をスキップし、redo 履歴が即座にクリアされる問題を防止する
 - `stagingStore` と `commitDiffStore` の `selectFile` は開始時・成功時に `error` をクリアし、diff 取得エラー時は `error` を設定して失敗を握りつぶさない
 - Merge の3パネルリサイズは左右どちらのセパレータでも下限クランプ時の余剰をもう一方のパネルに反映し、合計幅を保存する
@@ -89,6 +90,7 @@ pnpm test:all          # 全テスト（JS + Rust）
 - Codex 連携の iTerm2 コマンド送信はリクエスト文字列を改行なしの単一行にし、`write text` が改行を Enter として分割実行する問題を防止する
 - `git_blame_for_merge` は `side` パラメータを `"local"` / `"remote"` のみ許可し、不正値でサイレントに誤結果を返さない
 - `git_blame_for_merge` の `determine_merge_ref` は remote 側で `MERGE_HEAD` / `REBASE_HEAD` / `CHERRY_PICK_HEAD` のいずれも存在しない場合に HEAD へフォールバックせずエラーを返す（local と同じ blame 結果を「remote 側の結果」として返すサイレント誤結果を防止）
+- Merge のブランチラベル判定と `git_blame_for_merge` は `git rev-parse --git-dir` で実体の Git directory を解決し、linked worktree の `.git` ファイル構成でも `MERGE_HEAD` / `REBASE_HEAD` / `CHERRY_PICK_HEAD` を正しく参照する
 - `format_unix_timestamp` は負のタイムスタンプを `"unknown"` として扱い、`as u32` キャストでの wrap を防止する
 - Rust 側の commit diff コマンド (`git_commit_files` / `git_commit_diff`) は `git diff-tree --root` を指定して、親を持たない最初のコミットでも diff 行と差分本体を取得できる
 - `mergeStore.buildConflictMarkerText` は LOCAL / BASE / REMOTE セクションが空のコンフリクトでも、revert 時に余計な空行を挿入せず元の構造のまま復元する
@@ -106,6 +108,8 @@ pnpm test:all          # 全テスト（JS + Rust）
 - Rust 側の commit diff parser テストで、`git diff-tree --name-status -z` の NUL 区切り出力に含まれるタブ付きパスと rename パスをカバー
 - Rust 側の commit diff コマンドテストで、親を持たない最初のコミット（`--root` 指定が必須）に対する `git_commit_files` / `git_commit_diff` の動作をカバー
 - Rust 側の `determine_merge_ref` テストで、local 側の HEAD 返却・remote 側の MERGE_HEAD 優先・REBASE_HEAD/CHERRY_PICK_HEAD へのフォールバック・state 不在時のエラー返却をカバー
+- Rust 側の `resolve_git_dir` テストで、linked worktree の `.git` ファイルから実体の Git directory を解決し remote 側 state ファイルを参照できることをカバー
+- Rust 側の file コマンドテストで、ファイル読み込み時の種別判定、存在しないファイルのパス付きエラー、バックアップ作成・復元・削除のライフサイクルをカバー
 - `mergeStore` の revert で LOCAL / REMOTE / diff3 BASE が空のコンフリクトを余計な空行なしで復元する動作をテストでカバー
 - `fileStore`, `stagingStore`, `commitDiffStore` のファイルI/O・Git操作状態管理をテストでカバー（`backupPath` の stale 状態回避、diff/status の競合応答無視、staged/unstaged 両出現時の選択維持と diff 再取得、`fetchStatus` エラー時の `isLoadingDiff` リセット、diff 取得エラー時の `error` 設定を含む）
 - `useKeyboardShortcuts` のクロスプラットフォームキーバインド（Cmd/Ctrl）と、入力欄で undo / redo を横取りしない挙動、モーダル表示中の Escape 抑制をテストでカバー
