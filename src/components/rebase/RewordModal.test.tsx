@@ -1,6 +1,7 @@
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import { checkGitScAvailable, generateCommitMessage } from "../../types/ipc";
 import { RewordModal } from "./RewordModal";
 
 // IPC モック
@@ -18,6 +19,12 @@ const defaultProps = {
 };
 
 describe("RewordModal", () => {
+	beforeEach(() => {
+		vi.clearAllMocks();
+		vi.mocked(checkGitScAvailable).mockResolvedValue({ ok: true, data: false });
+		vi.mocked(generateCommitMessage).mockResolvedValue({ ok: true, data: "" });
+	});
+
 	// =========================================
 	// splitMessage テスト（コンポーネント動作経由）
 	// =========================================
@@ -231,6 +238,103 @@ describe("RewordModal", () => {
 			);
 
 			expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+		});
+	});
+
+	describe("AI 生成", () => {
+		it("git-sc が利用可能な場合は subject 生成結果を入力欄に反映する", async () => {
+			vi.mocked(checkGitScAvailable).mockResolvedValue({
+				ok: true,
+				data: true,
+			});
+			vi.mocked(generateCommitMessage).mockResolvedValue({
+				ok: true,
+				data: "Generated subject",
+			});
+			const user = userEvent.setup();
+
+			render(<RewordModal {...defaultProps} initialMessage="Old subject" />);
+
+			const generateButton = await screen.findByRole("button", {
+				name: "Commit subject のみを生成",
+			});
+			await user.click(generateButton);
+
+			expect(generateCommitMessage).toHaveBeenCalledWith(
+				["abc1234def5678"],
+				false,
+			);
+			expect(screen.getByLabelText("Commit subject")).toHaveValue(
+				"Generated subject",
+			);
+			expect(screen.getByLabelText("Description")).toHaveValue("");
+		});
+
+		it("関連コミットを含めて Description 付きメッセージを生成する", async () => {
+			vi.mocked(checkGitScAvailable).mockResolvedValue({
+				ok: true,
+				data: true,
+			});
+			vi.mocked(generateCommitMessage).mockResolvedValue({
+				ok: true,
+				data: "Generated subject\n\nGenerated body",
+			});
+			const user = userEvent.setup();
+
+			render(
+				<RewordModal
+					{...defaultProps}
+					relatedHashes={["1111111", "2222222"]}
+					initialMessage="Old subject"
+				/>,
+			);
+
+			const generateButton = await screen.findByRole("button", {
+				name: "Description も生成",
+			});
+			await user.click(generateButton);
+
+			expect(generateCommitMessage).toHaveBeenCalledWith(
+				["abc1234def5678", "1111111", "2222222"],
+				true,
+			);
+			expect(screen.getByLabelText("Commit subject")).toHaveValue(
+				"Generated subject",
+			);
+			expect(screen.getByLabelText("Description")).toHaveValue(
+				"Generated body",
+			);
+		});
+
+		it("生成に失敗した場合はエラーを表示して既存入力を保持する", async () => {
+			vi.mocked(checkGitScAvailable).mockResolvedValue({
+				ok: true,
+				data: true,
+			});
+			vi.mocked(generateCommitMessage).mockResolvedValue({
+				ok: false,
+				error: {
+					code: "CommandError",
+					details: { message: "git-sc failed" },
+				},
+			});
+			const user = userEvent.setup();
+
+			render(
+				<RewordModal {...defaultProps} initialMessage="Existing subject" />,
+			);
+
+			const generateButton = await screen.findByRole("button", {
+				name: "Commit subject のみを生成",
+			});
+			await user.click(generateButton);
+
+			expect(await screen.findByRole("alert")).toHaveTextContent(
+				"Command error: git-sc failed",
+			);
+			expect(screen.getByLabelText("Commit subject")).toHaveValue(
+				"Existing subject",
+			);
 		});
 	});
 });

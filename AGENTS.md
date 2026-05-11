@@ -130,7 +130,7 @@ pnpm test:all          # 全テスト（JS + Rust）
 - `ErrorDisplay` のエラーメッセージ表示・パス表示・閉じるボタンの条件表示をテストでカバー
 - `FileStatusBadge` の各ステータス（M/A/D/R/C/?）のラベル・背景色・未知ステータスのフォールバックをテストでカバー
 - `commitStore` の `validate` request-ID ガード（古い応答の破棄、単発の正常適用、連続 setSubject での最新結果のみ反映）をテストでカバー
-- `RewordModal` の splitMessage/joinMessage ヘルパー（subject/body 分割・結合）、キーボードショートカット（Escape/Cmd+Enter）、props 挙動をテストでカバー
+- `RewordModal` の splitMessage/joinMessage ヘルパー（subject/body 分割・結合）、キーボードショートカット（Escape/Cmd+Enter）、props 挙動、git-smart-commit 連携による AI 生成の成功/失敗フローをテストでカバー
 - `stagingStore` と `commitDiffStore` の `selectFile` エラーハンドリング（error 設定・開始時クリア・成功時クリア）をテストでカバー
 - `fileStore` の読込失敗時に前回ファイル内容が残留しないことをテストでカバー
 - Rust 側の `format_unix_timestamp` の負値ガード、`shell_escape` のバッククォート・複合特殊文字をテストでカバー
