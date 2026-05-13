@@ -1,8 +1,8 @@
 use crate::error::AppError;
 use crate::parser::{detect_file_type, GitFileType};
 use serde::{Deserialize, Serialize};
-use std::fs;
 use std::path::Path;
+use tokio::fs;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct FileContent {
@@ -16,16 +16,10 @@ pub struct FileContent {
 pub async fn read_file(path: String) -> Result<FileContent, AppError> {
     let file_path = Path::new(&path);
 
-    if !file_path.exists() {
-        return Err(AppError::FileNotFound { path });
-    }
-
-    let content = fs::read_to_string(file_path).map_err(|e| match e.kind() {
-        std::io::ErrorKind::PermissionDenied => AppError::PermissionDenied { path: path.clone() },
-        _ => AppError::IoError {
-            message: e.to_string(),
-        },
-    })?;
+    // 事前 exists() による TOCTOU を避けるため、読み込み結果から FileNotFound を派生させる。
+    let content = fs::read_to_string(file_path)
+        .await
+        .map_err(|e| AppError::from_io_with_path(path.clone(), e))?;
 
     let file_type = detect_file_type(file_path);
 
@@ -36,17 +30,27 @@ pub async fn read_file(path: String) -> Result<FileContent, AppError> {
     })
 }
 
+/// 書き込み・copy など destination 側の失敗を分類する。
+/// 旧実装と挙動を揃え、NotFound を IoError に保持してパス表示の誤導を防ぐ。
+fn map_write_error(path: &str, err: std::io::Error) -> AppError {
+    match err.kind() {
+        std::io::ErrorKind::PermissionDenied => AppError::PermissionDenied {
+            path: path.to_string(),
+        },
+        _ => AppError::IoError {
+            message: err.to_string(),
+        },
+    }
+}
+
 /// 内容をファイルへ書き込む。
 #[tauri::command]
 pub async fn write_file(path: String, content: String) -> Result<(), AppError> {
     let file_path = Path::new(&path);
 
-    fs::write(file_path, content).map_err(|e| match e.kind() {
-        std::io::ErrorKind::PermissionDenied => AppError::PermissionDenied { path: path.clone() },
-        _ => AppError::IoError {
-            message: e.to_string(),
-        },
-    })?;
+    fs::write(file_path, content)
+        .await
+        .map_err(|e| map_write_error(&path, e))?;
 
     Ok(())
 }
@@ -55,15 +59,13 @@ pub async fn write_file(path: String, content: String) -> Result<(), AppError> {
 #[tauri::command]
 pub async fn create_backup(path: String) -> Result<String, AppError> {
     let file_path = Path::new(&path);
-
-    if !file_path.exists() {
-        return Err(AppError::FileNotFound { path });
-    }
-
     let backup_path = format!("{}.backup", path);
-    fs::copy(file_path, &backup_path).map_err(|e| AppError::IoError {
-        message: e.to_string(),
-    })?;
+
+    // 事前 exists() を行わず copy 失敗時に NotFound を判定する（TOCTOU 回避）。
+    // source（読み込み対象）側のエラー分類を採用するため from_io_with_path を使う。
+    fs::copy(file_path, &backup_path)
+        .await
+        .map_err(|e| AppError::from_io_with_path(path.clone(), e))?;
 
     Ok(backup_path)
 }
@@ -73,16 +75,14 @@ pub async fn create_backup(path: String) -> Result<String, AppError> {
 pub async fn restore_backup(backup_path: String, target_path: String) -> Result<(), AppError> {
     let backup = Path::new(&backup_path);
 
-    if !backup.exists() {
-        return Err(AppError::FileNotFound { path: backup_path });
-    }
+    // copy はバックアップ（source）の読み込みと target への書き込みのどちらでも失敗しうるため、
+    // パス表示の誤導を避けるべく destination 側マッパーで分類する（NotFound は IoError 扱い）。
+    fs::copy(backup, &target_path)
+        .await
+        .map_err(|e| map_write_error(&backup_path, e))?;
 
-    fs::copy(backup, &target_path).map_err(|e| AppError::IoError {
-        message: e.to_string(),
-    })?;
-
-    // 復元後はバックアップファイルを削除する。
-    let _ = fs::remove_file(backup);
+    // 復元後はバックアップファイルを削除する（失敗しても呼び出し側へ伝搬しない）。
+    let _ = fs::remove_file(backup).await;
 
     Ok(())
 }
@@ -91,9 +91,10 @@ pub async fn restore_backup(backup_path: String, target_path: String) -> Result<
 #[tauri::command]
 pub async fn check_backup_exists(path: String) -> Result<Option<String>, AppError> {
     let backup_path = format!("{}.backup", path);
-    let backup = Path::new(&backup_path);
 
-    if backup.exists() {
+    // 権限不足や symlink loop など metadata エラーは旧 Path::exists() 同様 false 扱いとし、
+    // 呼び出し側へ伝搬しない。
+    if fs::try_exists(&backup_path).await.unwrap_or(false) {
         Ok(Some(backup_path))
     } else {
         Ok(None)
@@ -104,15 +105,13 @@ pub async fn check_backup_exists(path: String) -> Result<Option<String>, AppErro
 #[tauri::command]
 pub async fn delete_backup(path: String) -> Result<(), AppError> {
     let backup_path = format!("{}.backup", path);
-    let backup = Path::new(&backup_path);
 
-    if backup.exists() {
-        fs::remove_file(backup).map_err(|e| AppError::IoError {
-            message: e.to_string(),
-        })?;
+    match fs::remove_file(&backup_path).await {
+        Ok(()) => Ok(()),
+        // バックアップが既に存在しない場合は成功とみなす。
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(()),
+        Err(e) => Err(AppError::from_io_with_path(backup_path, e)),
     }
-
-    Ok(())
 }
 
 /// 指定した終了コードでアプリケーションを終了する。
@@ -124,6 +123,7 @@ pub fn exit_app(code: i32) {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::fs as std_fs;
 
     fn create_test_dir() -> std::path::PathBuf {
         let dir = std::env::temp_dir().join(format!(
@@ -131,19 +131,19 @@ mod tests {
             std::process::id(),
             uuid::Uuid::new_v4()
         ));
-        fs::create_dir_all(&dir).unwrap();
+        std_fs::create_dir_all(&dir).unwrap();
         dir
     }
 
     fn cleanup_test_dir(dir: &Path) {
-        let _ = fs::remove_dir_all(dir);
+        let _ = std_fs::remove_dir_all(dir);
     }
 
     #[test]
     fn test_read_file_returns_content_and_detected_type() {
         let dir = create_test_dir();
         let path = dir.join("COMMIT_EDITMSG");
-        fs::write(&path, "subject\n\nbody\n").unwrap();
+        std_fs::write(&path, "subject\n\nbody\n").unwrap();
 
         let file =
             tauri::async_runtime::block_on(read_file(path.to_string_lossy().to_string())).unwrap();
@@ -176,7 +176,7 @@ mod tests {
         let dir = create_test_dir();
         let path = dir.join("MERGE_MSG");
         let path_string = path.to_string_lossy().to_string();
-        fs::write(&path, "original\n").unwrap();
+        std_fs::write(&path, "original\n").unwrap();
 
         let backup_path =
             tauri::async_runtime::block_on(create_backup(path_string.clone())).unwrap();
@@ -189,7 +189,7 @@ mod tests {
 
         tauri::async_runtime::block_on(restore_backup(backup_path.clone(), path_string.clone()))
             .unwrap();
-        let restored = fs::read_to_string(&path).unwrap();
+        let restored = std_fs::read_to_string(&path).unwrap();
         let backup_after_restore =
             tauri::async_runtime::block_on(check_backup_exists(path_string.clone())).unwrap();
 
@@ -199,5 +199,44 @@ mod tests {
         assert_eq!(restored, "original\n");
         assert!(backup_after_restore.is_none());
         assert!(!Path::new(&backup_path).exists());
+    }
+
+    #[test]
+    fn test_check_backup_exists_returns_none_for_missing() {
+        let dir = create_test_dir();
+        let path = dir.join("no-such-file");
+        let path_string = path.to_string_lossy().to_string();
+
+        let result = tauri::async_runtime::block_on(check_backup_exists(path_string)).unwrap();
+        cleanup_test_dir(&dir);
+
+        assert!(result.is_none());
+    }
+
+    #[test]
+    fn test_delete_backup_is_idempotent_when_missing() {
+        let dir = create_test_dir();
+        let path = dir.join("file.txt");
+        let path_string = path.to_string_lossy().to_string();
+
+        // バックアップが存在しなくてもエラーを返さない。
+        tauri::async_runtime::block_on(delete_backup(path_string)).unwrap();
+        cleanup_test_dir(&dir);
+    }
+
+    #[test]
+    fn test_create_backup_missing_returns_file_not_found() {
+        let dir = create_test_dir();
+        let path = dir.join("missing.txt");
+        let path_string = path.to_string_lossy().to_string();
+
+        let error =
+            tauri::async_runtime::block_on(create_backup(path_string.clone())).unwrap_err();
+        cleanup_test_dir(&dir);
+
+        assert!(matches!(
+            error,
+            AppError::FileNotFound { path: actual_path } if actual_path == path_string
+        ));
     }
 }

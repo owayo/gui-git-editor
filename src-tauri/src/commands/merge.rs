@@ -1,8 +1,8 @@
 use crate::error::AppError;
 use crate::parser::{parse_conflict_markers, ParseConflictsResult};
 use serde::{Deserialize, Serialize};
-use std::fs;
 use std::path::{Path, PathBuf};
+use tokio::fs;
 use tokio::process::Command;
 
 /// 1 行分の git blame 情報。
@@ -82,21 +82,11 @@ fn detect_language(path: &str) -> String {
 }
 
 /// 単一ファイルを読み込み、見つからない場合はパス付きエラーを返す。
-fn read_file_content(path: &str) -> Result<MergeFileContent, AppError> {
-    let file_path = Path::new(path);
-    if !file_path.exists() {
-        return Err(AppError::FileNotFound {
-            path: path.to_string(),
-        });
-    }
-    let content = fs::read_to_string(file_path).map_err(|e| match e.kind() {
-        std::io::ErrorKind::PermissionDenied => AppError::PermissionDenied {
-            path: path.to_string(),
-        },
-        _ => AppError::IoError {
-            message: e.to_string(),
-        },
-    })?;
+/// 事前 exists() で TOCTOU を抱えないよう、I/O 結果から NotFound を派生させる。
+async fn read_file_content(path: &str) -> Result<MergeFileContent, AppError> {
+    let content = fs::read_to_string(path)
+        .await
+        .map_err(|e| AppError::from_io_with_path(path.to_string(), e))?;
     Ok(MergeFileContent {
         path: path.to_string(),
         content,
@@ -172,14 +162,26 @@ async fn resolve_git_dir(git_root: &str) -> Result<PathBuf, AppError> {
     }
 }
 
+/// Path::exists / Path::is_dir の非同期版。エラーは false 扱い。
+async fn path_exists(path: &Path) -> bool {
+    fs::try_exists(path).await.unwrap_or(false)
+}
+
+async fn path_is_dir(path: &Path) -> bool {
+    match fs::metadata(path).await {
+        Ok(meta) => meta.is_dir(),
+        Err(_) => false,
+    }
+}
+
 /// Git 状態ファイルから REMOTE 側（取り込み側）のブランチラベルを判定する。
 async fn detect_remote_label(git_dir: &Path, git_root: &str) -> String {
     // merge 中か確認する: .git/MERGE_HEAD が存在する。
     let merge_head = git_dir.join("MERGE_HEAD");
-    if merge_head.exists() {
+    if path_exists(&merge_head).await {
         // MERGE_MSG からブランチ名を取り出す。
         let merge_msg_path = git_dir.join("MERGE_MSG");
-        if let Ok(msg) = fs::read_to_string(&merge_msg_path) {
+        if let Ok(msg) = fs::read_to_string(&merge_msg_path).await {
             if let Some(first_line) = msg.lines().next() {
                 // 例: "Merge branch 'feature-branch'" / "Merge branch 'feature-branch' into main"
                 if let Some(start) = first_line.find("Merge branch '") {
@@ -217,9 +219,9 @@ async fn detect_remote_label(git_dir: &Path, git_root: &str) -> String {
 
     // rebase 中か確認する: .git/rebase-merge/ が存在する。
     let rebase_merge = git_dir.join("rebase-merge");
-    if rebase_merge.is_dir() {
+    if path_is_dir(&rebase_merge).await {
         let head_name = rebase_merge.join("head-name");
-        if let Ok(content) = fs::read_to_string(&head_name) {
+        if let Ok(content) = fs::read_to_string(&head_name).await {
             let name = content.trim();
             // "refs/heads/" prefix を取り除く。
             return name.strip_prefix("refs/heads/").unwrap_or(name).to_string();
@@ -228,9 +230,9 @@ async fn detect_remote_label(git_dir: &Path, git_root: &str) -> String {
 
     // rebase-apply 形式の rebase 中か確認する。
     let rebase_apply = git_dir.join("rebase-apply");
-    if rebase_apply.is_dir() {
+    if path_is_dir(&rebase_apply).await {
         let head_name = rebase_apply.join("head-name");
-        if let Ok(content) = fs::read_to_string(&head_name) {
+        if let Ok(content) = fs::read_to_string(&head_name).await {
             let name = content.trim();
             return name.strip_prefix("refs/heads/").unwrap_or(name).to_string();
         }
@@ -240,6 +242,8 @@ async fn detect_remote_label(git_dir: &Path, git_root: &str) -> String {
 }
 
 /// マージ関連ファイル（LOCAL、REMOTE、BASE、MERGED）をまとめて読み込む。
+/// 独立したファイル読み込みは tokio::try_join! で並行実行し、I/O 完了後に
+/// ブランチ名取得を行うことで、I/O 失敗時に git 子プロセスを起動しない挙動を保つ。
 #[tauri::command]
 pub async fn read_merge_files(
     local: String,
@@ -247,15 +251,22 @@ pub async fn read_merge_files(
     base: Option<String>,
     merged: String,
 ) -> Result<MergeFiles, AppError> {
-    let local_content = read_file_content(&local)?;
-    let remote_content = read_file_content(&remote)?;
-    let base_content = match &base {
-        Some(path) if !path.is_empty() => Some(read_file_content(path)?),
-        _ => None,
+    let base_read = async {
+        match base.as_deref().filter(|path| !path.is_empty()) {
+            Some(path) => read_file_content(path).await.map(Some),
+            None => Ok(None),
+        }
     };
-    let merged_content = read_file_content(&merged)?;
-    let language = detect_language(&merged);
 
+    // ファイル読み込みのみを並列化する（branch 名取得は I/O 成功後に逐次実行）。
+    let (local_content, remote_content, base_content, merged_content) = tokio::try_join!(
+        read_file_content(&local),
+        read_file_content(&remote),
+        base_read,
+        read_file_content(&merged),
+    )?;
+
+    let language = detect_language(&merged);
     let (local_label, remote_label) = detect_branch_names(&merged).await;
 
     Ok(MergeFiles {
@@ -378,7 +389,7 @@ async fn determine_merge_ref(git_dir: &Path, side: &str) -> Result<String, AppEr
 
     // remote 側は MERGE_HEAD、REBASE_HEAD、CHERRY_PICK_HEAD の順に試す。
     for ref_name in &["MERGE_HEAD", "REBASE_HEAD", "CHERRY_PICK_HEAD"] {
-        if git_dir.join(ref_name).exists() {
+        if path_exists(&git_dir.join(ref_name)).await {
             return Ok(ref_name.to_string());
         }
     }
@@ -430,12 +441,16 @@ pub async fn git_blame_for_merge(
         .to_string();
 
     // Git ルートからの相対パスを計算する。
-    let abs_merged = fs::canonicalize(&merged_path).map_err(|e| AppError::CommandError {
-        message: format!("Failed to canonicalize path: {}", e),
-    })?;
-    let abs_root = fs::canonicalize(&git_root).map_err(|e| AppError::CommandError {
-        message: format!("Failed to canonicalize git root: {}", e),
-    })?;
+    let abs_merged = fs::canonicalize(&merged_path)
+        .await
+        .map_err(|e| AppError::CommandError {
+            message: format!("Failed to canonicalize path: {}", e),
+        })?;
+    let abs_root = fs::canonicalize(&git_root)
+        .await
+        .map_err(|e| AppError::CommandError {
+            message: format!("Failed to canonicalize git root: {}", e),
+        })?;
     let relative_path = abs_merged
         .strip_prefix(&abs_root)
         .map_err(|_| AppError::CommandError {
@@ -479,6 +494,7 @@ pub async fn git_blame_for_merge(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::fs as std_fs;
     use std::process::Command as StdCommand;
 
     #[test]
@@ -622,7 +638,7 @@ filename src/main.rs
             std::process::id(),
             uuid::Uuid::new_v4()
         ));
-        fs::create_dir_all(&dir).unwrap();
+        std_fs::create_dir_all(&dir).unwrap();
         dir
     }
 
@@ -633,12 +649,12 @@ filename src/main.rs
             std::process::id(),
             uuid::Uuid::new_v4()
         ));
-        fs::create_dir_all(&repo).unwrap();
+        std_fs::create_dir_all(&repo).unwrap();
         run_git(&repo, &["init"]);
         run_git(&repo, &["config", "user.email", "test@example.com"]);
         run_git(&repo, &["config", "user.name", "Test User"]);
         run_git(&repo, &["config", "commit.gpgsign", "false"]);
-        fs::write(repo.join("file.txt"), "base\n").unwrap();
+        std_fs::write(repo.join("file.txt"), "base\n").unwrap();
         run_git(&repo, &["add", "file.txt"]);
         run_git(&repo, &["commit", "-m", "initial"]);
         repo
@@ -665,35 +681,35 @@ filename src/main.rs
         let dir = make_test_git_dir();
         let result = tauri::async_runtime::block_on(determine_merge_ref(&dir, "local")).unwrap();
         assert_eq!(result, "HEAD");
-        let _ = fs::remove_dir_all(&dir);
+        let _ = std_fs::remove_dir_all(&dir);
     }
 
     #[test]
     fn test_determine_merge_ref_remote_prefers_merge_head() {
         let dir = make_test_git_dir();
-        fs::write(dir.join("MERGE_HEAD"), "abc1234").unwrap();
-        fs::write(dir.join("REBASE_HEAD"), "def5678").unwrap();
+        std_fs::write(dir.join("MERGE_HEAD"), "abc1234").unwrap();
+        std_fs::write(dir.join("REBASE_HEAD"), "def5678").unwrap();
         let result = tauri::async_runtime::block_on(determine_merge_ref(&dir, "remote")).unwrap();
         assert_eq!(result, "MERGE_HEAD");
-        let _ = fs::remove_dir_all(&dir);
+        let _ = std_fs::remove_dir_all(&dir);
     }
 
     #[test]
     fn test_determine_merge_ref_remote_falls_back_to_rebase_head() {
         let dir = make_test_git_dir();
-        fs::write(dir.join("REBASE_HEAD"), "def5678").unwrap();
+        std_fs::write(dir.join("REBASE_HEAD"), "def5678").unwrap();
         let result = tauri::async_runtime::block_on(determine_merge_ref(&dir, "remote")).unwrap();
         assert_eq!(result, "REBASE_HEAD");
-        let _ = fs::remove_dir_all(&dir);
+        let _ = std_fs::remove_dir_all(&dir);
     }
 
     #[test]
     fn test_determine_merge_ref_remote_falls_back_to_cherry_pick_head() {
         let dir = make_test_git_dir();
-        fs::write(dir.join("CHERRY_PICK_HEAD"), "ghi9012").unwrap();
+        std_fs::write(dir.join("CHERRY_PICK_HEAD"), "ghi9012").unwrap();
         let result = tauri::async_runtime::block_on(determine_merge_ref(&dir, "remote")).unwrap();
         assert_eq!(result, "CHERRY_PICK_HEAD");
-        let _ = fs::remove_dir_all(&dir);
+        let _ = std_fs::remove_dir_all(&dir);
     }
 
     #[test]
@@ -703,7 +719,7 @@ filename src/main.rs
         let dir = make_test_git_dir();
         let result = tauri::async_runtime::block_on(determine_merge_ref(&dir, "remote"));
         assert!(result.is_err());
-        let _ = fs::remove_dir_all(&dir);
+        let _ = std_fs::remove_dir_all(&dir);
     }
 
     #[test]
@@ -721,14 +737,143 @@ filename src/main.rs
         let git_dir = tauri::async_runtime::block_on(resolve_git_dir(&worktree_arg)).unwrap();
         assert!(git_dir.is_dir());
 
-        fs::write(git_dir.join("MERGE_HEAD"), "abc1234").unwrap();
+        std_fs::write(git_dir.join("MERGE_HEAD"), "abc1234").unwrap();
         let result =
             tauri::async_runtime::block_on(determine_merge_ref(&git_dir, "remote")).unwrap();
 
         run_git(&repo, &["worktree", "remove", "--force", &worktree_arg]);
-        let _ = fs::remove_dir_all(&repo);
-        let _ = fs::remove_dir_all(&worktree);
+        let _ = std_fs::remove_dir_all(&repo);
+        let _ = std_fs::remove_dir_all(&worktree);
 
         assert_eq!(result, "MERGE_HEAD");
+    }
+
+    #[test]
+    fn test_read_file_content_returns_content() {
+        let dir = make_test_git_dir();
+        let path = dir.join("merged.txt");
+        std_fs::write(&path, "merged content\n").unwrap();
+
+        let content =
+            tauri::async_runtime::block_on(read_file_content(&path.to_string_lossy())).unwrap();
+
+        let _ = std_fs::remove_dir_all(&dir);
+
+        assert_eq!(content.path, path.to_string_lossy());
+        assert_eq!(content.content, "merged content\n");
+    }
+
+    #[test]
+    fn test_read_file_content_missing_returns_file_not_found_with_path() {
+        let dir = make_test_git_dir();
+        let path = dir.join("missing.txt");
+        let path_string = path.to_string_lossy().to_string();
+
+        let error =
+            tauri::async_runtime::block_on(read_file_content(&path_string)).unwrap_err();
+
+        let _ = std_fs::remove_dir_all(&dir);
+
+        assert!(matches!(
+            error,
+            AppError::FileNotFound { path: actual_path } if actual_path == path_string
+        ));
+    }
+
+    #[test]
+    fn test_path_exists_returns_true_for_existing_file() {
+        let dir = make_test_git_dir();
+        let path = dir.join("file.txt");
+        std_fs::write(&path, "").unwrap();
+
+        let exists = tauri::async_runtime::block_on(path_exists(&path));
+        let _ = std_fs::remove_dir_all(&dir);
+
+        assert!(exists);
+    }
+
+    #[test]
+    fn test_path_exists_returns_false_for_missing_file() {
+        let dir = make_test_git_dir();
+        let path = dir.join("no-such-file.txt");
+
+        let exists = tauri::async_runtime::block_on(path_exists(&path));
+        let _ = std_fs::remove_dir_all(&dir);
+
+        assert!(!exists);
+    }
+
+    #[test]
+    fn test_path_is_dir_distinguishes_dir_and_file() {
+        let dir = make_test_git_dir();
+        let file_path = dir.join("file.txt");
+        std_fs::write(&file_path, "").unwrap();
+        let subdir = dir.join("sub");
+        std_fs::create_dir_all(&subdir).unwrap();
+
+        let dir_is_dir = tauri::async_runtime::block_on(path_is_dir(&subdir));
+        let file_is_dir = tauri::async_runtime::block_on(path_is_dir(&file_path));
+        let missing_is_dir =
+            tauri::async_runtime::block_on(path_is_dir(&dir.join("missing")));
+
+        let _ = std_fs::remove_dir_all(&dir);
+
+        assert!(dir_is_dir);
+        assert!(!file_is_dir);
+        assert!(!missing_is_dir);
+    }
+
+    #[test]
+    fn test_read_merge_files_reads_three_files_in_parallel() {
+        let dir = make_test_git_dir();
+        let local = dir.join("local.txt");
+        let remote = dir.join("remote.txt");
+        let merged = dir.join("merged.txt");
+        std_fs::write(&local, "local").unwrap();
+        std_fs::write(&remote, "remote").unwrap();
+        std_fs::write(&merged, "merged").unwrap();
+
+        let files = tauri::async_runtime::block_on(read_merge_files(
+            local.to_string_lossy().to_string(),
+            remote.to_string_lossy().to_string(),
+            None,
+            merged.to_string_lossy().to_string(),
+        ))
+        .unwrap();
+
+        let _ = std_fs::remove_dir_all(&dir);
+
+        assert_eq!(files.local.content, "local");
+        assert_eq!(files.remote.content, "remote");
+        assert!(files.base.is_none());
+        assert_eq!(files.merged.content, "merged");
+        assert_eq!(files.language, "plaintext");
+    }
+
+    #[test]
+    fn test_read_merge_files_reports_missing_file_as_file_not_found() {
+        let dir = make_test_git_dir();
+        let local = dir.join("local.txt");
+        let remote = dir.join("remote.txt");
+        let merged = dir.join("merged.txt");
+        std_fs::write(&local, "local").unwrap();
+        std_fs::write(&remote, "remote").unwrap();
+        // merged は意図的に作らない。
+
+        let merged_path = merged.to_string_lossy().to_string();
+        let error = tauri::async_runtime::block_on(read_merge_files(
+            local.to_string_lossy().to_string(),
+            remote.to_string_lossy().to_string(),
+            None,
+            merged_path.clone(),
+        ))
+        .unwrap_err();
+
+        let _ = std_fs::remove_dir_all(&dir);
+
+        assert!(matches!(
+            error,
+            AppError::FileNotFound { path: actual } if actual == merged_path
+        ));
     }
 }
