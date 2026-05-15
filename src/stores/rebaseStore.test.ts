@@ -61,6 +61,20 @@ describe("rebaseStore", () => {
 			const entry2 = useRebaseStore.getState().entries[1];
 			expect(entry2.command).toEqual({ type: "pick" });
 		});
+
+		it("通常のコマンド変更では既存の fixup オプションを引き継がない", () => {
+			useRebaseStore
+				.getState()
+				.setEntries([
+					{ ...makeEntry("1", { type: "fixup" }), fixup_option: "-C" },
+				]);
+
+			useRebaseStore.getState().updateEntryCommand("1", { type: "pick" });
+
+			const entry = useRebaseStore.getState().entries[0];
+			expect(entry.command).toEqual({ type: "pick" });
+			expect(entry.fixup_option).toBeUndefined();
+		});
 	});
 
 	describe("updateEntryMessage", () => {

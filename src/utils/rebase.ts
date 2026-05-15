@@ -109,7 +109,11 @@ export function squashAllEntries(entries: RebaseEntry[]): RebaseEntry[] {
 			return entry;
 		}
 
-		return { ...entry, command: { type: "fixup" as const } };
+		return {
+			...entry,
+			command: { type: "fixup" as const },
+			fixup_option: null,
+		};
 	});
 }
 

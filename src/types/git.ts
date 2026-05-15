@@ -28,6 +28,7 @@ export type RebaseCommandType =
 	| { type: "break" }
 	| { type: "label"; value: string }
 	| { type: "reset"; value: string }
+	| { type: "update_ref"; value: string }
 	| {
 			type: "merge";
 			value: {
@@ -42,6 +43,7 @@ export type RebaseCommandType =
 export interface RebaseEntry {
 	id: string;
 	command: RebaseCommandType;
+	fixup_option?: "-C" | "-c" | null;
 	commit_hash: string;
 	message: string;
 }

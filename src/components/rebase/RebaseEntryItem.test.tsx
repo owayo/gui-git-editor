@@ -114,6 +114,19 @@ describe("RebaseEntryItem", () => {
 		expect(message.className).toContain("text-purple-700");
 	});
 
+	it("fixup -C/-c の保持オプションを表示する", () => {
+		const entry = makeEntry({
+			command: { type: "fixup" },
+			fixup_option: "-C",
+		});
+		render(<RebaseEntryItem entry={entry} {...defaultProps} />);
+
+		expect(screen.getByText("-C")).toBeInTheDocument();
+		expect(
+			screen.getByTitle("Git が生成した fixup オプションを保持します"),
+		).toBeInTheDocument();
+	});
+
 	it("特殊コマンド（exec）の表示（コマンドセレクタの代わりに span、value 表示）", () => {
 		const entry = makeEntry({
 			command: { type: "exec", value: "npm test" },

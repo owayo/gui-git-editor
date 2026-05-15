@@ -101,8 +101,7 @@ mod tests {
 
     #[test]
     fn from_io_with_path_maps_other_kinds_to_io_error() {
-        let err =
-            AppError::from_io_with_path("/tmp/file", io::Error::new(io::ErrorKind::Other, "boom"));
+        let err = AppError::from_io_with_path("/tmp/file", io::Error::other("boom"));
         assert!(matches!(err, AppError::IoError { .. }));
     }
 

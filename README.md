@@ -30,6 +30,7 @@ Interactive rebase、commit message編集、squash、rewordなどをすべてサ
 - ✨ **Interactive Rebase** - ドラッグ&ドロップでコミットの並び替え
 - ⌨️ **キーボード操作** - ショートカットで高速なコマンド変更（p/r/e/s/f/d）
 - ✅ **安全な fixup / squash 判定** - `exec` や `label` を統合先として誤認せず、Git が失敗する rebase todo を事前に防止
+- 🧩 **Git標準todo互換** - `fixup -C/-c <commit>` と `update-ref <ref>` を壊さず保持
 - 🤖 **AIコミットメッセージ** - [git-smart-commit](https://github.com/owayo/git-smart-commit) 連携で自動生成
 - 🔄 **Undo/Redo** - リスト操作の取り消し・やり直し。入力欄ではブラウザ/エディタ本来の undo/redo を優先
 - 🌙 **ダークモード** - システムテーマに自動追従
@@ -97,9 +98,10 @@ git config --global sequence.editor '"/Applications/gui-git-editor.app/Contents/
 ```
 ※ `sequence.editor` 未設定時は `rebase -i` 時、`core.editor` が使用されます。`rebase -i` 時だけ使いたい場合に設定してください。
 
-特殊コマンド（`exec`, `label`, `reset`, `break`, `merge`, `drop`）を含む todo でも、`fixup` / `squash` の統合先は commit 系エントリだけに限定して判定します。
+特殊コマンド（`exec`, `label`, `reset`, `break`, `merge`, `update-ref`, `drop`）を含む todo でも、`fixup` / `squash` の統合先は commit 系エントリだけに限定して判定します。
 「すべて1つにまとめる」操作でも、特殊コマンドと `drop` は保持したまま後続コミットだけを `fixup` 化します。
 `merge -c <commit>` と `merge -C <commit>` は保存後も区別を保持し、マージコミットメッセージ編集の有無を変えません。
+`git rebase -i --autosquash` が生成する `fixup -C <commit>` / `fixup -c <commit>` も、実際のコミットハッシュとオプションを分けて保持するため、差分表示と保存後の todo の意味がずれません。
 
 ### Git マージツールとして設定
 
@@ -211,7 +213,7 @@ pnpm typecheck            # TypeScript 型チェック
 `rebaseStore` の `parseContent` / `serialize` の IPC 連携（成功・失敗・空エントリ）、`mergeStore` の `acceptRemote` / `acceptBoth` / コンフリクトナビゲーション / `save`、`themeStore` のシステムテーマ変更イベントリスナーもテストでカバーしています。
 `ipc.ts` の全 IPC ラッパーに対し、`invoke` に渡す引数キーが camelCase であることを検証し、snake_case 混入の再発を防止しています。
 `commitStore` の `validate` request-ID ガード（古い応答の破棄、連続入力時の最新結果のみ反映）と、`RewordModal` の splitMessage/joinMessage ヘルパー・キーボードショートカット（Escape/Cmd+Enter）・git-smart-commit 連携による AI 生成の成功/失敗フローもテストでカバーしています。
-Rust 側では、コミットメッセージの subject/body 行長を Unicode 文字数で検証するケース、rebase todo の `merge -c` / `merge -C` を保存後も区別して保持するケース、`git diff-tree --name-status -z` の NUL 区切り出力でタブを含むパスや rename を正しく解析するケースをテストしています。
+Rust 側では、コミットメッセージの subject/body 行長を Unicode 文字数で検証するケース、rebase todo の `merge -c` / `merge -C` と `fixup -C` / `fixup -c` を保存後も区別して保持するケース、`update-ref` を特殊コマンドとして保持するケース、`git diff-tree --name-status -z` の NUL 区切り出力でタブを含むパスや rename を正しく解析するケースをテストしています。
 ファイル I/O コマンドの読み込み・欠損ファイル・バックアップ復元ライフサイクルと、linked worktree の Git directory 解決も Rust 側テストで検証しています。
 
 Production 依存の監査は `pnpm audit --prod` で確認し、`monaco-editor` 経由の `dompurify` は `pnpm.overrides` でパッチ済み版へ固定しています。

@@ -68,6 +68,8 @@ pnpm test:all          # 全テスト（JS + Rust）
 - Rebase の `fixup` / `squash` の統合先判定（`hasSquashTargetBeforeIndex`）は `pick` / `reword` / `edit` のみを対象とし、`squash` / `fixup` 自体や `exec` などの特殊コマンドを統合先としない（`findSquashTarget` と整合）
 - Rebase の「すべて1つにまとめる」は commit 系エントリだけを `fixup` 化し、`exec`・`label`・`drop` などの特殊行は保持する
 - Rebase の `merge -c <commit>` / `merge -C <commit>` は保存後も区別を保持する。`-c` はマージコミットメッセージ編集を要求するため、`-C` に正規化してはいけない
+- Rebase の `fixup -C <commit>` / `fixup -c <commit>` は、`-C` / `-c` を `fixup_option` として保持し、`commit_hash` には実コミットハッシュを入れる。選択時の差分取得に `-C` / `-c` を誤って渡さない
+- Rebase の `update-ref <ref>` / `u <ref>` は特殊コマンドとして保持し、保存時に未知コマンド扱いで失敗させない
 - コミットメッセージ検証の subject/body 行長は UTF-8 バイト数ではなく Unicode 文字数で判定する。日本語 subject を byte length で過大判定しない
 - Merge の競合解決は `mergeStore` で行アンカー付きの解決済み置換情報を保持し、連続解決・revert 時の位置ずれを防止
 - diff3 形式（`|||||||` を含む）の競合を revert した場合も、BASE セクション付きで復元する
@@ -106,8 +108,8 @@ pnpm test:all          # 全テスト（JS + Rust）
 - `@testing-library/react` + `@testing-library/user-event` を使用
 - `vitest` の `globals: true` 設定済み
 - commit/rebase/merge の表示系（`FileDiffViewer`, `TrailersDisplay`, `RebaseEntryList`, `ConflictNavigator`）と `mergeStore` の競合解決・復元・再読み込み整合性ロジックをテストでカバー
-- `utils/rebase.ts` と `rebaseStore` のテストで、特殊コマンドを含む todo に対する `fixup` / `squash` の検証と `squashAll` の安全性をカバー（`squash`/`fixup` のみの場合に統合先なしと判定するケースを含む）
-- Rust 側の rebase parser テストで `merge -c` と `merge -C` の保存時の区別保持をカバー
+- `utils/rebase.ts` と `rebaseStore` のテストで、特殊コマンドを含む todo に対する `fixup` / `squash` の検証と `squashAll` の安全性をカバー（`squash`/`fixup` のみの場合に統合先なしと判定するケース、plain fixup 化で `fixup_option` を引き継がないケースを含む）
+- Rust 側の rebase parser テストで `merge -c` と `merge -C`、`fixup -C` と `fixup -c` の保存時の区別保持、および `update-ref` の保持をカバー
 - Rust 側の commit parser テストで、日本語などの Unicode subject/body 行長を文字数で検証するケースをカバー
 - Rust 側の commit diff parser テストで、`git diff-tree --name-status -z` の NUL 区切り出力に含まれるタブ付きパスと rename パスをカバー
 - Rust 側の commit diff コマンドテストで、親を持たない最初のコミット（`--root` 指定が必須）に対する `git_commit_files` / `git_commit_diff` の動作をカバー
@@ -129,7 +131,7 @@ pnpm test:all          # 全テスト（JS + Rust）
 - `ConflictNavigator` の全解決状態表示・前後ナビゲーション・エディタスクロール・editorRef null 安全性をテストでカバー
 - `CommandSelector` のコマンド選択・disabled 状態・disabledCommands によるオプション無効化をテストでカバー
 - `ipc.ts` の全 IPC ラッパーに対し、`invoke` に渡す引数キーが camelCase であることをテストでカバー（snake_case 混入の再発防止）。引数なし IPC（`checkGitScAvailable`, `checkCodexAvailable`）のエラーハンドリングもカバー
-- `RebaseEntryItem` の各コマンド状態（pick/drop/squash/fixup/exec）の表示・スタイル切替・squashTarget 表示・aria-selected・キーボード選択をテストでカバー
+- `RebaseEntryItem` の各コマンド状態（pick/drop/squash/fixup/exec）の表示・スタイル切替・`fixup_option` 表示・squashTarget 表示・aria-selected・キーボード選択をテストでカバー
 - `historyStore` の連続 undo で past が枯渇するまで戻る動作をテストでカバー
 - `BodyTextarea` の行長超過検出・警告表示・省略表示をテストでカバー
 - `BackupRecoveryDialog` のタイトル・ボタン表示、復元/破棄コールバック、aria-modal 属性、フォーカストラップ、Escape での非閉塞をテストでカバー

@@ -194,6 +194,16 @@ export function RebaseEntryItem({
 					{entry.commit_hash.slice(0, 7)}
 				</span>
 
+				{/* fixup -C/-c の保持状態 */}
+				{commandType === "fixup" && entry.fixup_option && (
+					<span
+						className="rounded bg-purple-100 px-1.5 py-0.5 font-mono text-xs text-purple-700 dark:bg-purple-900/40 dark:text-purple-300"
+						title="Git が生成した fixup オプションを保持します"
+					>
+						{entry.fixup_option}
+					</span>
+				)}
+
 				{/* コミットメッセージ */}
 				<span
 					className={`flex-1 truncate text-sm ${

@@ -110,7 +110,9 @@ export const useRebaseStore = create<RebaseState>((set, get) => ({
 	updateEntryCommand: (id: string, command: RebaseCommandType) => {
 		set((state) => ({
 			entries: state.entries.map((entry) =>
-				entry.id === id ? { ...entry, command } : entry,
+				entry.id === id
+					? { ...entry, command, fixup_option: undefined }
+					: entry,
 			),
 			isDirty: true,
 		}));

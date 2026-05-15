@@ -109,5 +109,17 @@ describe("rebase utils", () => {
 				{ type: "fixup" },
 			]);
 		});
+
+		it("plain fixup 化すると既存の fixup オプションを引き継がない", () => {
+			const entries = [
+				makeEntry("1"),
+				{ ...makeEntry("2", { type: "reword" }), fixup_option: "-C" as const },
+			];
+
+			const squashed = squashAllEntries(entries);
+
+			expect(squashed[1].command).toEqual({ type: "fixup" });
+			expect(squashed[1].fixup_option).toBeNull();
+		});
 	});
 });
