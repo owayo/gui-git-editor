@@ -236,7 +236,7 @@ export function RewordModal({
 						/>
 					</div>
 
-					{/* Description */}
+					{/* 説明文 */}
 					<div className="space-y-1">
 						<label
 							htmlFor="reword-body"

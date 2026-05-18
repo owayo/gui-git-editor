@@ -2,25 +2,41 @@ import { getCurrentWindow } from "@tauri-apps/api/window";
 import { getMatches } from "@tauri-apps/plugin-cli";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { CommitEditor } from "./components/commit";
-import { ActionBar, ErrorDisplay, Loading } from "./components/common";
+import {
+	ActionBar,
+	BackupRecoveryDialog,
+	ErrorDisplay,
+	Loading,
+} from "./components/common";
 import { FallbackEditor } from "./components/fallback";
 import { MergeActionBar, MergeEditor } from "./components/merge";
 import { RebaseEditor } from "./components/rebase";
-import { useKeyboardShortcuts } from "./hooks";
+import { useAutoBackup, useKeyboardShortcuts } from "./hooks";
 import {
 	useCommitStore,
 	useFileStore,
 	useHistoryStore,
 	useRebaseStore,
 } from "./stores";
+import type { AppError } from "./types/errors";
 import type { MergeFilePaths } from "./types/git";
-import { exitApp } from "./types/ipc";
+import {
+	checkBackupExists,
+	deleteBackup,
+	exitApp,
+	restoreBackup,
+} from "./types/ipc";
 
 function App() {
 	const [isMergeMode, setIsMergeMode] = useState(false);
 	const [mergeFilePaths, setMergeFilePaths] = useState<MergeFilePaths | null>(
 		null,
 	);
+	const [backupPathToRecover, setBackupPathToRecover] = useState<string | null>(
+		null,
+	);
+	const [isCheckingBackup, setIsCheckingBackup] = useState(false);
+	const [backupError, setBackupError] = useState<AppError | null>(null);
 
 	const {
 		filePath,
@@ -51,6 +67,7 @@ function App() {
 	const {
 		isLoading: commitLoading,
 		error: commitError,
+		isDirty: commitIsDirty,
 		parseContent: parseCommitContent,
 		serialize: serializeCommit,
 		clearError: clearCommitError,
@@ -66,7 +83,7 @@ function App() {
 	} = useHistoryStore();
 
 	const isLoading = fileLoading || rebaseLoading || commitLoading;
-	const error = fileError || rebaseError || commitError;
+	const error = fileError || rebaseError || commitError || backupError;
 
 	// ファイルがコミットメッセージ系か判定する。
 	const isCommitType =
@@ -74,6 +91,18 @@ function App() {
 		fileType === "merge_msg" ||
 		fileType === "squash_msg" ||
 		fileType === "tag_msg";
+
+	const effectiveIsDirty =
+		fileType === "rebase_todo"
+			? rebaseIsDirty
+			: isCommitType
+				? commitIsDirty
+				: isDirty;
+	const { clearBackup } = useAutoBackup({
+		filePath,
+		isDirty: effectiveIsDirty,
+		enabled: !isMergeMode && !isCheckingBackup && backupPathToRecover === null,
+	});
 
 	// マウント時に CLI 引数からファイルを読み込む。
 	useEffect(() => {
@@ -115,12 +144,47 @@ function App() {
 					await loadFile(targetPath);
 				}
 			} catch (err) {
-				console.error("Failed to get CLI matches:", err);
+				console.error("CLI 引数の取得に失敗しました:", err);
 			}
 		}
 
 		loadFromCli();
 	}, [loadFile]);
+
+	// ファイル読み込み後に前回セッションのバックアップを確認する。
+	useEffect(() => {
+		let isCancelled = false;
+		setBackupPathToRecover(null);
+		setBackupError(null);
+
+		if (!filePath || isMergeMode) {
+			setIsCheckingBackup(false);
+			return () => {
+				isCancelled = true;
+			};
+		}
+
+		const checkedFilePath = filePath;
+		setIsCheckingBackup(true);
+
+		async function checkExistingBackup() {
+			const result = await checkBackupExists(checkedFilePath);
+			if (isCancelled) return;
+
+			if (result.ok) {
+				setBackupPathToRecover(result.data);
+			} else {
+				setBackupError(result.error);
+			}
+			setIsCheckingBackup(false);
+		}
+
+		checkExistingBackup();
+
+		return () => {
+			isCancelled = true;
+		};
+	}, [filePath, isMergeMode]);
 
 	// ファイル読み込み後に rebase 内容を解析する。
 	useEffect(() => {
@@ -157,9 +221,12 @@ function App() {
 		}
 
 		if (success) {
+			await clearBackup(filePath ?? undefined);
 			await exitApp(0);
 		}
 	}, [
+		clearBackup,
+		filePath,
 		fileType,
 		isCommitType,
 		serialize,
@@ -172,6 +239,29 @@ function App() {
 	const handleCancel = useCallback(async () => {
 		await exitApp(1);
 	}, []);
+
+	const handleRestoreBackup = useCallback(async () => {
+		if (!backupPathToRecover || !filePath) return;
+
+		const result = await restoreBackup(backupPathToRecover, filePath);
+		if (result.ok) {
+			setBackupPathToRecover(null);
+			await loadFile(filePath);
+		} else {
+			setBackupError(result.error);
+		}
+	}, [backupPathToRecover, filePath, loadFile]);
+
+	const handleDiscardBackup = useCallback(async () => {
+		if (!filePath) return;
+
+		const result = await deleteBackup(filePath);
+		if (result.ok) {
+			setBackupPathToRecover(null);
+		} else {
+			setBackupError(result.error);
+		}
+	}, [filePath]);
 
 	// undo/redo 経由の entries 変更では pushSnapshot をスキップするためのフラグ
 	const isUndoRedoRef = useRef(false);
@@ -228,6 +318,7 @@ function App() {
 		clearFileError();
 		clearRebaseError();
 		clearCommitError();
+		setBackupError(null);
 	}, [clearFileError, clearRebaseError, clearCommitError]);
 
 	// 読み込み状態を表示する。
@@ -267,6 +358,13 @@ function App() {
 
 	return (
 		<div className="flex h-screen flex-col bg-white dark:bg-gray-900">
+			{backupPathToRecover && (
+				<BackupRecoveryDialog
+					onRestore={handleRestoreBackup}
+					onDiscard={handleDiscardBackup}
+				/>
+			)}
+
 			{error && (
 				<div className="p-4">
 					<ErrorDisplay error={error} onDismiss={clearError} />

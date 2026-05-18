@@ -230,8 +230,7 @@ mod tests {
         let path = dir.join("missing.txt");
         let path_string = path.to_string_lossy().to_string();
 
-        let error =
-            tauri::async_runtime::block_on(create_backup(path_string.clone())).unwrap_err();
+        let error = tauri::async_runtime::block_on(create_backup(path_string.clone())).unwrap_err();
         cleanup_test_dir(&dir);
 
         assert!(matches!(

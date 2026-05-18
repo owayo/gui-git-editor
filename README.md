@@ -33,6 +33,7 @@ Interactive rebase、commit message編集、squash、rewordなどをすべてサ
 - 🧩 **Git標準todo互換** - `fixup -C/-c <commit>` と `update-ref <ref>` を壊さず保持
 - 🤖 **AIコミットメッセージ** - [git-smart-commit](https://github.com/owayo/git-smart-commit) 連携で自動生成
 - 🔄 **Undo/Redo** - リスト操作の取り消し・やり直し。入力欄ではブラウザ/エディタ本来の undo/redo を優先
+- 🛟 **自動バックアップ** - 未保存変更を `.backup` に退避し、次回起動時に復元/破棄を選択可能
 - 🌙 **ダークモード** - システムテーマに自動追従
 - 🔀 **Merge Tool** - 3パネルビューでコンフリクト解決（LOCAL / MERGED / REMOTE）
 - 🧭 **Worktree対応** - linked worktree でもマージ元 ref とブランチラベルを正しく判定
@@ -207,7 +208,7 @@ pnpm check                # Biome lint + format
 pnpm typecheck            # TypeScript 型チェック
 ```
 
-主要UIコンポーネント（`ActionBar`, `SubjectInput`, `FileDiffViewer`, `TrailersDisplay`, `RebaseEntryList`, `RebaseEntryItem`, `ConflictNavigator`, `BackupRecoveryDialog`, `BodyTextarea`, `ErrorDisplay`, `FileStatusBadge`）に加えて、`mergeStore` のコンフリクト解決/復元ロジック（diff3 revert 含む、MERGED 手動編集後の再解析と最新位置での解決を含む）、`fileStore` のバックアップパス整合性と読込失敗時の stale 内容クリア、`stagingStore` / `commitDiffStore` の競合した非同期応答の無視、diff 取得エラー表示、status 更新後の diff 再取得もテストで検証しています。
+主要UIコンポーネント（`ActionBar`, `SubjectInput`, `FileDiffViewer`, `TrailersDisplay`, `RebaseEntryList`, `RebaseEntryItem`, `ConflictNavigator`, `BackupRecoveryDialog`, `BodyTextarea`, `ErrorDisplay`, `FileStatusBadge`）に加えて、`App` の既存バックアップ検出・復元・保存成功時のバックアップ削除・バックアップ確認中の自動バックアップ抑制、`mergeStore` のコンフリクト解決/復元ロジック（diff3 revert 含む、MERGED 手動編集後の再解析と最新位置での解決を含む）、`fileStore` のバックアップパス整合性と読込失敗時の stale 内容クリア、`stagingStore` / `commitDiffStore` の競合した非同期応答の無視、diff 取得エラー表示、status 更新後の diff 再取得もテストで検証しています。
 `utils/rebase.ts` と `rebaseStore` では、特殊コマンドを含む rebase todo に対する `fixup` / `squash` の検証と `squashAll` の安全な変換も確認しています。
 `useKeyboardShortcuts` のクロスプラットフォームキーバインドと、input / textarea では undo/redo を横取りしない挙動、`useMergeKeyboardShortcuts` のマージ画面キーバインド（保存/キャンセル/コンフリクト移動/モーダル表示中の Escape 抑制）、`useAutoBackup` の自動バックアップ間隔・dirty 状態連動・クリーンアップに加えて、保存完了後に遅れて完了したバックアップの自動削除と `hasBackup` の状態同期もカバーしています。
 `rebaseStore` の `parseContent` / `serialize` の IPC 連携（成功・失敗・空エントリ）、`mergeStore` の `acceptRemote` / `acceptBoth` / コンフリクトナビゲーション / `save`、`themeStore` のシステムテーマ変更イベントリスナーもテストでカバーしています。

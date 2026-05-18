@@ -769,8 +769,7 @@ filename src/main.rs
         let path = dir.join("missing.txt");
         let path_string = path.to_string_lossy().to_string();
 
-        let error =
-            tauri::async_runtime::block_on(read_file_content(&path_string)).unwrap_err();
+        let error = tauri::async_runtime::block_on(read_file_content(&path_string)).unwrap_err();
 
         let _ = std_fs::remove_dir_all(&dir);
 
@@ -813,8 +812,7 @@ filename src/main.rs
 
         let dir_is_dir = tauri::async_runtime::block_on(path_is_dir(&subdir));
         let file_is_dir = tauri::async_runtime::block_on(path_is_dir(&file_path));
-        let missing_is_dir =
-            tauri::async_runtime::block_on(path_is_dir(&dir.join("missing")));
+        let missing_is_dir = tauri::async_runtime::block_on(path_is_dir(&dir.join("missing")));
 
         let _ = std_fs::remove_dir_all(&dir);
 
