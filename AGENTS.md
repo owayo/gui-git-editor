@@ -94,6 +94,7 @@ pnpm test:all          # 全テスト（JS + Rust）
 - `read_merge_files` は LOCAL / REMOTE / BASE / MERGED の読み込みを `tokio::try_join!` で並行実行し、ブロッキングプール上の待ちを重ねる。I/O 失敗時はブランチ名取得 (`detect_branch_names` の git 子プロセス起動) を行わないよう、ファイル読み込み成功後に逐次実行する
 - `check_backup_exists` は metadata 取得エラー（権限不足や symlink loop 等）を `Path::exists()` 同様 false 扱いとし、呼び出し側へ伝搬しない。`delete_backup` は NotFound を成功扱いとして冪等性を保つ
 - `AppError::from_io_with_path` ヘルパーは `std::io::Error` の `NotFound` / `PermissionDenied` を呼び出し元のパス付きで分類する。`From<std::io::Error>` 経由ではパスが失われるため、ファイル操作の文脈ではこちらを使う
+- `restore_backup` の `fs::copy` 失敗時は `map_write_error(&target_path, e)` を渡す。`PermissionDenied` は destination 側の書き込み失敗で発生するのが主なケースであり、エラー表示に `backup_path` を出すと実際の問題箇所（target）の特定を阻害するため、destination のパスを採用する
 - Codex 連携の iTerm2 コマンド送信はリクエスト文字列を改行なしの単一行にし、`write text` が改行を Enter として分割実行する問題を防止する
 - `git_blame_for_merge` は `side` パラメータを `"local"` / `"remote"` のみ許可し、不正値でサイレントに誤結果を返さない
 - `git_blame_for_merge` の `determine_merge_ref` は remote 側で `MERGE_HEAD` / `REBASE_HEAD` / `CHERRY_PICK_HEAD` のいずれも存在しない場合に HEAD へフォールバックせずエラーを返す（local と同じ blame 結果を「remote 側の結果」として返すサイレント誤結果を防止）
@@ -116,7 +117,7 @@ pnpm test:all          # 全テスト（JS + Rust）
 - Rust 側の commit diff コマンドテストで、親を持たない最初のコミット（`--root` 指定が必須）に対する `git_commit_files` / `git_commit_diff` の動作をカバー
 - Rust 側の `determine_merge_ref` テストで、local 側の HEAD 返却・remote 側の MERGE_HEAD 優先・REBASE_HEAD/CHERRY_PICK_HEAD へのフォールバック・state 不在時のエラー返却をカバー
 - Rust 側の `resolve_git_dir` テストで、linked worktree の `.git` ファイルから実体の Git directory を解決し remote 側 state ファイルを参照できることをカバー
-- Rust 側の file コマンドテストで、ファイル読み込み時の種別判定、存在しないファイルのパス付きエラー、バックアップ作成・復元・削除のライフサイクルをカバー（さらに `check_backup_exists` が missing 時に `None` を返すこと、`delete_backup` が NotFound を冪等に扱うこと、`create_backup` が存在しないファイルに対し `FileNotFound` を返すことを追加でカバー）
+- Rust 側の file コマンドテストで、ファイル読み込み時の種別判定、存在しないファイルのパス付きエラー、バックアップ作成・復元・削除のライフサイクルをカバー（さらに `check_backup_exists` が missing 時に `None` を返すこと、`delete_backup` が NotFound を冪等に扱うこと、`create_backup` が存在しないファイルに対し `FileNotFound` を返すこと、`restore_backup` の destination 側 `PermissionDenied` で `target_path` をエラーに残すことを追加でカバー）
 - Rust 側の `error::from_io_with_path` テストで、`NotFound` / `PermissionDenied` / その他の io::Error からのエラー分類と、パス情報の保持をカバー
 - Rust 側の merge コマンドテストで、`read_file_content` の成功・FileNotFound パス保持、`path_exists` / `path_is_dir` のディレクトリ・ファイル・欠落判定、`read_merge_files` の 3 ファイル並列読み込みと欠落ファイル時の `FileNotFound` 派生をカバー
 - `mergeStore` の revert で LOCAL / REMOTE / diff3 BASE が空のコンフリクトを余計な空行なしで復元する動作をテストでカバー

@@ -76,10 +76,11 @@ pub async fn restore_backup(backup_path: String, target_path: String) -> Result<
     let backup = Path::new(&backup_path);
 
     // copy はバックアップ（source）の読み込みと target への書き込みのどちらでも失敗しうるため、
-    // パス表示の誤導を避けるべく destination 側マッパーで分類する（NotFound は IoError 扱い）。
+    // PermissionDenied は書き込み側で発生するケースが多い。destination のパスを渡して
+    // ユーザーが実際の問題箇所（target_path）を特定できるようにする（NotFound は IoError 扱い）。
     fs::copy(backup, &target_path)
         .await
-        .map_err(|e| map_write_error(&backup_path, e))?;
+        .map_err(|e| map_write_error(&target_path, e))?;
 
     // 復元後はバックアップファイルを削除する（失敗しても呼び出し側へ伝搬しない）。
     let _ = fs::remove_file(backup).await;
@@ -236,6 +237,55 @@ mod tests {
         assert!(matches!(
             error,
             AppError::FileNotFound { path: actual_path } if actual_path == path_string
+        ));
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn test_restore_backup_permission_denied_reports_target_path() {
+        // destination 側で PermissionDenied が起きたとき、エラーに残るパスが
+        // backup_path ではなく target_path であることを検証する（リグレッション防止）。
+        use std::os::unix::fs::PermissionsExt;
+
+        let dir = create_test_dir();
+        let target_path = dir.join("file.txt");
+        let target_path_string = target_path.to_string_lossy().to_string();
+        std_fs::write(&target_path, "original\n").unwrap();
+
+        let backup_path =
+            tauri::async_runtime::block_on(create_backup(target_path_string.clone())).unwrap();
+
+        // target を読み取り専用にして restore（書き込み）で PermissionDenied を発生させる。
+        let mut perms = std_fs::metadata(&target_path).unwrap().permissions();
+        perms.set_mode(0o444);
+        std_fs::set_permissions(&target_path, perms).unwrap();
+
+        // root 実行など permission を無視できる環境では PermissionDenied が起きないためスキップ。
+        let probe_writable = std_fs::OpenOptions::new()
+            .write(true)
+            .open(&target_path)
+            .is_ok();
+        if probe_writable {
+            let mut perms = std_fs::metadata(&target_path).unwrap().permissions();
+            perms.set_mode(0o644);
+            std_fs::set_permissions(&target_path, perms).unwrap();
+            cleanup_test_dir(&dir);
+            return;
+        }
+
+        let error =
+            tauri::async_runtime::block_on(restore_backup(backup_path, target_path_string.clone()))
+                .unwrap_err();
+
+        // クリーンアップのため書き込み可能に戻す。
+        let mut perms = std_fs::metadata(&target_path).unwrap().permissions();
+        perms.set_mode(0o644);
+        std_fs::set_permissions(&target_path, perms).unwrap();
+        cleanup_test_dir(&dir);
+
+        assert!(matches!(
+            error,
+            AppError::PermissionDenied { path: actual_path } if actual_path == target_path_string
         ));
     }
 }
