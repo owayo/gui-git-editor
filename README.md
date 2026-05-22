@@ -119,8 +119,10 @@ git config --global merge.tool gui-git-editor
 - **中央パネル (MERGED)**: 解決結果を編集するエディタ
 - **右パネル (REMOTE)**: マージ元ブランチの変更内容（読み取り専用）— ヘッダーにブランチ名を表示
 
+LOCAL / REMOTE / MERGED の内容が空文字でも読み込み済みとして扱うため、片側が空のコンフリクトや空ファイル同士の競合でも編集画面を表示できます。
 BASE パネルはツールバーの「BASE」ボタンで表示/非表示を切り替えられます。
 連続解決後の `revert` でも、解決済み領域は行アンカーで追跡し、diff3 形式（`|||||||` 付き）を含めて元の競合ブロックを復元します。
+ファイル全体が空文字へ解決されたコンフリクトを `revert` しても、末尾に余計な改行を増やさず元の競合ブロックを復元します。
 解決後に MERGED 側を手動編集して行位置がずれた場合も、`revert` 時に置換テキストを再特定して誤った位置を復元しないようにしています。
 MERGED 側を手動編集した直後でも、未解決コンフリクトは再解析した最新位置へ追従するため、そのまま `Accept Local` / `Accept Remote` / `Accept Both` を押しても古い行位置を解決してしまうことがありません。
 Codex 実行後の再読み込みでは、コンフリクト内容ベースで外部解決を判定し、parser 側のID再採番が起きても整合性を維持しつつ、再出現した競合の stale な resolved 状態は保持しません。
@@ -208,7 +210,7 @@ pnpm check                # Biome lint + format
 pnpm typecheck            # TypeScript 型チェック
 ```
 
-主要UIコンポーネント（`ActionBar`, `SubjectInput`, `FileDiffViewer`, `TrailersDisplay`, `RebaseEntryList`, `RebaseEntryItem`, `ConflictNavigator`, `BackupRecoveryDialog`, `BodyTextarea`, `ErrorDisplay`, `FileStatusBadge`）に加えて、`App` の既存バックアップ検出・復元・保存成功時のバックアップ削除・バックアップ確認中の自動バックアップ抑制、`mergeStore` のコンフリクト解決/復元ロジック（diff3 revert 含む、MERGED 手動編集後の再解析と最新位置での解決を含む）、`fileStore` のバックアップパス整合性と読込失敗時の stale 内容クリア、`stagingStore` / `commitDiffStore` の競合した非同期応答の無視、diff 取得エラー表示、status 更新後の diff 再取得もテストで検証しています。
+主要UIコンポーネント（`ActionBar`, `SubjectInput`, `FileDiffViewer`, `TrailersDisplay`, `RebaseEntryList`, `RebaseEntryItem`, `ConflictNavigator`, `BackupRecoveryDialog`, `BodyTextarea`, `ErrorDisplay`, `FileStatusBadge`）に加えて、`App` の既存バックアップ検出・復元・保存成功時のバックアップ削除・バックアップ確認中の自動バックアップ抑制、空文字の commit/rebase 内容の解析と空文字の保存、`MergeEditor` の空 LOCAL ファイル表示、`mergeStore` のコンフリクト解決/復元ロジック（diff3 revert、空側コンフリクト、ファイル全体が空文字へ解決された場合の revert、MERGED 手動編集後の再解析と最新位置での解決を含む）、`fileStore` のバックアップパス整合性と読込失敗時の stale 内容クリア、`stagingStore` / `commitDiffStore` の競合した非同期応答の無視、diff 取得エラー表示、status 更新後の diff 再取得もテストで検証しています。
 `utils/rebase.ts` と `rebaseStore` では、特殊コマンドを含む rebase todo に対する `fixup` / `squash` の検証と `squashAll` の安全な変換も確認しています。
 `useKeyboardShortcuts` のクロスプラットフォームキーバインドと、input / textarea では undo/redo を横取りしない挙動、`useMergeKeyboardShortcuts` のマージ画面キーバインド（保存/キャンセル/コンフリクト移動/モーダル表示中の Escape 抑制）、`useAutoBackup` の自動バックアップ間隔・dirty 状態連動・クリーンアップに加えて、保存完了後に遅れて完了したバックアップの自動削除と `hasBackup` の状態同期もカバーしています。
 `rebaseStore` の `parseContent` / `serialize` の IPC 連携（成功・失敗・空エントリ）、`mergeStore` の `acceptRemote` / `acceptBoth` / コンフリクトナビゲーション / `save`、`themeStore` のシステムテーマ変更イベントリスナーもテストでカバーしています。

@@ -288,6 +288,29 @@ describe("mergeStore", () => {
 		expect(useMergeStore.getState().mergedContent).toBe(mergedContent);
 	});
 
+	it("revert はファイル全体が空文字に解決されたコンフリクトも復元する", () => {
+		const mergedContent = [
+			"<<<<<<< LOCAL",
+			"=======",
+			"remote",
+			">>>>>>> REMOTE",
+		].join("\n");
+
+		useMergeStore.setState({
+			mergedContent,
+			conflicts: [makeConflict(0, 0, "", "remote")],
+		});
+
+		useMergeStore.getState().acceptLocal(0);
+		expect(useMergeStore.getState().mergedContent).toBe("");
+
+		useMergeStore.getState().revertConflict(0);
+
+		const state = useMergeStore.getState();
+		expect(state.mergedContent).toBe(mergedContent);
+		expect(state.conflicts[0].resolved).toBe(false);
+	});
+
 	it("revert は REMOTE が空のコンフリクトを余計な空行なしで復元する", () => {
 		const mergedContent = [
 			"before",

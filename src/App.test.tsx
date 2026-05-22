@@ -177,4 +177,159 @@ describe("App", () => {
 			});
 		});
 	});
+
+	it("空のコミットメッセージも読み込み後に解析する", async () => {
+		mockedInvoke.mockImplementation(async (command, args) => {
+			switch (command) {
+				case "read_file":
+					return {
+						path: (args as { path: string }).path,
+						content: "",
+						file_type: "commit_msg",
+					} as never;
+				case "check_backup_exists":
+					return null as never;
+				case "parse_commit_msg":
+					return {
+						subject: "",
+						body: "",
+						trailers: [],
+						comments: [],
+						diff_content: null,
+					} as never;
+				case "validate_commit_msg":
+					return {
+						is_valid: false,
+						subject_too_long: false,
+						subject_length: 0,
+						long_body_lines: [],
+					} as never;
+				default:
+					throw {
+						code: "IoError",
+						details: { message: `未対応のIPCコマンド: ${command}` },
+					};
+			}
+		});
+
+		render(<App />);
+
+		await waitFor(() => {
+			expect(mockedInvoke).toHaveBeenCalledWith("parse_commit_msg", {
+				content: "",
+			});
+		});
+	});
+
+	it("コミットメッセージの serialize 結果が空文字でも保存する", async () => {
+		const user = userEvent.setup();
+		mockedInvoke.mockImplementation(async (command, args) => {
+			switch (command) {
+				case "read_file":
+					return {
+						path: (args as { path: string }).path,
+						content: "initial",
+						file_type: "commit_msg",
+					} as never;
+				case "check_backup_exists":
+					return null as never;
+				case "parse_commit_msg":
+					return {
+						subject: "initial",
+						body: "",
+						trailers: [],
+						comments: [],
+						diff_content: null,
+					} as never;
+				case "validate_commit_msg":
+					return {
+						is_valid: true,
+						subject_too_long: false,
+						subject_length: 0,
+						long_body_lines: [],
+					} as never;
+				case "serialize_commit_msg":
+					return "" as never;
+				case "write_file":
+				case "delete_backup":
+				case "exit_app":
+					return undefined as never;
+				default:
+					throw {
+						code: "IoError",
+						details: { message: `未対応のIPCコマンド: ${command}` },
+					};
+			}
+		});
+
+		render(<App />);
+
+		await waitFor(() => {
+			expect(mockedInvoke).toHaveBeenCalledWith("parse_commit_msg", {
+				content: "initial",
+			});
+		});
+
+		await user.click(screen.getByRole("button", { name: "保存" }));
+
+		await waitFor(() => {
+			expect(mockedInvoke).toHaveBeenCalledWith("write_file", {
+				path: targetPath,
+				content: "",
+			});
+		});
+	});
+
+	it("rebase todo の内容と serialize 結果が空文字でも解析して保存する", async () => {
+		const user = userEvent.setup();
+		mockedInvoke.mockImplementation(async (command, args) => {
+			switch (command) {
+				case "read_file":
+					return {
+						path: (args as { path: string }).path,
+						content: "",
+						file_type: "rebase_todo",
+					} as never;
+				case "check_backup_exists":
+					return null as never;
+				case "parse_rebase_todo":
+					return {
+						entries: [],
+						comments: [],
+					} as never;
+				case "serialize_rebase_todo":
+					return "" as never;
+				case "write_file":
+				case "delete_backup":
+				case "exit_app":
+					return undefined as never;
+				default:
+					throw {
+						code: "IoError",
+						details: { message: `未対応のIPCコマンド: ${command}` },
+					};
+			}
+		});
+
+		render(<App />);
+
+		await waitFor(() => {
+			expect(mockedInvoke).toHaveBeenCalledWith("parse_rebase_todo", {
+				content: "",
+			});
+		});
+
+		act(() => {
+			useRebaseStore.setState({ isDirty: true });
+		});
+
+		await user.click(screen.getByRole("button", { name: "Rebaseを開始" }));
+
+		await waitFor(() => {
+			expect(mockedInvoke).toHaveBeenCalledWith("write_file", {
+				path: targetPath,
+				content: "",
+			});
+		});
+	});
 });

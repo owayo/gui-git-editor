@@ -329,7 +329,7 @@ export const useMergeStore = create<MergeState>((set, get) => {
 
 		acceptLocal: (conflictId) => {
 			const { mergedContent, conflicts, resolvedReplacements } = get();
-			if (!mergedContent) return;
+			if (mergedContent === null) return;
 
 			const conflict = conflicts.find((c) => c.id === conflictId);
 			if (!conflict || conflict.resolved) return;
@@ -365,7 +365,7 @@ export const useMergeStore = create<MergeState>((set, get) => {
 
 		acceptRemote: (conflictId) => {
 			const { mergedContent, conflicts, resolvedReplacements } = get();
-			if (!mergedContent) return;
+			if (mergedContent === null) return;
 
 			const conflict = conflicts.find((c) => c.id === conflictId);
 			if (!conflict || conflict.resolved) return;
@@ -401,7 +401,7 @@ export const useMergeStore = create<MergeState>((set, get) => {
 
 		acceptBoth: (conflictId) => {
 			const { mergedContent, conflicts, resolvedReplacements } = get();
-			if (!mergedContent) return;
+			if (mergedContent === null) return;
 
 			const conflict = conflicts.find((c) => c.id === conflictId);
 			if (!conflict || conflict.resolved) return;
@@ -439,7 +439,7 @@ export const useMergeStore = create<MergeState>((set, get) => {
 
 		revertConflict: (conflictId) => {
 			const { mergedContent, conflicts, resolvedReplacements } = get();
-			if (!mergedContent) return;
+			if (mergedContent === null) return;
 
 			const conflict = conflicts.find((c) => c.id === conflictId);
 			if (!conflict?.resolved) return;
@@ -450,7 +450,8 @@ export const useMergeStore = create<MergeState>((set, get) => {
 			// コンフリクトマーカーを復元する
 			const markerText = buildConflictMarkerText(conflict);
 			const markerLines = markerText.split("\n");
-			const contentLines = mergedContent.split("\n");
+			const contentLines =
+				mergedContent === "" ? [] : mergedContent.split("\n");
 			const resolvedStartLine = findReplacementStartLine(
 				contentLines,
 				replacement,

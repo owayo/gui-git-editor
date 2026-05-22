@@ -251,7 +251,11 @@ export function MergeEditor({ filePaths }: MergeEditorProps) {
 		);
 	}
 
-	if (!localContent || !remoteContent || !mergedContent) {
+	if (
+		localContent === null ||
+		remoteContent === null ||
+		mergedContent === null
+	) {
 		return (
 			<div className="flex h-full items-center justify-center">
 				<p className="text-gray-500 dark:text-gray-400">
@@ -310,7 +314,7 @@ export function MergeEditor({ filePaths }: MergeEditorProps) {
 				</div>
 			)}
 
-			{/* 3-panel layout */}
+			{/* 3 パネルレイアウト */}
 			<div
 				ref={containerRef}
 				className="flex flex-1 overflow-hidden"

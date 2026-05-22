@@ -188,14 +188,14 @@ function App() {
 
 	// ファイル読み込み後に rebase 内容を解析する。
 	useEffect(() => {
-		if (fileType === "rebase_todo" && currentContent) {
+		if (fileType === "rebase_todo" && currentContent !== null) {
 			parseContent(currentContent);
 		}
 	}, [fileType, currentContent, parseContent]);
 
 	// ファイル読み込み後にコミットメッセージ内容を解析する。
 	useEffect(() => {
-		if (isCommitType && currentContent) {
+		if (isCommitType && currentContent !== null) {
 			parseCommitContent(currentContent);
 		}
 	}, [isCommitType, currentContent, parseCommitContent]);
@@ -206,13 +206,13 @@ function App() {
 
 		if (fileType === "rebase_todo") {
 			const serialized = await serialize();
-			if (serialized) {
+			if (serialized !== null) {
 				setContent(serialized);
 				success = await saveFile();
 			}
 		} else if (isCommitType) {
 			const serialized = await serializeCommit();
-			if (serialized) {
+			if (serialized !== null) {
 				setContent(serialized);
 				success = await saveFile();
 			}
