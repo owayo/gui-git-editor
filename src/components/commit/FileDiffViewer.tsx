@@ -28,10 +28,17 @@ export function FileDiffViewer({ diff, isLoading }: FileDiffViewerProps) {
 				{diff.split("\n").map((line) => {
 					const count = (lineOccurrences.get(line) ?? 0) + 1;
 					lineOccurrences.set(line, count);
+					const isDiffMetadataLine =
+						line.startsWith("diff ") ||
+						line.startsWith("index ") ||
+						line.startsWith("--- ") ||
+						line.startsWith("+++ ");
 					let className = "text-gray-300";
 					let bgClassName = "";
 
-					if (line.startsWith("+")) {
+					if (isDiffMetadataLine) {
+						className = "text-gray-500";
+					} else if (line.startsWith("+")) {
 						className = "text-green-300";
 						bgClassName = "bg-green-900/30";
 					} else if (line.startsWith("-")) {
@@ -40,13 +47,6 @@ export function FileDiffViewer({ diff, isLoading }: FileDiffViewerProps) {
 					} else if (line.startsWith("@@")) {
 						className = "text-blue-300";
 						bgClassName = "bg-blue-900/20";
-					} else if (
-						line.startsWith("diff ") ||
-						line.startsWith("index ") ||
-						line.startsWith("---") ||
-						line.startsWith("+++")
-					) {
-						className = "text-gray-500";
 					}
 
 					return (

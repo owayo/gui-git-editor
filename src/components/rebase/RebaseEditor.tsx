@@ -246,7 +246,7 @@ export function RebaseEditor() {
 				{/* 操作ガイド */}
 				<div className="rounded-lg bg-blue-50 p-3 text-sm text-blue-700 dark:bg-blue-900/20 dark:text-blue-300">
 					<p>
-						ドラッグ&ドロップで順序を変更できます。コマンドを選択してアクションを変更してください。
+						ドラッグアンドドロップで順序を変更できます。コマンドを選択してアクションを変更してください。
 					</p>
 				</div>
 
