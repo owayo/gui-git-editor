@@ -210,7 +210,7 @@ pnpm check                # Biome lint + format
 pnpm typecheck            # TypeScript 型チェック
 ```
 
-主要UIコンポーネント（`ActionBar`, `SubjectInput`, `FileDiffViewer`, `TrailersDisplay`, `RebaseEntryList`, `RebaseEntryItem`, `ConflictNavigator`, `BackupRecoveryDialog`, `BodyTextarea`, `ErrorDisplay`, `FileStatusBadge`）に加えて、`FileDiffViewer` の diff ファイルヘッダー色分け、`App` の既存バックアップ検出・復元・保存成功時のバックアップ削除・バックアップ確認中の自動バックアップ抑制、空文字の commit/rebase 内容の解析と空文字の保存、`MergeEditor` の空 LOCAL ファイル表示、`mergeStore` のコンフリクト解決/復元ロジック（diff3 revert、空側コンフリクト、ファイル全体が空文字へ解決された場合の revert、MERGED 手動編集後の再解析と最新位置での解決を含む）、`fileStore` のバックアップパス整合性と読込失敗時の stale 内容クリア、`stagingStore` / `commitDiffStore` の競合した非同期応答の無視、diff 取得エラー表示、status 更新後の diff 再取得もテストで検証しています。
+主要UIコンポーネント（`ActionBar`, `SubjectInput`, `FileList`, `FileDiffViewer`, `TrailersDisplay`, `CommitFileList`, `RebaseEntryList`, `RebaseEntryItem`, `ConflictNavigator`, `BackupRecoveryDialog`, `BodyTextarea`, `ErrorDisplay`, `FileStatusBadge`）に加えて、`FileDiffViewer` の diff ファイルヘッダー色分け、`App` の既存バックアップ検出・復元・保存成功時のバックアップ削除・バックアップ確認中の自動バックアップ抑制、空文字の commit/rebase 内容の解析と空文字の保存、`MergeEditor` の空 LOCAL ファイル表示、`mergeStore` のコンフリクト解決/復元ロジック（diff3 revert、空側コンフリクト、ファイル全体が空文字へ解決された場合の revert、MERGED 手動編集後の再解析と最新位置での解決を含む）、`fileStore` のバックアップパス整合性と読込失敗時の stale 内容クリア、`stagingStore` / `commitDiffStore` の競合した非同期応答の無視、diff 取得エラー表示、status 更新後の diff 再取得もテストで検証しています。
 `utils/rebase.ts` と `rebaseStore` では、特殊コマンドを含む rebase todo に対する `fixup` / `squash` の検証と `squashAll` の安全な変換も確認しています。
 `useKeyboardShortcuts` のクロスプラットフォームキーバインドと、input / textarea では undo/redo を横取りしない挙動、`useMergeKeyboardShortcuts` のマージ画面キーバインド（保存/キャンセル/コンフリクト移動/モーダル表示中の Escape 抑制）、`useAutoBackup` の自動バックアップ間隔・dirty 状態連動・クリーンアップに加えて、保存完了後に遅れて完了したバックアップの自動削除と `hasBackup` の状態同期もカバーしています。
 `rebaseStore` の `parseContent` / `serialize` の IPC 連携（成功・失敗・空エントリ）、`mergeStore` の `acceptRemote` / `acceptBoth` / コンフリクトナビゲーション / `save`、`themeStore` のシステムテーマ変更イベントリスナーもテストでカバーしています。
@@ -219,7 +219,7 @@ pnpm typecheck            # TypeScript 型チェック
 Rust 側では、コミットメッセージの subject/body 行長を Unicode 文字数で検証するケース、rebase todo の `merge -c` / `merge -C` と `fixup -C` / `fixup -c` を保存後も区別して保持するケース、`update-ref` を特殊コマンドとして保持するケース、`git diff-tree --name-status -z` の NUL 区切り出力でタブを含むパスや rename を正しく解析するケースをテストしています。
 ファイル I/O コマンドの読み込み・欠損ファイル・バックアップ復元ライフサイクルと、linked worktree の Git directory 解決も Rust 側テストで検証しています。
 
-Production 依存の監査は `pnpm audit --prod` で確認し、`monaco-editor` 経由の `dompurify` は `pnpm.overrides` でパッチ済み版へ固定しています。
+Production 依存の監査は `pnpm audit --prod` で確認し、`monaco-editor` 経由の `dompurify` は `pnpm-workspace.yaml` の `overrides` でパッチ済み版へ固定しています。pnpm 11 の build script 承認は同ファイルの `allowBuilds` で管理し、Vite が必要とする `esbuild` のみ許可しています。
 
 ### Tech Stack
 

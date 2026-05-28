@@ -86,7 +86,7 @@ pnpm test:all          # 全テスト（JS + Rust）
 - `useKeyboardShortcuts` と `useMergeKeyboardShortcuts` の Escape ハンドラは `aria-modal` 要素の存在を確認し、モーダルが開いている場合はモーダル側に処理を委ねてアプリ終了を防止する
 - Rust 側の staging コマンドは `git status --porcelain=v1 -z` を使い、空白を含むパスや rename のパスを引用符付き文字列として誤解釈しない
 - Rust 側の commit diff コマンドは `git diff-tree --name-status -z -M -C` を使い、タブを含むパスや rename/copy をタブ区切りテキストとして誤解釈しない
-- `pnpm.overrides` で `monaco-editor` 経由の `dompurify` をパッチ済み版へ固定し、production 依存の既知 XSS 脆弱性が再混入しないようにする
+- `pnpm-workspace.yaml` の `overrides` で `monaco-editor` 経由の `dompurify` をパッチ済み版へ固定し、production 依存の既知 XSS 脆弱性が再混入しないようにする。pnpm 11 の build script 承認は同ファイルの `allowBuilds` で管理し、Vite が必要とする `esbuild` のみ許可する
 - Rebase の undo / redo は `isUndoRedoRef` フラグで `pushSnapshot` をスキップし、redo 履歴が即座にクリアされる問題を防止する
 - `stagingStore` と `commitDiffStore` の `selectFile` は開始時・成功時に `error` をクリアし、diff 取得エラー時は `error` を設定して失敗を握りつぶさない
 - Merge の3パネルリサイズは左右どちらのセパレータでも下限クランプ時の余剰をもう一方のパネルに反映し、合計幅を保存する
@@ -110,7 +110,7 @@ pnpm test:all          # 全テスト（JS + Rust）
 - Tauri API（`@tauri-apps/api/core`, `@tauri-apps/plugin-cli`）は `setup.ts` でグローバルモック
 - `@testing-library/react` + `@testing-library/user-event` を使用
 - `vitest` の `globals: true` 設定済み
-- commit/rebase/merge の表示系（`FileDiffViewer`, `TrailersDisplay`, `RebaseEntryList`, `ConflictNavigator`）と `mergeStore` の競合解決・復元・再読み込み整合性ロジックをテストでカバー
+- commit/rebase/merge の表示系（`FileList`, `FileDiffViewer`, `TrailersDisplay`, `CommitFileList`, `RebaseEntryList`, `ConflictNavigator`）と `mergeStore` の競合解決・復元・再読み込み整合性ロジックをテストでカバー
 - `FileDiffViewer` は `--- a/...` / `+++ b/...` の diff ファイルヘッダーを追加・削除行として色付けしないこと、実際の `---content` / `+++content` 行は追加・削除行として扱うことをテストでカバー
 - `utils/rebase.ts` と `rebaseStore` のテストで、特殊コマンドを含む todo に対する `fixup` / `squash` の検証と `squashAll` の安全性をカバー（`squash`/`fixup` のみの場合に統合先なしと判定するケース、plain fixup 化で `fixup_option` を引き継がないケースを含む）
 - Rust 側の rebase parser テストで `merge -c` と `merge -C`、`fixup -C` と `fixup -c` の保存時の区別保持、および `update-ref` の保持をカバー
