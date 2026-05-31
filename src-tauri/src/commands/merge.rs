@@ -9,11 +9,11 @@ use tokio::process::Command;
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct BlameLine {
-    pub line_number: usize, // 1-based
-    pub hash: String,       // short hash (7 chars)
+    pub line_number: usize, // 1 始まりの行番号
+    pub hash: String,       // 7 文字の短縮ハッシュ
     pub author: String,
-    pub date: String,    // YYYY-MM-DD
-    pub summary: String, // first line of commit message
+    pub date: String,    // YYYY-MM-DD 形式の日付
+    pub summary: String, // コミットメッセージの先頭行
 }
 
 /// パス付きの単一ファイル内容。

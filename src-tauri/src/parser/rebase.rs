@@ -452,6 +452,23 @@ squash ghi9012 Third commit
     }
 
     #[test]
+    fn test_parse_merge_command_preserves_commit_message_flag() {
+        let content = "merge -C abc1234 feature-label # merge subject\n";
+        let result = parse_rebase_todo(content).unwrap();
+
+        assert_eq!(result.entries.len(), 1);
+        assert_eq!(
+            result.entries[0].command,
+            RebaseCommand::Merge {
+                commit: Some("abc1234".to_string()),
+                edit_message: false,
+                label: "feature-label".to_string(),
+                message: Some("merge subject".to_string()),
+            },
+        );
+    }
+
+    #[test]
     fn test_parse_fixup_commit_option_preserves_real_commit_hash() {
         let content = "fixup -C abc1234 # amend! target commit\n";
         let result = parse_rebase_todo(content).unwrap();

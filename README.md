@@ -219,7 +219,7 @@ pnpm typecheck            # TypeScript 型チェック
 Rust 側では、コミットメッセージの subject/body 行長を Unicode 文字数で検証するケース、rebase todo の `merge -c` / `merge -C` と `fixup -C` / `fixup -c` を保存後も区別して保持するケース、`update-ref` を特殊コマンドとして保持するケース、`git diff-tree --name-status -z` の NUL 区切り出力でタブを含むパスや rename を正しく解析するケースをテストしています。
 ファイル I/O コマンドの読み込み・欠損ファイル・バックアップ復元ライフサイクルと、linked worktree の Git directory 解決も Rust 側テストで検証しています。
 
-Production 依存の監査は `pnpm audit --prod` で確認し、`monaco-editor` 経由の `dompurify` は `pnpm-workspace.yaml` の `overrides` でパッチ済み版へ固定しています。pnpm 11 の build script 承認は同ファイルの `allowBuilds` で管理し、Vite が必要とする `esbuild` のみ許可しています。
+Production 依存の監査は `pnpm audit --prod` で確認し、`monaco-editor` 経由の `dompurify` は `pnpm-workspace.yaml` の `overrides` でパッチ済み版へ固定しています。pnpm 11 の build script 承認は同ファイルの `allowBuilds` で管理し、現時点では `esbuild` のみ明示許可しています。
 
 ### Tech Stack
 
