@@ -303,10 +303,15 @@ pub fn serialize_rebase_todo(file: &RebaseTodoFile) -> String {
                 lines.push(format!("pick {} {}", entry.commit_hash, subject));
 
                 // 複数行メッセージをシェル経由で安全に渡すため base64 化する。
-                // --quiet は出力を抑制し、--no-edit はエディタ起動を防ぐ。
+                // base64 文字列は [A-Za-z0-9+/=] のみなので、改行・引用符・特殊文字は
+                // すべて encoded 側に隔離され、todo の行構造を壊さない。
+                // デコードフラグは GNU coreutils が `-d`、BSD(macOS) が `-D` と異なるため、
+                // `-d` が使えるか先に判定して両環境に対応する。stdin 供給は実装差のある
+                // echo ではなく printf '%s' を用いる。--quiet は出力抑制、--no-edit は
+                // エディタ起動を防ぐ。
                 let encoded = STANDARD.encode(&entry.message);
                 lines.push(format!(
-                    "exec echo {} | base64 -d | git commit --amend --quiet --no-edit -F -",
+                    "exec b64='{}'; if base64 -d </dev/null >/dev/null 2>&1; then printf '%s' \"$b64\" | base64 -d; else printf '%s' \"$b64\" | base64 -D; fi | git commit --amend --quiet --no-edit -F -",
                     encoded
                 ));
             }
@@ -613,5 +618,55 @@ squash ghi9012 Third commit
         };
 
         assert_eq!(serialize_rebase_todo(&file), "u refs/heads/feature");
+    }
+
+    #[test]
+    fn test_serialize_reword_uses_portable_base64_decode() {
+        // reword は複数行メッセージや特殊文字を含みうるため、base64 経由で安全に渡す。
+        // 改行・シングルクォート・$・バックスラッシュ・タブ・Unicode を含むメッセージで、
+        // (1) exec 行が単一行であること（todo の行構造を壊さない）
+        // (2) 生メッセージが平文で漏れず encoded のみが出力されること
+        // (3) GNU(-d)/BSD(-D) 両対応のデコード判定が含まれること
+        // を検証する。
+        let message = "件名: 日本語テスト\n\n本文 'quote' $VAR back\\slash\ttab 🎌";
+        let file = RebaseTodoFile {
+            entries: vec![RebaseEntry {
+                id: "1".to_string(),
+                command: RebaseCommand::Reword,
+                fixup_option: None,
+                commit_hash: "abc1234".to_string(),
+                message: message.to_string(),
+            }],
+            comments: vec![],
+        };
+
+        let output = serialize_rebase_todo(&file);
+        let exec_line = output
+            .lines()
+            .find(|line| line.starts_with("exec "))
+            .expect("reword は exec 行を生成する");
+
+        // pick 行の subject は 1 行目のみ（todo は行単位）。
+        assert!(output.contains("pick abc1234 件名: 日本語テスト"));
+
+        // exec 行は単一行。複数行に割れると git-rebase-todo が壊れる。
+        assert_eq!(
+            output
+                .lines()
+                .filter(|line| line.starts_with("exec "))
+                .count(),
+            1
+        );
+
+        // encoded のみが含まれ、生メッセージ（本文や改行）は平文で漏れない。
+        let encoded = STANDARD.encode(message);
+        assert!(exec_line.contains(&encoded));
+        assert!(!exec_line.contains("本文 'quote'"));
+
+        // GNU/BSD 両対応のデコード判定と、echo ではなく printf '%s' を使う。
+        assert!(exec_line.contains("base64 -d"));
+        assert!(exec_line.contains("base64 -D"));
+        assert!(exec_line.contains("printf '%s'"));
+        assert!(exec_line.contains("git commit --amend --quiet --no-edit -F -"));
     }
 }

@@ -70,6 +70,7 @@ pnpm test:all          # 全テスト（JS + Rust）
 - Rebase の `merge -c <commit>` / `merge -C <commit>` は保存後も区別を保持する。`-c` はマージコミットメッセージ編集を要求するため、`-C` に正規化してはいけない
 - Rebase の `fixup -C <commit>` / `fixup -c <commit>` は、`-C` / `-c` を `fixup_option` として保持し、`commit_hash` には実コミットハッシュを入れる。選択時の差分取得に `-C` / `-c` を誤って渡さない
 - Rebase の `update-ref <ref>` / `u <ref>` は特殊コマンドとして保持し、保存時に未知コマンド扱いで失敗させない
+- Rebase の `reword` は `pick` + `exec` 行へシリアライズし、メッセージは base64 経由でシェルに渡す。デコードは GNU coreutils の `base64 -d` と BSD(macOS) の `base64 -D` でフラグが異なるため、`base64 -d </dev/null` で対応可否を判定して両環境にフォールバックする。stdin 供給は実装差のある `echo` ではなく `printf '%s'` を使い、生成する `exec` は必ず単一行に収めて todo の行構造を壊さない
 - コミットメッセージ検証の subject/body 行長は UTF-8 バイト数ではなく Unicode 文字数で判定する。日本語 subject を byte length で過大判定しない
 - Merge の競合解決は `mergeStore` で行アンカー付きの解決済み置換情報を保持し、連続解決・revert 時の位置ずれを防止
 - diff3 形式（`|||||||` を含む）の競合を revert した場合も、BASE セクション付きで復元する
@@ -114,6 +115,7 @@ pnpm test:all          # 全テスト（JS + Rust）
 - `FileDiffViewer` は `--- a/...` / `+++ b/...` の diff ファイルヘッダーを追加・削除行として色付けしないこと、実際の `---content` / `+++content` 行は追加・削除行として扱うことをテストでカバー
 - `utils/rebase.ts` と `rebaseStore` のテストで、特殊コマンドを含む todo に対する `fixup` / `squash` の検証と `squashAll` の安全性をカバー（`squash`/`fixup` のみの場合に統合先なしと判定するケース、plain fixup 化で `fixup_option` を引き継がないケースを含む）
 - Rust 側の rebase parser テストで `merge -c` と `merge -C`、`fixup -C` と `fixup -c` の保存時の区別保持、および `update-ref` の保持をカバー
+- Rust 側の rebase parser テストで `reword` シリアライズが単一行の `exec` を生成し、生メッセージを平文で漏らさず base64 化すること、GNU(`-d`)/BSD(`-D`) 両対応のデコード判定と `printf '%s'` を含むことをカバー
 - Rust 側の commit parser テストで、日本語などの Unicode subject/body 行長を文字数で検証するケースをカバー
 - Rust 側の commit diff parser テストで、`git diff-tree --name-status -z` の NUL 区切り出力に含まれるタブ付きパスと rename パスをカバー
 - Rust 側の commit diff コマンドテストで、親を持たない最初のコミット（`--root` 指定が必須）に対する `git_commit_files` / `git_commit_diff` の動作をカバー
