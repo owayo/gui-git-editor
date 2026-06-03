@@ -1,3 +1,4 @@
+import { DocumentIcon } from "@heroicons/react/24/outline";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import type * as MonacoEditor from "monaco-editor";
 import {
@@ -267,8 +268,30 @@ export function MergeEditor({ filePaths }: MergeEditorProps) {
 
 	const totalSize = panelSizes.reduce((a, b) => a + b, 0);
 
+	// マージ対象ファイルのパスを、ディレクトリとファイル名に分割する。
+	const mergedPathSegments = filePaths.merged.split("/");
+	const mergedFileName = mergedPathSegments.pop() || filePaths.merged;
+	const mergedDirPath = mergedPathSegments.join("/");
+
 	return (
 		<div className="flex h-full flex-col">
+			{/* マージ対象ファイルのパス */}
+			<div className="flex items-center gap-1.5 border-b border-gray-200 px-3 py-1.5 dark:border-gray-700">
+				<DocumentIcon
+					className="h-4 w-4 shrink-0 text-gray-400 dark:text-gray-500"
+					aria-hidden="true"
+				/>
+				<span
+					className="min-w-0 truncate text-xs text-gray-500 dark:text-gray-400"
+					title={filePaths.merged}
+				>
+					{mergedDirPath && <span>{mergedDirPath}/</span>}
+					<span className="font-medium text-gray-700 dark:text-gray-200">
+						{mergedFileName}
+					</span>
+				</span>
+			</div>
+
 			{/* ツールバー */}
 			<div className="flex items-center gap-2 border-b border-gray-200 px-3 py-1.5 dark:border-gray-700">
 				<button

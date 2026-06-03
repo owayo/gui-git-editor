@@ -150,7 +150,7 @@ pnpm test:all          # 全テスト（JS + Rust）
 - `fileStore` の読込失敗時に前回ファイル内容が残留しないことをテストでカバー
 - Rust 側の `format_unix_timestamp` の負値ガード、`shell_escape` のバッククォート・複合特殊文字をテストでカバー
 - `ConflictActions` の未解決時 LOCAL / REMOTE / 両方ボタン、解決済み時の戻すボタン、ストアアクション呼び出し、ブランチラベル反映をテストでカバー
-- `MergeEditor` は LOCAL が空ファイルでも読み込み待ちに戻らず、3 パネルを表示する挙動をテストでカバー
+- `MergeEditor` は LOCAL が空ファイルでも読み込み待ちに戻らず、3 パネルを表示する挙動と、マージ対象ファイルのパスをヘッダーに表示する挙動（ディレクトリ＋ファイル名の分割表示、ディレクトリを含まないファイル名のみのパス）をテストでカバー
 - `MergeActionBar` の保存・キャンセル・ステータス表示、保存成功時の `exitApp(0)` 実行と失敗時の非実行をテストでカバー
 - `CodexResolveButton` の利用可否表示・起動ボタン無効化・再読み込みボタン表示・`checkCodexAvailable` 呼び出しをテストでカバー
 - テスト環境では `scrollIntoView` と `ResizeObserver` を `setup.ts` でモック（dnd-kit / headlessui が使用）

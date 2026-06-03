@@ -103,6 +103,13 @@ export interface ConflictRegion {
 	resolved: boolean;
 }
 
+// revert 用に保持する、コンフリクト解決時の置換テキストと行アンカー情報。
+export interface ResolvedReplacement {
+	text: string;
+	startLine: number;
+	lineCount: number;
+}
+
 // コンフリクトマーカー解析結果。
 export interface ParseConflictsResult {
 	conflicts: ConflictRegion[];

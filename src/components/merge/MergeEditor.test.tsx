@@ -103,4 +103,46 @@ describe("MergeEditor", () => {
 			screen.queryByText("ファイルの読み込みを待っています..."),
 		).not.toBeInTheDocument();
 	});
+
+	it("マージ対象ファイルのパスをヘッダーに表示する", async () => {
+		render(
+			<MergeEditor
+				filePaths={{
+					local: "/tmp/local",
+					remote: "/tmp/remote",
+					base: null,
+					merged: "src/components/merge/MergeEditor.tsx",
+				}}
+			/>,
+		);
+
+		await screen.findByTestId("panel-MERGED");
+
+		// title 属性に完全パス、本文にディレクトリとファイル名が表示される。
+		const pathHeader = screen.getByTitle(
+			"src/components/merge/MergeEditor.tsx",
+		);
+		expect(pathHeader).toHaveTextContent(
+			"src/components/merge/MergeEditor.tsx",
+		);
+		expect(pathHeader).toHaveTextContent("MergeEditor.tsx");
+	});
+
+	it("ディレクトリを含まないファイル名のみのパスも表示する", async () => {
+		render(
+			<MergeEditor
+				filePaths={{
+					local: "/tmp/local",
+					remote: "/tmp/remote",
+					base: null,
+					merged: "COMMIT_EDITMSG",
+				}}
+			/>,
+		);
+
+		await screen.findByTestId("panel-MERGED");
+
+		const pathHeader = screen.getByTitle("COMMIT_EDITMSG");
+		expect(pathHeader).toHaveTextContent("COMMIT_EDITMSG");
+	});
 });

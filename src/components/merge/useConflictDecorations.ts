@@ -1,12 +1,6 @@
 import type * as MonacoEditor from "monaco-editor";
 import { useEffect, useRef } from "react";
-import type { ConflictRegion } from "../../types/git";
-
-interface ResolvedReplacement {
-	text: string;
-	startLine: number;
-	lineCount: number;
-}
+import type { ConflictRegion, ResolvedReplacement } from "../../types/git";
 
 /**
  * MERGED パネルの Monaco editor にコンフリクト関連の decoration を適用する。
