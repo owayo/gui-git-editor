@@ -76,6 +76,7 @@ pnpm test:all          # 全テスト（JS + Rust）
 - diff3 形式（`|||||||` を含む）の競合を revert した場合も、BASE セクション付きで復元する
 - Merge は空ファイルや片側が空のコンフリクトも有効な入力として扱う。`MergeEditor` と `mergeStore` では `""` を未読み込み扱いせず、未設定判定は `null` のみで行う
 - Merge の再読み込みはコンフリクト内容ベースで外部解決を判定し、parse 後のID再採番やID衝突を吸収しつつ、再出現した競合の stale な resolved 状態を保持しない
+- Merge の `reloadMergedFile` は `invalidateContentParse` 直後に request id を捕捉し、各 await（`readFile` / `parseConflicts`）後に手動編集（`updateMergedContent`）で supersede されていないか確認する。supersede 後はディスク内容での上書きも `isDirty` のリセットも古い読込/解析エラー表示も行わず中断し、再読み込み中も編集可能な MERGED パネルへの手動入力をサイレントに失わない
 - Merge の MERGED パネル手動編集時は `parseConflicts` を再実行して未解決コンフリクト位置を追従し、解決済み置換アンカーも再配置してボタン操作や装飾が古い行位置を参照し続けない
 - `fileStore` はファイル読込成功時と読込失敗時、バックアップ作成失敗時に `backupPath` を含む関連状態をクリアし、古い内容やバックアップパスの誤再利用を防止する
 - `App` は通常ファイル読み込み後に `checkBackupExists` で既存 `.backup` を検出し、`BackupRecoveryDialog` で復元/破棄を選ばせる。バックアップ確認中は `useAutoBackup` を無効化し、前回セッションの `.backup` を新しい自動バックアップで上書きしない。commit/rebase 内容の parse と serialize 結果の保存では `""` を有効な内容として扱い、失敗判定は `null` のみで行う
@@ -104,6 +105,7 @@ pnpm test:all          # 全テスト（JS + Rust）
 - `format_unix_timestamp` は負のタイムスタンプを `"unknown"` として扱い、`as u32` キャストでの wrap を防止する
 - Rust 側の commit diff コマンド (`git_commit_files` / `git_commit_diff`) は `git diff-tree --root` を指定して、親を持たない最初のコミットでも diff 行と差分本体を取得できる
 - `mergeStore.buildConflictMarkerText` は LOCAL / BASE / REMOTE セクションが空のコンフリクトでも、revert 時に余計な空行を挿入せず元の構造のまま復元する。ファイル全体が空文字へ解決されたコンフリクトの revert でも、`"".split("\n")` の疑似空行により末尾改行を増やさない
+- Codex 連携の iTerm2 コマンド送信は、リクエストだけでなく `merged_path` と project directory も改行なしの単一行に制限する。改行を含むパスは `write text` で入力分割されうるため、送信せず `CommandError` を返す
 
 ## Testing Conventions
 
@@ -132,6 +134,8 @@ pnpm test:all          # 全テスト（JS + Rust）
 - `App` の既存バックアップ検出、復元実行、保存成功時のバックアップ削除、既存バックアップ確認中に自動バックアップを開始しない挙動、空文字の commit/rebase 内容を parse して空文字の serialize 結果を保存する挙動をテストでカバー
 - `rebaseStore` の `parseContent` / `serialize` IPC連携（成功・失敗・空エントリ）をテストでカバー
 - `mergeStore` の `acceptRemote` / `acceptBoth` / コンフリクトナビゲーション / `save` / `initMerge` / `checkCodexAvailable` / `openCodexResolve` / `fetchBlame` / `reloadMergedFile` エラーパス / `clearError` / `updateMergedContent` をテストでカバー
+- `mergeStore` の `reloadMergedFile` で、再読み込みの await 中に MERGED パネルを手動編集した場合に、ディスク内容で上書きせずユーザー入力と `isDirty` を保持すること、および supersede 後の読込失敗で古いエラーを表示しないこと（request id ガード）をテストでカバー
+- `utils/mergeConflictState` の純粋関数を直接単体テストでカバー（`findReplacementStartLine` の `lineCount===0` 境界・アンカー一致・最近傍フォールバック・同距離タイブレーク・不一致時 null、`resolveConflictInContent` の空/複数行置換、`buildConflictMarkerText` の空セクション・diff3 BASE、`checkAllResolved` の空配列境界）
 - `mergeStore` の手動編集後に `acceptLocal` が再解析済みの最新行位置を使って解決する動作と、手動編集後も解決済みアンカーを再配置する挙動をテストでカバー
 - `mergeStore` の revert 時に後続コンフリクトの行位置と resolvedReplacements の startLine がシフトされる動作をテストでカバー
 - `themeStore` のシステムテーマ変更イベントリスナーをテストでカバー
@@ -148,7 +152,7 @@ pnpm test:all          # 全テスト（JS + Rust）
 - `RewordModal` の splitMessage/joinMessage ヘルパー（subject/body 分割・結合）、キーボードショートカット（Escape/Cmd+Enter）、props 挙動、git-smart-commit 連携による AI 生成の成功/失敗フローをテストでカバー
 - `stagingStore` と `commitDiffStore` の `selectFile` エラーハンドリング（error 設定・開始時クリア・成功時クリア）をテストでカバー
 - `fileStore` の読込失敗時に前回ファイル内容が残留しないことをテストでカバー
-- Rust 側の `format_unix_timestamp` の負値ガード、`shell_escape` のバッククォート・複合特殊文字をテストでカバー
+- Rust 側の `format_unix_timestamp` の負値ガード、`shell_escape` のバッククォート・複合特殊文字、Codex iTerm2 連携の単一行入力検証をテストでカバー
 - `ConflictActions` の未解決時 LOCAL / REMOTE / 両方ボタン、解決済み時の戻すボタン、ストアアクション呼び出し、ブランチラベル反映をテストでカバー
 - `MergeEditor` は LOCAL が空ファイルでも読み込み待ちに戻らず、3 パネルを表示する挙動と、マージ対象ファイルのパスをヘッダーに表示する挙動（ディレクトリ＋ファイル名の分割表示、ディレクトリを含まないファイル名のみのパス）をテストでカバー
 - `MergeActionBar` の保存・キャンセル・ステータス表示、保存成功時の `exitApp(0)` 実行と失敗時の非実行をテストでカバー

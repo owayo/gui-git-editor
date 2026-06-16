@@ -972,6 +972,166 @@ describe("mergeStore", () => {
 		expect(useMergeStore.getState().error?.details.message).toBe("parse error");
 	});
 
+	it("reloadMergedFile は再読み込み中の MERGED 手動編集をディスク内容で握りつぶさない", async () => {
+		const diskContent = [
+			"disk",
+			"<<<<<<< LOCAL",
+			"X",
+			"=======",
+			"Y",
+			">>>>>>> REMOTE",
+		].join("\n");
+		const userInput = "ユーザーが入力した内容";
+
+		// readFile を解決前で止め、await 中に手動編集を割り込ませる。
+		let resolveReadFile: (
+			value: Awaited<ReturnType<typeof ipc.readFile>>,
+		) => void = () => {};
+		vi.spyOn(ipc, "readFile").mockReturnValue(
+			new Promise((resolve) => {
+				resolveReadFile = resolve;
+			}),
+		);
+		// reload 側（diskContent）はコンフリクトあり、手動編集側（userInput）は解決済みを返す。
+		vi.spyOn(ipc, "parseConflicts").mockImplementation(async (content) => ({
+			ok: true,
+			data: {
+				conflicts:
+					content === diskContent ? [makeConflict(0, 1, "X", "Y")] : [],
+				hasConflicts: content === diskContent,
+				totalConflicts: content === diskContent ? 1 : 0,
+			},
+		}));
+
+		useMergeStore.setState({
+			mergedPath: "/tmp/merged",
+			mergedContent: "original",
+			conflicts: [makeConflict(0, 0, "A", "B")],
+		});
+
+		// reload 開始（readFile の await で待機）。
+		const reloadPromise = useMergeStore.getState().reloadMergedFile();
+		// await 中にユーザーが MERGED パネルを手動編集する。
+		useMergeStore.getState().updateMergedContent(userInput);
+
+		// readFile を解決して reload を続行させる。
+		resolveReadFile({
+			ok: true,
+			data: { path: "/tmp/merged", content: diskContent, file_type: "merge" },
+		});
+		await reloadPromise;
+		// updateMergedContent 内の非同期 parse も flush する。
+		await new Promise((resolve) => setTimeout(resolve, 0));
+
+		const state = useMergeStore.getState();
+		// ディスク内容で上書きされず、ユーザー入力と未保存状態が維持される。
+		expect(state.mergedContent).toBe(userInput);
+		expect(state.isDirty).toBe(true);
+	});
+
+	it("reloadMergedFile は手動編集で supersede された後の読込失敗で古いエラーを表示しない", async () => {
+		const userInput = "ユーザーが入力した内容";
+
+		// readFile を解決前で止め、await 中に手動編集を割り込ませる。
+		let resolveReadFile: (
+			value: Awaited<ReturnType<typeof ipc.readFile>>,
+		) => void = () => {};
+		vi.spyOn(ipc, "readFile").mockReturnValue(
+			new Promise((resolve) => {
+				resolveReadFile = resolve;
+			}),
+		);
+
+		useMergeStore.setState({
+			mergedPath: "/tmp/merged",
+			mergedContent: "original",
+			conflicts: [makeConflict(0, 0, "A", "B")],
+		});
+
+		const reloadPromise = useMergeStore.getState().reloadMergedFile();
+		// await 中にユーザーが手動編集し、reload を supersede する。
+		useMergeStore.getState().updateMergedContent(userInput);
+
+		// 読込を失敗で解決する。stale な reload なのでエラーを出してはならない。
+		resolveReadFile({
+			ok: false,
+			error: {
+				code: "IoError",
+				details: { message: "read failed" },
+			} as AppError,
+		});
+		await reloadPromise;
+		await new Promise((resolve) => setTimeout(resolve, 0));
+
+		const state = useMergeStore.getState();
+		// 古い読込エラーを表示せず、ユーザー入力と未保存状態を保持する。
+		expect(state.error).toBeNull();
+		expect(state.mergedContent).toBe(userInput);
+		expect(state.isDirty).toBe(true);
+	});
+
+	it("reloadMergedFile は手動編集で supersede された後の解析失敗で古いエラーを表示しない", async () => {
+		const diskContent = [
+			"disk",
+			"<<<<<<< LOCAL",
+			"X",
+			"=======",
+			"Y",
+			">>>>>>> REMOTE",
+		].join("\n");
+		const userInput = "ユーザーが入力した内容";
+
+		vi.spyOn(ipc, "readFile").mockResolvedValue({
+			ok: true,
+			data: { path: "/tmp/merged", content: diskContent, file_type: "merge" },
+		});
+
+		let resolveReloadParse: (
+			value: Awaited<ReturnType<typeof ipc.parseConflicts>>,
+		) => void = () => {};
+		vi.spyOn(ipc, "parseConflicts").mockImplementation(async (content) => {
+			if (content === diskContent) {
+				return new Promise((resolve) => {
+					resolveReloadParse = resolve;
+				});
+			}
+
+			return {
+				ok: true,
+				data: { conflicts: [], hasConflicts: false, totalConflicts: 0 },
+			};
+		});
+
+		useMergeStore.setState({
+			mergedPath: "/tmp/merged",
+			mergedContent: "original",
+			conflicts: [makeConflict(0, 0, "A", "B")],
+		});
+
+		const reloadPromise = useMergeStore.getState().reloadMergedFile();
+		// reload 側が readFile 後の parseConflicts await に入るまで進める。
+		await new Promise((resolve) => setTimeout(resolve, 0));
+
+		// 解析待機中に手動編集が入り、reload を supersede する。
+		useMergeStore.getState().updateMergedContent(userInput);
+
+		// stale な reload 側の解析失敗は UI エラーに反映してはならない。
+		resolveReloadParse({
+			ok: false,
+			error: {
+				code: "ParseError",
+				details: { message: "parse failed" },
+			} as AppError,
+		});
+		await reloadPromise;
+		await new Promise((resolve) => setTimeout(resolve, 0));
+
+		const state = useMergeStore.getState();
+		expect(state.error).toBeNull();
+		expect(state.mergedContent).toBe(userInput);
+		expect(state.isDirty).toBe(true);
+	});
+
 	// --- acceptLocal のエッジケース ---
 
 	it("acceptLocal は mergedContent が null の場合に何もしない", () => {

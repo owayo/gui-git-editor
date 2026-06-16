@@ -69,6 +69,9 @@ async fn open_codex_terminal_macos(merged_path: String) -> Result<(), AppError> 
         6. プロジェクトに設定されている linter・formatter を実行し、エラーや警告がないことを確認する",
         merged_path
     );
+    ensure_single_line("merged path", &merged_path)?;
+    ensure_single_line("project directory", &project_dir)?;
+    ensure_single_line("codex request", &request)?;
 
     let codex_cmd = format!(
         "codex exec --full-auto --cd \"{}\" \"{}\"",
@@ -134,6 +137,20 @@ async fn resolve_git_root(dir: &str) -> Option<String> {
     None
 }
 
+/// iTerm2 の `write text` で改行が Enter として扱われないよう、動的入力を単一行に制限する。
+#[cfg(target_os = "macos")]
+fn ensure_single_line(label: &str, value: &str) -> Result<(), AppError> {
+    if value.chars().any(|c| c == '\n' || c == '\r') {
+        return Err(AppError::CommandError {
+            message: format!(
+                "{} contains a line break and cannot be sent safely to iTerm2",
+                label
+            ),
+        });
+    }
+    Ok(())
+}
+
 /// ダブルクォートされた shell 引数の中で安全に使えるよう文字列をエスケープする。
 #[cfg(target_os = "macos")]
 fn shell_escape(s: &str) -> String {
@@ -177,6 +194,14 @@ mod tests {
     #[cfg(target_os = "macos")]
     fn test_escape_applescript_backslash() {
         assert_eq!(escape_applescript("path\\to"), "path\\\\to");
+    }
+
+    #[test]
+    #[cfg(target_os = "macos")]
+    fn test_ensure_single_line_rejects_line_breaks() {
+        assert!(ensure_single_line("value", "safe path").is_ok());
+        assert!(ensure_single_line("value", "bad\npath").is_err());
+        assert!(ensure_single_line("value", "bad\rpath").is_err());
     }
 
     #[test]

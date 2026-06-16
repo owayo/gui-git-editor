@@ -434,18 +434,25 @@ export const useMergeStore = create<MergeState>((set, get) => {
 			} = get();
 			if (!mergedPath) return;
 			invalidateContentParse();
+			const requestId = contentParseRequestId;
 
 			// ここで isLoading を立てるとエディターが unmount され、
 			// decoration と blame tooltip の参照が切れるため避ける。
 			set({ error: null });
 
+			// 再読み込み中に MERGED パネルが手動編集されると updateMergedContent が
+			// contentParseRequestId を進める。各 await 後に stale を検出したら、ディスク
+			// 内容での上書きも古いエラー表示も行わず即座に中断し、ユーザー入力と未保存
+			// 状態（isDirty）を保持する。
 			const fileResult = await ipc.readFile(mergedPath);
+			if (requestId !== contentParseRequestId) return;
 			if (!fileResult.ok) {
 				set({ error: fileResult.error });
 				return;
 			}
 
 			const parseResult = await ipc.parseConflicts(fileResult.data.content);
+			if (requestId !== contentParseRequestId) return;
 			if (!parseResult.ok) {
 				set({ error: parseResult.error });
 				return;

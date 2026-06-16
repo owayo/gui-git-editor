@@ -41,3 +41,11 @@ lerna-debug.log*
 
 coverage
 .claude/settings.json
+
+# Claude Code / AI エージェントの実行時生成物（リポジトリルート直下に作られるためコミットしない）
+/.last-cleanup
+/backups/
+/projects/
+/sessions/
+/shell-snapshots/
+/tasks/
