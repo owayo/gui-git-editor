@@ -135,7 +135,7 @@ pnpm test:all          # 全テスト（JS + Rust）
 - `rebaseStore` の `parseContent` / `serialize` IPC連携（成功・失敗・空エントリ）をテストでカバー
 - `mergeStore` の `acceptRemote` / `acceptBoth` / コンフリクトナビゲーション / `save` / `initMerge` / `checkCodexAvailable` / `openCodexResolve` / `fetchBlame` / `reloadMergedFile` エラーパス / `clearError` / `updateMergedContent` をテストでカバー
 - `mergeStore` の `reloadMergedFile` で、再読み込みの await 中に MERGED パネルを手動編集した場合に、ディスク内容で上書きせずユーザー入力と `isDirty` を保持すること、および supersede 後の読込失敗で古いエラーを表示しないこと（request id ガード）をテストでカバー
-- `utils/mergeConflictState` の純粋関数を直接単体テストでカバー（`findReplacementStartLine` の `lineCount===0` 境界・アンカー一致・最近傍フォールバック・同距離タイブレーク・不一致時 null、`resolveConflictInContent` の空/複数行置換、`buildConflictMarkerText` の空セクション・diff3 BASE、`checkAllResolved` の空配列境界）
+- `utils/mergeConflictState` の純粋関数を直接単体テストでカバー（`findReplacementStartLine` の `lineCount===0` 境界・アンカー一致・最近傍フォールバック・同距離タイブレーク・不一致時 null、`resolveConflictInContent` の空/複数行置換、`buildConflictMarkerText` の空セクション・diff3 BASE、`checkAllResolved` の空配列境界、`markResolvedAndShiftConflicts` の未発見 ID・置換行数による endLine 更新・前後コンフリクトの平行移動・diff3 BASE 行のシフト、`updateResolvedReplacementsAfterResolve` の新規追加・前後アンカーのシフト・空文字置換、`markRevertedAndShiftConflicts` の resolved→false 復元と後続シフト、`updateResolvedReplacementsAfterRevert` の対象削除と後続シフト、`reconcileConflictsOnReload` の外部解決判定と再出現時の保持除外、`preserveResolvedConflictsAfterEdit` の再出現済み解決除外、`buildConflictState` の ID 衝突回避と allResolved 算出と未保持メタデータの破棄）
 - `mergeStore` の手動編集後に `acceptLocal` が再解析済みの最新行位置を使って解決する動作と、手動編集後も解決済みアンカーを再配置する挙動をテストでカバー
 - `mergeStore` の revert 時に後続コンフリクトの行位置と resolvedReplacements の startLine がシフトされる動作をテストでカバー
 - `themeStore` のシステムテーマ変更イベントリスナーをテストでカバー

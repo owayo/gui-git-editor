@@ -216,6 +216,7 @@ pnpm typecheck            # TypeScript 型チェック
 `utils/rebase.ts` と `rebaseStore` では、特殊コマンドを含む rebase todo に対する `fixup` / `squash` の検証と `squashAll` の安全な変換も確認しています。
 `useKeyboardShortcuts` のクロスプラットフォームキーバインドと、input / textarea では undo/redo を横取りしない挙動、`useMergeKeyboardShortcuts` のマージ画面キーバインド（保存/キャンセル/コンフリクト移動/モーダル表示中の Escape 抑制）、`useAutoBackup` の自動バックアップ間隔・dirty 状態連動・クリーンアップに加えて、保存完了後に遅れて完了したバックアップの自動削除と `hasBackup` の状態同期もカバーしています。
 `rebaseStore` の `parseContent` / `serialize` の IPC 連携（成功・失敗・空エントリ）、`mergeStore` の `acceptRemote` / `acceptBoth` / コンフリクトナビゲーション / `save`、`themeStore` のシステムテーマ変更イベントリスナーもテストでカバーしています。
+`utils/mergeConflictState` の純粋関数（`markResolvedAndShiftConflicts` / `markRevertedAndShiftConflicts` / `updateResolvedReplacementsAfterResolve` / `updateResolvedReplacementsAfterRevert` / `reconcileConflictsOnReload` / `preserveResolvedConflictsAfterEdit` / `buildConflictState`）の行番号シフト、ID 衝突回避、外部解決判定、メタデータ破棄の挙動も直接単体テストでカバーしています。
 `ipc.ts` の全 IPC ラッパーに対し、`invoke` に渡す引数キーが camelCase であることを検証し、snake_case 混入の再発を防止しています。
 `commitStore` の `validate` request-ID ガード（古い応答の破棄、連続入力時の最新結果のみ反映）と、`RewordModal` の splitMessage/joinMessage ヘルパー・キーボードショートカット（Escape/Cmd+Enter）・git-smart-commit 連携による AI 生成の成功/失敗フローもテストでカバーしています。
 Rust 側では、コミットメッセージの subject/body 行長を Unicode 文字数で検証するケース、rebase todo の `merge -c` / `merge -C` と `fixup -C` / `fixup -c` を保存後も区別して保持するケース、`update-ref` を特殊コマンドとして保持するケース、`git diff-tree --name-status -z` の NUL 区切り出力でタブを含むパスや rename を正しく解析するケースをテストしています。
