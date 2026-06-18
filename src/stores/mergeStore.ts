@@ -100,6 +100,9 @@ const initialState = {
 
 export const useMergeStore = create<MergeState>((set, get) => {
 	let contentParseRequestId = 0;
+	// blame 取得は新しい initMerge で別パスを読み込むと stale になりうるため、
+	// リクエスト ID で照合して古い応答を破棄する
+	let blameRequestId = 0;
 
 	const invalidateContentParse = () => {
 		contentParseRequestId += 1;
@@ -110,7 +113,15 @@ export const useMergeStore = create<MergeState>((set, get) => {
 
 		initMerge: async (local, remote, base, merged) => {
 			invalidateContentParse();
-			set({ isLoading: true, error: null });
+			// 進行中の旧 fetchBlame 応答を無効化し、旧ファイルの blame が
+			// 新ファイルに紛れ込まないよう即時クリアする
+			blameRequestId += 1;
+			set({
+				isLoading: true,
+				error: null,
+				localBlame: null,
+				remoteBlame: null,
+			});
 
 			const filesResult = await ipc.readMergeFiles(local, remote, base, merged);
 			if (!filesResult.ok) {
@@ -143,7 +154,7 @@ export const useMergeStore = create<MergeState>((set, get) => {
 			});
 
 			// blame 取得は UI をブロックしないようにバックグラウンドで走らせる
-			get().fetchBlame();
+			void get().fetchBlame();
 		},
 
 		acceptLocal: (conflictId) => {
@@ -407,10 +418,16 @@ export const useMergeStore = create<MergeState>((set, get) => {
 			const { mergedPath } = get();
 			if (!mergedPath) return;
 
+			const requestId = ++blameRequestId;
 			const [localResult, remoteResult] = await Promise.all([
 				ipc.gitBlameForMerge(mergedPath, "local"),
 				ipc.gitBlameForMerge(mergedPath, "remote"),
 			]);
+
+			// 取得中に別の initMerge / fetchBlame が走った場合、古い応答で上書きしない。
+			// mergedPath の一致も確認し、別ファイルの blame が紛れ込むのを防ぐ
+			if (requestId !== blameRequestId) return;
+			if (get().mergedPath !== mergedPath) return;
 
 			if (!localResult.ok) {
 				console.warn("[blame] local blame failed:", localResult.error);

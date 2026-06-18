@@ -79,6 +79,8 @@ pnpm test:all          # 全テスト（JS + Rust）
 - Merge の `reloadMergedFile` は `invalidateContentParse` 直後に request id を捕捉し、各 await（`readFile` / `parseConflicts`）後に手動編集（`updateMergedContent`）で supersede されていないか確認する。supersede 後はディスク内容での上書きも `isDirty` のリセットも古い読込/解析エラー表示も行わず中断し、再読み込み中も編集可能な MERGED パネルへの手動入力をサイレントに失わない
 - Merge の MERGED パネル手動編集時は `parseConflicts` を再実行して未解決コンフリクト位置を追従し、解決済み置換アンカーも再配置してボタン操作や装飾が古い行位置を参照し続けない
 - `fileStore` はファイル読込成功時と読込失敗時、バックアップ作成失敗時に `backupPath` を含む関連状態をクリアし、古い内容やバックアップパスの誤再利用を防止する
+- `fileStore.saveFile` は保存完了時に最新の `currentContent` と保存した内容を突き合わせて `isDirty` を再計算する。`await ipc.writeFile` 中に `setContent` が呼ばれた場合でも、ユーザーが追加入力した未保存差分を `isDirty: false` で誤判定しない
+- `mergeStore.fetchBlame` は呼び出しごとに `blameRequestId` を進め、応答前に新しい `initMerge` / `fetchBlame` が始まった場合や `mergedPath` が変わった場合は古い blame で上書きしない。`initMerge` 開始時は即座に `blameRequestId` を進めて `localBlame` / `remoteBlame` を `null` にリセットし、新ファイルに旧 blame が一時的に残らない
 - `App` は通常ファイル読み込み後に `checkBackupExists` で既存 `.backup` を検出し、`BackupRecoveryDialog` で復元/破棄を選ばせる。バックアップ確認中は `useAutoBackup` を無効化し、前回セッションの `.backup` を新しい自動バックアップで上書きしない。commit/rebase 内容の parse と serialize 結果の保存では `""` を有効な内容として扱い、失敗判定は `null` のみで行う
 - `stagingStore` と `commitDiffStore` と `commitStore.validate` は request id で非同期レスポンスを突き合わせ、古い diff/status/validation 応答が新しい結果を上書きしない
 - `stagingStore` は同一パスが staged/unstaged の両方に存在する場合でも、ユーザーが選択中の側を維持しつつ、status 更新後の diff を再取得して stale 表示を残さない。`fetchStatus` のエラーパスでは `isLoadingDiff` もリセットし、スピナーの永続表示を防止する
@@ -128,6 +130,8 @@ pnpm test:all          # 全テスト（JS + Rust）
 - Rust 側の merge コマンドテストで、`read_file_content` の成功・FileNotFound パス保持、`path_exists` / `path_is_dir` のディレクトリ・ファイル・欠落判定、`read_merge_files` の 3 ファイル並列読み込みと欠落ファイル時の `FileNotFound` 派生をカバー
 - `mergeStore` の revert で LOCAL / REMOTE / diff3 BASE が空のコンフリクトを余計な空行なしで復元する動作と、ファイル全体が空文字へ解決されたコンフリクトを末尾改行なしで復元する動作をテストでカバー
 - `fileStore`, `stagingStore`, `commitDiffStore` のファイルI/O・Git操作状態管理をテストでカバー（`backupPath` の stale 状態回避、diff/status の競合応答無視、staged/unstaged 両出現時の選択維持と diff 再取得、`fetchStatus` エラー時の `isLoadingDiff` リセット、diff 取得エラー時の `error` 設定を含む）
+- `fileStore.saveFile` の保存中 `setContent` 競合（保存した内容と異なる入力で `isDirty: true` 維持、同じ値に戻された場合は `isDirty: false`）をテストでカバー
+- `mergeStore.fetchBlame` の request id ガード（応答中に別 `fetchBlame` が走った場合、応答中に `mergedPath` が変わった場合のいずれも古い blame で上書きしない）と、`initMerge` 開始時に `localBlame` / `remoteBlame` が即時 `null` リセットされる挙動をテストでカバー
 - `useKeyboardShortcuts` のクロスプラットフォームキーバインド（Cmd/Ctrl）と、入力欄で undo / redo を横取りしない挙動、モーダル表示中の Escape 抑制をテストでカバー
 - `useMergeKeyboardShortcuts` のマージ画面キーバインド（保存/キャンセル/コンフリクト移動）とモーダル表示中の Escape 抑制をテストでカバー
 - `useAutoBackup` の自動バックアップ間隔・dirty 状態連動・クリーンアップ・保存完了後に遅延完了したバックアップ削除・`hasBackup` 同期をテストでカバー

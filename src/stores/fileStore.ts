@@ -79,11 +79,13 @@ export const useFileStore = create<FileState>((set, get) => ({
 		const result = await ipc.writeFile(filePath, currentContent);
 
 		if (result.ok) {
-			set({
+			// 保存中に setContent が呼ばれた場合に備え、保存した内容と
+			// 最新の currentContent を突き合わせて isDirty を再計算する
+			set((state) => ({
 				originalContent: currentContent,
 				isSaving: false,
-				isDirty: false,
-			});
+				isDirty: state.currentContent !== currentContent,
+			}));
 			return true;
 		} else {
 			set({

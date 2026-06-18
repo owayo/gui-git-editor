@@ -832,6 +832,40 @@ describe("mergeStore", () => {
 		expect(state.isLoading).toBe(false);
 	});
 
+	it("initMerge は開始時に古い blame をクリアする", async () => {
+		const oldBlame = [
+			{
+				lineNumber: 1,
+				hash: "old",
+				author: "U",
+				date: "d",
+				summary: "old",
+			},
+		];
+		useMergeStore.setState({ localBlame: oldBlame, remoteBlame: oldBlame });
+
+		let capturedBlame: {
+			local: unknown;
+			remote: unknown;
+		} | null = null;
+		vi.spyOn(ipc, "readMergeFiles").mockImplementation(async () => {
+			const state = useMergeStore.getState();
+			capturedBlame = {
+				local: state.localBlame,
+				remote: state.remoteBlame,
+			};
+			return {
+				ok: false,
+				error: { code: "Unknown", details: { message: "stop" } } as AppError,
+			};
+		});
+
+		await useMergeStore.getState().initMerge("/l", "/r", null, "/m");
+
+		expect(capturedBlame).not.toBeNull();
+		expect(capturedBlame).toEqual({ local: null, remote: null });
+	});
+
 	// --- checkCodexAvailable 系 ---
 
 	it("checkCodexAvailable は利用可能な場合 true を設定する", async () => {
@@ -930,6 +964,89 @@ describe("mergeStore", () => {
 		const state = useMergeStore.getState();
 		expect(state.localBlame).toEqual(blameData);
 		expect(state.remoteBlame).toEqual(blameData);
+	});
+
+	it("fetchBlame は古い応答で新しい結果を上書きしない", async () => {
+		const oldBlame = [
+			{
+				lineNumber: 1,
+				hash: "old",
+				author: "U",
+				date: "d",
+				summary: "old",
+			},
+		];
+		const newBlame = [
+			{
+				lineNumber: 1,
+				hash: "new",
+				author: "U",
+				date: "d",
+				summary: "new",
+			},
+		];
+		let resolveFirst: (() => void) | null = null;
+		const spy = vi.spyOn(ipc, "gitBlameForMerge");
+		// 1 回目: 解決を遅延させる
+		spy.mockImplementationOnce(
+			() =>
+				new Promise((resolve) => {
+					resolveFirst = () => resolve({ ok: true, data: oldBlame });
+				}),
+		);
+		spy.mockImplementationOnce(
+			() =>
+				new Promise((resolve) => {
+					resolveFirst?.();
+					resolve({ ok: true, data: oldBlame });
+				}),
+		);
+		// 2 回目以降: 新しい blame を返す
+		spy.mockResolvedValue({ ok: true, data: newBlame });
+
+		useMergeStore.setState({ mergedPath: "/tmp/merged" });
+		const firstPromise = useMergeStore.getState().fetchBlame();
+
+		// 1 回目の応答が返る前に 2 回目を実行・完了させる
+		await useMergeStore.getState().fetchBlame();
+		expect(useMergeStore.getState().localBlame).toEqual(newBlame);
+
+		// 古い 1 回目の応答を完了させても上書きされない
+		await firstPromise;
+		expect(useMergeStore.getState().localBlame).toEqual(newBlame);
+	});
+
+	it("fetchBlame は応答中に mergedPath が変わった場合、古い応答で上書きしない", async () => {
+		const oldBlame = [
+			{
+				lineNumber: 1,
+				hash: "old",
+				author: "U",
+				date: "d",
+				summary: "old",
+			},
+		];
+		vi.spyOn(ipc, "gitBlameForMerge").mockImplementation(
+			() =>
+				new Promise((resolve) => {
+					// 応答前に mergedPath を別のファイルに切り替える
+					queueMicrotask(() => {
+						useMergeStore.setState({ mergedPath: "/tmp/other" });
+						resolve({ ok: true, data: oldBlame });
+					});
+				}),
+		);
+		useMergeStore.setState({
+			mergedPath: "/tmp/merged",
+			localBlame: null,
+			remoteBlame: null,
+		});
+
+		await useMergeStore.getState().fetchBlame();
+
+		const state = useMergeStore.getState();
+		expect(state.localBlame).toBeNull();
+		expect(state.remoteBlame).toBeNull();
 	});
 
 	// --- reloadMergedFile のエラーパス ---
