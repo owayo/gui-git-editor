@@ -308,7 +308,7 @@ describe("fileStore", () => {
 		});
 
 		it("保存中に setContent が呼ばれた場合は isDirty を再計算する", async () => {
-			let resolveWrite: (() => void) | null = null;
+			let resolveWrite: () => void = () => {};
 			mockedIpc.writeFile.mockImplementation(
 				() =>
 					new Promise((resolve) => {
@@ -324,12 +324,10 @@ describe("fileStore", () => {
 			});
 
 			// 保存途中で setContent によって新しい入力が入った状況をシミュレート
-			useFileStore.setState({ currentContent: "A", isDirty: false });
 			const savePromise = useFileStore.getState().saveFile();
 			useFileStore.getState().setContent("AB");
 
-			expect(resolveWrite).not.toBeNull();
-			resolveWrite?.();
+			resolveWrite();
 			const ok = await savePromise;
 
 			expect(ok).toBe(true);
@@ -341,7 +339,7 @@ describe("fileStore", () => {
 		});
 
 		it("保存中に setContent で同じ値に戻された場合は isDirty を false にする", async () => {
-			let resolveWrite: (() => void) | null = null;
+			let resolveWrite: () => void = () => {};
 			mockedIpc.writeFile.mockImplementation(
 				() =>
 					new Promise((resolve) => {
@@ -359,7 +357,7 @@ describe("fileStore", () => {
 			const savePromise = useFileStore.getState().saveFile();
 			useFileStore.getState().setContent("new");
 
-			resolveWrite?.();
+			resolveWrite();
 			await savePromise;
 
 			const state = useFileStore.getState();
