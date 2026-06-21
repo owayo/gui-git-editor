@@ -161,4 +161,5 @@ pnpm test:all          # 全テスト（JS + Rust）
 - `MergeEditor` は LOCAL が空ファイルでも読み込み待ちに戻らず、3 パネルを表示する挙動と、マージ対象ファイルのパスをヘッダーに表示する挙動（ディレクトリ＋ファイル名の分割表示、ディレクトリを含まないファイル名のみのパス）をテストでカバー
 - `MergeActionBar` の保存・キャンセル・ステータス表示、保存成功時の `exitApp(0)` 実行と失敗時の非実行をテストでカバー
 - `CodexResolveButton` の利用可否表示・起動ボタン無効化・再読み込みボタン表示・`checkCodexAvailable` 呼び出しをテストでカバー
+- `CommitEditor` の git-sc 利用可否によるボタン表示制御（`data:false`・取得失敗時の非表示、`data:true` 時のボタン表示）と、`handleGenerateWithAI` の subject/body 分割ロジック（空行区切りでの subject + body 分割、複数段落を保持した body、空行なしでの subject 全文・body 空、空文字レスポンス時の subject/body クリア、エラー時の既存入力保持とエラー表示、生成完了後の disabled 解除）をテストでカバー
 - テスト環境では `scrollIntoView` と `ResizeObserver` を `setup.ts` でモック（dnd-kit / headlessui が使用）
