@@ -136,6 +136,8 @@ export const useStagingStore = create<StagingState>((set, get) => {
 
 		fetchStatus: async (filePath: string) => {
 			const requestId = ++statusRequestId;
+			// status 更新後は選択状態に合わせて diff を取り直すため、進行中の古い diff 応答は破棄する。
+			diffRequestId += 1;
 			set({ isLoadingStatus: true, error: null });
 
 			const result = await ipc.gitStatus(filePath);

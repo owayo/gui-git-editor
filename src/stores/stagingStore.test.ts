@@ -110,6 +110,37 @@ describe("stagingStore", () => {
 			expect(state.staged).toEqual([]);
 		});
 
+		it("status 取得失敗後に古い diff 応答でエラーを消さない", async () => {
+			const diff =
+				createDeferred<Awaited<ReturnType<typeof ipc.gitDiffFile>>>();
+			mockedIpc.gitDiffFile.mockImplementationOnce(() => diff.promise);
+			const diffRequest = useStagingStore
+				.getState()
+				.selectFile("src/main.ts", true, filePath);
+
+			mockedIpc.gitStatus.mockResolvedValue({
+				ok: false,
+				error: { message: "git status failed" } as never,
+			});
+
+			await useStagingStore.getState().fetchStatus(filePath);
+
+			const statusError = useStagingStore.getState().error;
+			expect(statusError).toEqual({ message: "git status failed" });
+			expect(useStagingStore.getState().isLoadingDiff).toBe(false);
+
+			diff.resolve({
+				ok: true,
+				data: "stale diff",
+			});
+			await diffRequest;
+
+			const state = useStagingStore.getState();
+			expect(state.error).toBe(statusError);
+			expect(state.diffContent).toBeNull();
+			expect(state.isLoadingDiff).toBe(false);
+		});
+
 		it("should set isLoadingStatus to true during execution", async () => {
 			let capturedLoading = false;
 			mockedIpc.gitStatus.mockImplementation(async () => {
