@@ -108,6 +108,10 @@ pnpm test:all          # 全テスト（JS + Rust）
 - Rust 側の commit diff コマンド (`git_commit_files` / `git_commit_diff`) は `git diff-tree --root` を指定して、親を持たない最初のコミットでも diff 行と差分本体を取得できる
 - `mergeStore.buildConflictMarkerText` は LOCAL / BASE / REMOTE セクションが空のコンフリクトでも、revert 時に余計な空行を挿入せず元の構造のまま復元する。ファイル全体が空文字へ解決されたコンフリクトの revert でも、`"".split("\n")` の疑似空行により末尾改行を増やさない
 - Codex 連携の iTerm2 コマンド送信は、リクエストだけでなく `merged_path` と project directory も改行なしの単一行に制限する。改行を含むパスは `write text` で入力分割されうるため、送信せず `CommandError` を返す
+- `useKeyboardShortcuts` は `event.key` を小文字化して比較し、Shift 併用で英字キーが大文字化（例: Shift+Z → "Z"）しても undo / redo を正しく判定する。save（`s`）と redo の `y` 側は `!shiftKey` を条件に含め、`Cmd+Shift+S` / `Cmd+Shift+Y` を誤発火させない
+- `commitStore` は `originalTrailers` を保持し、`computeDirty` で subject / body / trailers の差分を統合判定する。trailer 変更後に subject / body を元へ戻しても dirty を維持し、trailer のみの未保存差分が自動バックアップ対象から漏れない
+- `useAutoBackup` は create / delete のディスク操作を Promise キュー（`enqueueBackupOp`）で直列化し、同一 `.backup` への作成と削除がすれ違って `hasBackup` とディスク状態が食い違う競合を防ぐ
+- `git_blame_for_merge` の `parse_tz_offset` は tz 文字列を生バイト列で `[+-]HHMM`（5 バイト固定）として検証し、非 ASCII（全角符号やマルチバイト文字）を含む破損入力でも文字境界違反で panic せず 0 を返す
 
 ## Testing Conventions
 
@@ -163,3 +167,7 @@ pnpm test:all          # 全テスト（JS + Rust）
 - `CodexResolveButton` の利用可否表示・起動ボタン無効化・再読み込みボタン表示・`checkCodexAvailable` 呼び出しをテストでカバー
 - `CommitEditor` の git-sc 利用可否によるボタン表示制御（`data:false`・取得失敗時の非表示、`data:true` 時のボタン表示）と、`handleGenerateWithAI` の subject/body 分割ロジック（空行区切りでの subject + body 分割、複数段落を保持した body、空行なしでの subject 全文・body 空、空文字レスポンス時の subject/body クリア、エラー時の既存入力保持とエラー表示、生成完了後の disabled 解除）をテストでカバー
 - テスト環境では `scrollIntoView` と `ResizeObserver` を `setup.ts` でモック（dnd-kit / headlessui が使用）
+- `useKeyboardShortcuts` のテストで、実機どおり大文字 "Z"（Shift 押下時の event.key）での redo 発火と、`Cmd+Shift+S` / `Cmd+Shift+Y` を発火させない挙動をカバー
+- `commitStore` のテストで、trailer 追加で dirty になること、trailer 変更後に subject / body を元へ戻しても isDirty を維持すること、trailer を追加→削除して元へ戻すと isDirty が false に戻ることをカバー
+- `useAutoBackup` のテストで、create / delete を直列化し前段の create 完了まで次の create を開始しない挙動をカバー
+- Rust 側の `parse_tz_offset` テストで、非 ASCII timezone（全角プラス・マルチバイト文字・コロン含み・桁数不一致）でも panic せず 0 を返すことをカバー

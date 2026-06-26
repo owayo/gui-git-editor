@@ -35,7 +35,7 @@
 		"@headlessui/react": "^2.2.10",
 		"@heroicons/react": "^2.2.0",
 		"@monaco-editor/react": "^4.7.0",
-		"@tauri-apps/api": "^2.11.0",
+		"@tauri-apps/api": "^2.11.1",
 		"@tauri-apps/plugin-cli": "^2.4.1",
 		"@tauri-apps/plugin-log": "^2.8.0",
 		"@tauri-apps/plugin-opener": "^2.5.4",

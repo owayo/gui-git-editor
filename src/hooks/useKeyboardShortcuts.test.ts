@@ -49,6 +49,17 @@ describe("useKeyboardShortcuts", () => {
 
 			expect(handlers.onSave).not.toHaveBeenCalled();
 		});
+
+		it("Shift 併用（Cmd+Shift+S）では onSave を呼ばない", () => {
+			renderHook(() => useKeyboardShortcuts(handlers));
+
+			act(() => {
+				// 実機では Shift 押下時の event.key は大文字 "S" になる
+				dispatchKeydown({ key: "S", metaKey: true, shiftKey: true });
+			});
+
+			expect(handlers.onSave).not.toHaveBeenCalled();
+		});
 	});
 
 	describe("Escape (Cancel)", () => {
@@ -173,6 +184,17 @@ describe("useKeyboardShortcuts", () => {
 			expect(handlers.onRedo).toHaveBeenCalledOnce();
 		});
 
+		it("実機どおり大文字 Z（Shift 押下時の event.key）でも onRedo を呼ぶ", () => {
+			renderHook(() => useKeyboardShortcuts(handlers));
+
+			act(() => {
+				// ブラウザは Shift+Z で event.key を大文字 "Z" にする
+				dispatchKeydown({ key: "Z", metaKey: true, shiftKey: true });
+			});
+
+			expect(handlers.onRedo).toHaveBeenCalledOnce();
+		});
+
 		it("calls onRedo with ctrlKey + shiftKey + z", () => {
 			renderHook(() => useKeyboardShortcuts(handlers));
 
@@ -201,6 +223,16 @@ describe("useKeyboardShortcuts", () => {
 			});
 
 			expect(handlers.onRedo).toHaveBeenCalledOnce();
+		});
+
+		it("Shift 併用（Cmd+Shift+Y）では onRedo を呼ばない", () => {
+			renderHook(() => useKeyboardShortcuts(handlers));
+
+			act(() => {
+				dispatchKeydown({ key: "Y", metaKey: true, shiftKey: true });
+			});
+
+			expect(handlers.onRedo).not.toHaveBeenCalled();
 		});
 
 		it("does not hijack redo inside textarea elements", () => {

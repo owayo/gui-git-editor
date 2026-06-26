@@ -168,6 +168,55 @@ describe("commitStore", () => {
 
 			expect(useCommitStore.getState().trailers[0]).toEqual(updated);
 		});
+
+		it("addTrailer should mark dirty", () => {
+			useCommitStore.getState().addTrailer(trailer);
+			expect(useCommitStore.getState().isDirty).toBe(true);
+		});
+
+		it("trailer 変更後に subject/body を元へ戻しても isDirty を維持する", () => {
+			mockedIpc.validateCommitMsg.mockResolvedValue({
+				ok: true,
+				data: {
+					is_valid: true,
+					subject_too_long: false,
+					subject_length: 4,
+					long_body_lines: [],
+				},
+			});
+			useCommitStore.setState({
+				originalSubject: "subj",
+				originalBody: "body",
+				originalTrailers: [],
+				subject: "subj",
+				body: "body",
+				trailers: [],
+				isDirty: false,
+			});
+			// trailer を追加すると dirty になる
+			useCommitStore.getState().addTrailer(trailer);
+			expect(useCommitStore.getState().isDirty).toBe(true);
+			// subject を変えてから元へ戻しても、trailer 差分が残るため dirty を維持する
+			useCommitStore.getState().setSubject("changed");
+			useCommitStore.getState().setSubject("subj");
+			expect(useCommitStore.getState().isDirty).toBe(true);
+		});
+
+		it("trailer を追加してから削除し元へ戻ると isDirty が false になる", () => {
+			useCommitStore.setState({
+				originalSubject: "subj",
+				originalBody: "body",
+				originalTrailers: [],
+				subject: "subj",
+				body: "body",
+				trailers: [],
+				isDirty: false,
+			});
+			useCommitStore.getState().addTrailer(trailer);
+			expect(useCommitStore.getState().isDirty).toBe(true);
+			useCommitStore.getState().removeTrailer(0);
+			expect(useCommitStore.getState().isDirty).toBe(false);
+		});
 	});
 
 	describe("parseContent", () => {

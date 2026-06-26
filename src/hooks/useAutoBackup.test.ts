@@ -192,4 +192,40 @@ describe("useAutoBackup", () => {
 		expect(mockedIpc.deleteBackup).toHaveBeenCalledWith("/tmp/file.txt");
 		expect(result.current.hasBackup).toBe(false);
 	});
+
+	it("バックアップ操作を直列化する（前の create 完了まで次の create を開始しない）", async () => {
+		const first =
+			createDeferred<Awaited<ReturnType<typeof ipc.createBackup>>>();
+		const second =
+			createDeferred<Awaited<ReturnType<typeof ipc.createBackup>>>();
+		mockedIpc.createBackup
+			.mockReturnValueOnce(first.promise)
+			.mockReturnValueOnce(second.promise);
+
+		renderHook(() =>
+			useAutoBackup({
+				filePath: "/tmp/file.txt",
+				isDirty: true,
+			}),
+		);
+
+		// 初回 performBackup が createBackup を呼ぶ（未解決のまま）
+		await act(async () => {});
+		expect(mockedIpc.createBackup).toHaveBeenCalledTimes(1);
+
+		// interval 発火で 2 回目の performBackup。直列化により、1 回目が
+		// 未解決の間は 2 回目の createBackup はまだ実行されない。
+		await act(async () => {
+			vi.advanceTimersByTime(30000);
+		});
+		expect(mockedIpc.createBackup).toHaveBeenCalledTimes(1);
+
+		// 1 回目を解決するとキューが進み、2 回目の createBackup が実行される。
+		await act(async () => {
+			first.resolve({ ok: true, data: "/tmp/file.backup" });
+			await first.promise;
+		});
+		await act(async () => {});
+		expect(mockedIpc.createBackup).toHaveBeenCalledTimes(2);
+	});
 });

@@ -21,6 +21,19 @@ export function useAutoBackup({
 	const isDirtyRef = useRef(isDirty);
 	const enabledRef = useRef(enabled);
 	const backupGenerationRef = useRef(0);
+	// create/delete のディスク操作を直列化し、同一 .backup への並行アクセスを防ぐキュー。
+	// 「作成と削除がすれ違い hasBackup とディスク状態が食い違う」競合を根本から避ける。
+	const backupQueueRef = useRef<Promise<unknown>>(Promise.resolve());
+
+	const enqueueBackupOp = useCallback(<T>(op: () => Promise<T>): Promise<T> => {
+		// 直前の操作の成否に関わらず次を実行する（前段が失敗してもキューを止めない）
+		const next = backupQueueRef.current.then(op, op);
+		backupQueueRef.current = next.then(
+			() => undefined,
+			() => undefined,
+		);
+		return next;
+	}, []);
 
 	const setTrackedBackupFile = useCallback((backupFilePath: string | null) => {
 		lastBackupFilePathRef.current = backupFilePath;
@@ -45,7 +58,9 @@ export function useAutoBackup({
 		const generation = backupGenerationRef.current;
 
 		try {
-			const result = await createBackup(requestedFilePath);
+			const result = await enqueueBackupOp(() =>
+				createBackup(requestedFilePath),
+			);
 			if (!result.ok) {
 				return;
 			}
@@ -57,7 +72,7 @@ export function useAutoBackup({
 				!enabledRef.current;
 
 			if (isStale) {
-				await deleteBackup(requestedFilePath);
+				await enqueueBackupOp(() => deleteBackup(requestedFilePath));
 				return;
 			}
 
@@ -65,7 +80,7 @@ export function useAutoBackup({
 		} catch (error) {
 			console.error("バックアップの作成に失敗しました:", error);
 		}
-	}, [filePath, isDirty, setTrackedBackupFile]);
+	}, [filePath, isDirty, setTrackedBackupFile, enqueueBackupOp]);
 
 	// 保存完了後やクリーン復帰時にバックアップを削除する
 	const clearBackup = useCallback(
@@ -75,7 +90,7 @@ export function useAutoBackup({
 			if (!pathToDelete) return;
 
 			try {
-				const result = await deleteBackup(pathToDelete);
+				const result = await enqueueBackupOp(() => deleteBackup(pathToDelete));
 				if (result.ok) {
 					setTrackedBackupFile(null);
 				}
@@ -83,7 +98,7 @@ export function useAutoBackup({
 				console.error("バックアップの削除に失敗しました:", error);
 			}
 		},
-		[setTrackedBackupFile],
+		[setTrackedBackupFile, enqueueBackupOp],
 	);
 
 	// 自動バックアップのタイマーを設定する

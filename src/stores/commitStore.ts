@@ -16,6 +16,7 @@ interface CommitState {
 	isDirty: boolean;
 	originalSubject: string;
 	originalBody: string;
+	originalTrailers: Trailer[];
 
 	// 派生値。
 	getMessage: () => CommitMessage;
@@ -33,6 +34,24 @@ interface CommitState {
 	reset: () => void;
 }
 
+// trailer 配列が一致するか判定する（subject/body と併せて dirty 判定に使う）
+const trailersEqual = (a: Trailer[], b: Trailer[]): boolean =>
+	a.length === b.length &&
+	a.every((t, i) => t.key === b[i].key && t.value === b[i].value);
+
+// subject / body / trailers のいずれかが初期値から変化したかを判定する
+const computeDirty = (s: {
+	subject: string;
+	body: string;
+	trailers: Trailer[];
+	originalSubject: string;
+	originalBody: string;
+	originalTrailers: Trailer[];
+}): boolean =>
+	s.subject !== s.originalSubject ||
+	s.body !== s.originalBody ||
+	!trailersEqual(s.trailers, s.originalTrailers);
+
 const initialState = {
 	subject: "",
 	body: "",
@@ -45,6 +64,7 @@ const initialState = {
 	isDirty: false,
 	originalSubject: "",
 	originalBody: "",
+	originalTrailers: [] as Trailer[],
 };
 
 export const useCommitStore = create<CommitState>((set, get) => {
@@ -79,6 +99,7 @@ export const useCommitStore = create<CommitState>((set, get) => {
 					isDirty: false,
 					originalSubject: msg.subject,
 					originalBody: msg.body,
+					originalTrailers: msg.trailers,
 				});
 				// 解析後に検証する。
 				await get().validate();
@@ -105,43 +126,43 @@ export const useCommitStore = create<CommitState>((set, get) => {
 		},
 
 		setSubject: (subject: string) => {
-			const { originalSubject, originalBody, body } = get();
-			set({
+			set((state) => ({
 				subject,
-				isDirty: subject !== originalSubject || body !== originalBody,
-			});
+				isDirty: computeDirty({ ...state, subject }),
+			}));
 			// 本番では debounce した検証が望ましい。
 			get().validate();
 		},
 
 		setBody: (body: string) => {
-			const { originalSubject, originalBody, subject } = get();
-			set({
+			set((state) => ({
 				body,
-				isDirty: subject !== originalSubject || body !== originalBody,
-			});
+				isDirty: computeDirty({ ...state, body }),
+			}));
 			get().validate();
 		},
 
 		addTrailer: (trailer: Trailer) => {
-			set((state) => ({
-				trailers: [...state.trailers, trailer],
-				isDirty: true,
-			}));
+			set((state) => {
+				const trailers = [...state.trailers, trailer];
+				return { trailers, isDirty: computeDirty({ ...state, trailers }) };
+			});
 		},
 
 		removeTrailer: (index: number) => {
-			set((state) => ({
-				trailers: state.trailers.filter((_, i) => i !== index),
-				isDirty: true,
-			}));
+			set((state) => {
+				const trailers = state.trailers.filter((_, i) => i !== index);
+				return { trailers, isDirty: computeDirty({ ...state, trailers }) };
+			});
 		},
 
 		updateTrailer: (index: number, trailer: Trailer) => {
-			set((state) => ({
-				trailers: state.trailers.map((t, i) => (i === index ? trailer : t)),
-				isDirty: true,
-			}));
+			set((state) => {
+				const trailers = state.trailers.map((t, i) =>
+					i === index ? trailer : t,
+				);
+				return { trailers, isDirty: computeDirty({ ...state, trailers }) };
+			});
 		},
 
 		validate: async () => {

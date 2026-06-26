@@ -337,19 +337,20 @@ fn parse_line_porcelain(output: &str) -> Vec<BlameLine> {
 
 /// タイムゾーンオフセット文字列（例: "+0900", "-0500"）を秒数へ変換する。
 fn parse_tz_offset(tz: &str) -> i64 {
-    let tz = tz.trim();
-    if tz.len() < 5 {
+    // git は tz を ASCII の [+-]HHMM（5 バイト固定）へ正規化するが、
+    // 破損コミットや fast-import 由来で非 ASCII が混じる可能性に備え、
+    // バイト境界を侵さないよう生バイト列を直接検証してから数値化する。
+    let bytes = tz.trim().as_bytes();
+    if bytes.len() != 5 || (bytes[0] != b'+' && bytes[0] != b'-') {
         return 0;
     }
-    let sign: i64 = if tz.starts_with('-') { -1 } else { 1 };
-    let digits = tz.trim_start_matches(['+', '-']);
-    if digits.len() >= 4 {
-        let hours: i64 = digits[..2].parse().unwrap_or(0);
-        let minutes: i64 = digits[2..4].parse().unwrap_or(0);
-        sign * (hours * 3600 + minutes * 60)
-    } else {
-        0
+    if !bytes[1..].iter().all(|b| b.is_ascii_digit()) {
+        return 0;
     }
+    let sign: i64 = if bytes[0] == b'-' { -1 } else { 1 };
+    let hours = i64::from(bytes[1] - b'0') * 10 + i64::from(bytes[2] - b'0');
+    let minutes = i64::from(bytes[3] - b'0') * 10 + i64::from(bytes[4] - b'0');
+    sign * (hours * 3600 + minutes * 60)
 }
 
 /// 外部 crate を使わず Unix timestamp を YYYY-MM-DD 形式へ変換する。
@@ -628,6 +629,13 @@ filename src/main.rs
         assert_eq!(parse_tz_offset("+0530"), 19800); // 5h30m
         assert_eq!(parse_tz_offset(""), 0);
         assert_eq!(parse_tz_offset("abc"), 0);
+        // 非 ASCII timezone でも panic せず 0 を返す（文字境界違反の回帰防止）
+        assert_eq!(parse_tz_offset("あ0900"), 0);
+        assert_eq!(parse_tz_offset("＋0900"), 0); // 全角プラス
+        assert_eq!(parse_tz_offset("0あ00"), 0);
+        assert_eq!(parse_tz_offset("+09:00"), 0); // 数字以外を含む
+        assert_eq!(parse_tz_offset("+09300"), 0); // 5 バイト固定でない（6 文字）
+        assert_eq!(parse_tz_offset("+090"), 0); // 5 バイト固定でない（4 文字）
     }
 
     /// `determine_merge_ref` 用に空の git_dir を作る。
