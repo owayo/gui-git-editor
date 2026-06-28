@@ -1,6 +1,7 @@
-import { render, screen } from "@testing-library/react";
+import { act, render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { useMergeStore } from "../../stores";
+import type { ConflictRegion } from "../../types/git";
 import * as ipc from "../../types/ipc";
 import { MergeEditor } from "./MergeEditor";
 
@@ -144,5 +145,47 @@ describe("MergeEditor", () => {
 
 		const pathHeader = screen.getByTitle("COMMIT_EDITMSG");
 		expect(pathHeader).toHaveTextContent("COMMIT_EDITMSG");
+	});
+
+	it("全コンフリクト解決後も解決済み行の「戻す」ボタンを表示する", async () => {
+		render(
+			<MergeEditor
+				filePaths={{
+					local: "/tmp/local",
+					remote: "/tmp/remote",
+					base: null,
+					merged: "/tmp/merged",
+				}}
+			/>,
+		);
+
+		await screen.findByTestId("panel-MERGED");
+
+		// 全コンフリクトが解決済みの状態をストアへ反映する
+		const resolvedConflict: ConflictRegion = {
+			id: 0,
+			startLine: 0,
+			localStartLine: 1,
+			localEndLine: 2,
+			baseStartLine: null,
+			baseEndLine: null,
+			remoteStartLine: 3,
+			remoteEndLine: 4,
+			endLine: 4,
+			localContent: "A",
+			baseContent: null,
+			remoteContent: "B",
+			resolved: true,
+		};
+		act(() => {
+			useMergeStore.setState({
+				conflicts: [resolvedConflict],
+				allResolved: true,
+			});
+		});
+
+		// 未解決が 0 件でも解決済み行の revert（戻す）操作が UI から到達可能であること
+		expect(screen.getByRole("button", { name: "戻す" })).toBeInTheDocument();
+		expect(screen.getByText("解決済み")).toBeInTheDocument();
 	});
 });

@@ -693,6 +693,66 @@ describe("mergeStore", () => {
 		expect(result).toBe(false);
 	});
 
+	it("save は保存中に updateMergedContent が呼ばれた場合 isDirty を再計算する", async () => {
+		// writeFile の解決を手動制御し、await 中に MERGED パネルへ追加入力された状況を再現する
+		let resolveWrite: () => void = () => {};
+		vi.spyOn(ipc, "writeFile").mockImplementation(
+			() =>
+				new Promise((resolve) => {
+					resolveWrite = () => resolve({ ok: true, data: undefined as never });
+				}),
+		);
+
+		useMergeStore.setState({
+			mergedPath: "/tmp/merged",
+			mergedContent: "saved content",
+			isDirty: true,
+		});
+
+		// 保存途中で MERGED パネルに追加入力が入ったケース
+		const savePromise = useMergeStore.getState().save();
+		useMergeStore.getState().updateMergedContent("saved content + edit");
+
+		resolveWrite();
+		const ok = await savePromise;
+
+		expect(ok).toBe(true);
+		const state = useMergeStore.getState();
+		// 書き込んだ内容と最新の mergedContent が食い違うため isDirty は true のまま維持される
+		expect(state.mergedContent).toBe("saved content + edit");
+		expect(state.isDirty).toBe(true);
+		expect(state.isSaving).toBe(false);
+	});
+
+	it("save は保存中に updateMergedContent で保存対象と同じ内容へ戻された場合 isDirty を false にする", async () => {
+		let resolveWrite: () => void = () => {};
+		vi.spyOn(ipc, "writeFile").mockImplementation(
+			() =>
+				new Promise((resolve) => {
+					resolveWrite = () => resolve({ ok: true, data: undefined as never });
+				}),
+		);
+
+		useMergeStore.setState({
+			mergedPath: "/tmp/merged",
+			mergedContent: "saved content",
+			isDirty: true,
+		});
+
+		const savePromise = useMergeStore.getState().save();
+		// 一旦別内容に編集してから保存対象と同じ内容へ戻す
+		useMergeStore.getState().updateMergedContent("temp edit");
+		useMergeStore.getState().updateMergedContent("saved content");
+
+		resolveWrite();
+		await savePromise;
+
+		const state = useMergeStore.getState();
+		// ディスク内容と一致するため未保存差分は無く isDirty は false になる
+		expect(state.mergedContent).toBe("saved content");
+		expect(state.isDirty).toBe(false);
+	});
+
 	it("reload 時に解決済みコンフリクトが再出現した場合は古い resolved 状態を保持しない", async () => {
 		const reloadedContent = [
 			"<<<<<<< LOCAL",

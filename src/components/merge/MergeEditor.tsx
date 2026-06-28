@@ -311,8 +311,10 @@ export function MergeEditor({ filePaths }: MergeEditorProps) {
 				<CodexResolveButton />
 			</div>
 
-			{/* コンフリクト操作一覧 */}
-			{conflicts.filter((c) => !c.resolved).length > 0 && (
+			{/* コンフリクト操作一覧。解決済みコンフリクトの「戻す」ボタンも保持するため、
+			    未解決の有無ではなくコンフリクトが 1 件でも存在すれば表示する
+			    （全解決後も resolved な行から revert できるようにする） */}
+			{conflicts.length > 0 && (
 				<div className="flex flex-wrap items-center gap-2 border-b border-gray-200 px-3 py-1 dark:border-gray-700">
 					{conflicts.map((conflict) => (
 						<div key={conflict.id} className="flex items-center gap-1">

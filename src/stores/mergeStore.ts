@@ -407,7 +407,14 @@ export const useMergeStore = create<MergeState>((set, get) => {
 
 			const result = await ipc.writeFile(mergedPath, mergedContent);
 			if (result.ok) {
-				set({ isSaving: false, isDirty: false });
+				// 保存中（await ipc.writeFile 中）に MERGED パネルが手動編集されると
+				// updateMergedContent により mergedContent が更新され isDirty が true になる。
+				// 保存した内容と最新の mergedContent を突き合わせて isDirty を再計算し、
+				// 追加入力した未保存差分を isDirty: false で誤って消さない（fileStore.saveFile と同様）
+				set((state) => ({
+					isSaving: false,
+					isDirty: state.mergedContent !== mergedContent,
+				}));
 				return true;
 			}
 			set({ error: result.error, isSaving: false });
