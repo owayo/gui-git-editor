@@ -1,9 +1,10 @@
 #!/bin/bash
-# Set GUI Git Editor (dev build) as the default git editor
-# Usage: ./scripts/set-editor-dev.sh
+# GUI Git Editor（開発ビルド）を既定の Git エディタに設定する
+# 使い方: ./scripts/set-editor-dev.sh
 #
-# Note: Run `cd src-tauri && cargo build` or `npm run tauri:build:debug` to build the dev binary
-#       (`tauri dev` uses hot-reload and may not update the binary)
+# メモ: 開発用バイナリを作るには `cd src-tauri && cargo build` または
+#       `npm run tauri:build:debug` を実行する。
+#       `tauri dev` はホットリロードを使うため、バイナリが更新されない場合がある。
 
 set -e
 

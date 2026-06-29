@@ -166,6 +166,7 @@ pnpm test:all          # 全テスト（JS + Rust）
 - `fileStore` の読込失敗時に前回ファイル内容が残留しないことをテストでカバー
 - Rust 側の `format_unix_timestamp` の負値ガード、`shell_escape` のバッククォート・複合特殊文字、Codex iTerm2 連携の単一行入力検証をテストでカバー
 - `ConflictActions` の未解決時 LOCAL / REMOTE / 両方ボタン、解決済み時の戻すボタン、ストアアクション呼び出し、ブランチラベル反映をテストでカバー
+- `MonacoPanel` の空文字変更通知、`editorRef` 受け渡し、スクロール変更通知、テーマ/readonly オプション反映をテストでカバー
 - `MergeEditor` は LOCAL が空ファイルでも読み込み待ちに戻らず、3 パネルを表示する挙動と、マージ対象ファイルのパスをヘッダーに表示する挙動（ディレクトリ＋ファイル名の分割表示、ディレクトリを含まないファイル名のみのパス）をテストでカバー
 - `MergeEditor` は全コンフリクト解決後も解決済み行の「戻す」ボタンを表示し、`revertConflict` が UI から到達可能であることをテストでカバー
 - `MergeActionBar` の保存・キャンセル・ステータス表示、保存成功時の `exitApp(0)` 実行と失敗時の非実行をテストでカバー

@@ -5,7 +5,7 @@ description = "GUI Git Editor - A visual editor for Git operations"
 authors = ["owa"]
 edition = "2021"
 
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+# 追加キーと定義は Cargo manifest の公式ドキュメントを参照する。
 
 [lib]
 name = "gui_git_editor_lib"
@@ -19,7 +19,7 @@ tauri = { version = "2.11.3", features = [] }
 tauri-plugin-opener = "2.5.4"
 tauri-plugin-cli = "2.4.1"
 tauri-plugin-log = "2.8.0"
-log = "0.4.32"
+log = "0.4.33"
 serde = { version = "1.0.228", features = ["derive"] }
 serde_json = "1.0.150"
 thiserror = "2.0.18"

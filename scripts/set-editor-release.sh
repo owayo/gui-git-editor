@@ -1,8 +1,8 @@
 #!/bin/bash
-# Set GUI Git Editor (release build) as the default git editor
-# Usage: ./scripts/set-editor-release.sh
+# GUI Git Editor（リリースビルド）を既定の Git エディタに設定する
+# 使い方: ./scripts/set-editor-release.sh
 #
-# Note: The app must be installed in /Applications
+# メモ: アプリは /Applications にインストール済みである必要がある。
 
 set -e
 
