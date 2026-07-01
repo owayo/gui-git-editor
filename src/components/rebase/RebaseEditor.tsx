@@ -81,6 +81,13 @@ export function RebaseEditor() {
 	// コマンド変更や並べ替えに使うキーボードショートカット
 	const handleKeyDown = useCallback(
 		(event: KeyboardEvent) => {
+			// モーダル表示中は背後のエントリを操作せず、モーダル側に委ねる。
+			// (RewordModal / BackupRecoveryDialog のボタンや背景にフォーカスがある間に
+			//  d/s/f/Shift+F/Cmd+↑↓ 等が漏れて rebase プランを破壊するのを防ぐ)
+			if (document.querySelector("[aria-modal='true']")) {
+				return;
+			}
+
 			// 入力中はショートカットを無効化する
 			if (
 				event.target instanceof HTMLInputElement ||

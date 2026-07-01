@@ -332,11 +332,7 @@ export const useMergeStore = create<MergeState>((set, get) => {
 
 		updateMergedContent: (content) => {
 			const requestId = ++contentParseRequestId;
-			const {
-				conflicts: previousConflicts,
-				resolvedReplacements,
-				currentConflictIndex,
-			} = get();
+			const { conflicts: previousConflicts, resolvedReplacements } = get();
 
 			set({ mergedContent: content, isDirty: true });
 
@@ -362,7 +358,10 @@ export const useMergeStore = create<MergeState>((set, get) => {
 					parseResult.data.conflicts,
 					preservedResolved,
 					resolvedReplacements,
-					currentConflictIndex,
+					// parse 待ちの間に goToNext/PrevConflict でナビゲーションされうる。
+					// これらは contentParseRequestId を進めず上のガードを通過するため、
+					// キャプチャ時ではなく最新の選択位置を使い、ナビを巻き戻さない。
+					get().currentConflictIndex,
 					content,
 				);
 

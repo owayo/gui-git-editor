@@ -31,12 +31,13 @@ export function useConflictDecorations(
 				// 保存済み行アンカーを使って解決済み置換ブロックを装飾する。
 				const replacement = resolvedReplacements[conflict.id];
 				if (replacement === undefined) continue;
+				// 空文字へ解決した場合は残る行が無いため装飾しない。
+				// (0 行置換で startLine 行を塗ると、詰められた無関係な後続行を
+				//  誤って赤背景にしてしまう)
+				if (replacement.lineCount === 0) continue;
 
 				const startLine = replacement.startLine + 1;
-				const endLine =
-					replacement.lineCount > 0
-						? replacement.startLine + replacement.lineCount
-						: replacement.startLine + 1;
+				const endLine = replacement.startLine + replacement.lineCount;
 				decorations.push({
 					range: new monaco.Range(startLine, 1, endLine, 1),
 					options: {

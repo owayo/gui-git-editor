@@ -1507,4 +1507,45 @@ describe("mergeStore", () => {
 		expect(state.resolvedReplacements[1]).toBeDefined();
 		expect(state.allResolved).toBe(false);
 	});
+
+	it("updateMergedContent は parse 待ち中の goToNextConflict のナビゲーションを巻き戻さない", async () => {
+		// 2 件の未解決コンフリクトを用意する。
+		const conflicts = [
+			makeConflict(0, 0, "A", "B"),
+			makeConflict(1, 5, "C", "D"),
+		];
+		useMergeStore.setState({
+			mergedPath: "/tmp/merged",
+			mergedContent: "original",
+			conflicts,
+			currentConflictIndex: 0,
+		});
+
+		const newContent = "edited content";
+		// parse を解決前で止め、await 中にナビゲーションを割り込ませる。
+		let resolveParse: (
+			value: Awaited<ReturnType<typeof ipc.parseConflicts>>,
+		) => void = () => {};
+		vi.spyOn(ipc, "parseConflicts").mockReturnValue(
+			new Promise((resolve) => {
+				resolveParse = resolve;
+			}),
+		);
+
+		// 手動編集で parse を開始する（この時点の currentConflictIndex=0 をキャプチャ）。
+		useMergeStore.getState().updateMergedContent(newContent);
+		// parse 待ちの間に次のコンフリクトへ移動する（index 0 -> 1）。
+		useMergeStore.getState().goToNextConflict();
+		expect(useMergeStore.getState().currentConflictIndex).toBe(1);
+
+		// 同一構成のコンフリクトで parse を解決する。
+		resolveParse({
+			ok: true,
+			data: { conflicts, hasConflicts: true, totalConflicts: 2 },
+		});
+		await new Promise((resolve) => setTimeout(resolve, 0));
+
+		// キャプチャ時(0)ではなく最新のナビゲーション位置(1)が保持される。
+		expect(useMergeStore.getState().currentConflictIndex).toBe(1);
+	});
 });

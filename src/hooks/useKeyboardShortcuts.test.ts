@@ -454,4 +454,70 @@ describe("useKeyboardShortcuts", () => {
 			expect(handlers.onRedo).not.toHaveBeenCalled();
 		});
 	});
+
+	describe("モーダル表示中はアプリ全体のショートカットを抑止する", () => {
+		function withModal(run: () => void) {
+			const modal = document.createElement("div");
+			modal.setAttribute("aria-modal", "true");
+			document.body.appendChild(modal);
+			try {
+				run();
+			} finally {
+				document.body.removeChild(modal);
+			}
+		}
+
+		it("モーダル表示中は Cmd+S で onSave を呼ばない（保存+終了を防ぐ）", () => {
+			renderHook(() => useKeyboardShortcuts(handlers));
+
+			withModal(() => {
+				act(() => {
+					dispatchKeydown({ key: "s", metaKey: true });
+				});
+			});
+
+			expect(handlers.onSave).not.toHaveBeenCalled();
+		});
+
+		it("モーダル表示中は Cmd+Z で onUndo を呼ばない", () => {
+			renderHook(() => useKeyboardShortcuts(handlers));
+
+			withModal(() => {
+				act(() => {
+					dispatchKeydown({ key: "z", metaKey: true });
+				});
+			});
+
+			expect(handlers.onUndo).not.toHaveBeenCalled();
+		});
+
+		it("モーダル表示中は Cmd+Shift+Z / Cmd+Y で onRedo を呼ばない", () => {
+			renderHook(() => useKeyboardShortcuts(handlers));
+
+			withModal(() => {
+				act(() => {
+					dispatchKeydown({ key: "z", metaKey: true, shiftKey: true });
+					dispatchKeydown({ key: "y", metaKey: true });
+				});
+			});
+
+			expect(handlers.onRedo).not.toHaveBeenCalled();
+		});
+
+		it("モーダルが閉じた後は Cmd+S で onSave を呼ぶ", () => {
+			renderHook(() => useKeyboardShortcuts(handlers));
+
+			withModal(() => {
+				act(() => {
+					dispatchKeydown({ key: "s", metaKey: true });
+				});
+			});
+			expect(handlers.onSave).not.toHaveBeenCalled();
+
+			act(() => {
+				dispatchKeydown({ key: "s", metaKey: true });
+			});
+			expect(handlers.onSave).toHaveBeenCalledOnce();
+		});
+	});
 });

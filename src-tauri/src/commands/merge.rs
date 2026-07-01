@@ -111,7 +111,11 @@ async fn detect_branch_names(merged_path: &str) -> (String, String) {
         .await
     {
         Ok(output) if output.status.success() => {
-            String::from_utf8_lossy(&output.stdout).trim().to_string()
+            // trim() は末尾スペース等も削るため、末尾スペース付きの有効な
+            // ディレクトリ名を壊さないよう git 出力の改行のみを取り除く。
+            String::from_utf8_lossy(&output.stdout)
+                .trim_end_matches(['\n', '\r'])
+                .to_string()
         }
         _ => return fallback,
     };
@@ -299,7 +303,12 @@ fn parse_line_porcelain(output: &str) -> Vec<BlameLine> {
     for line in output.lines() {
         if line.starts_with('\t') {
             // 内容行は blame ブロックの終端を示す。
-            let date = format_unix_timestamp(current_time + current_tz_offset);
+            // 破損 metadata (author-time が i64 上限付近) でのオーバーフローを防ぐ。
+            // overflow-checks 有効ビルドでは素の加算が panic するため checked_add を使う。
+            let date = current_time
+                .checked_add(current_tz_offset)
+                .map(format_unix_timestamp)
+                .unwrap_or_else(|| "unknown".to_string());
             results.push(BlameLine {
                 line_number: current_line,
                 hash: if current_hash.len() >= 7 {
@@ -437,8 +446,10 @@ pub async fn git_blame_for_merge(
         });
     }
 
+    // trim() は末尾スペース等も削るため、末尾スペース付きの有効なディレクトリ名で
+    // canonicalize が失敗しないよう git 出力の改行のみを取り除く。
     let git_root = String::from_utf8_lossy(&root_output.stdout)
-        .trim()
+        .trim_end_matches(['\n', '\r'])
         .to_string();
 
     // Git ルートからの相対パスを計算する。

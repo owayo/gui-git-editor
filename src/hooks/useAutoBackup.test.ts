@@ -228,4 +228,48 @@ describe("useAutoBackup", () => {
 		await act(async () => {});
 		expect(mockedIpc.createBackup).toHaveBeenCalledTimes(2);
 	});
+
+	it("dirty→clean→dirty 往復後、stale cleanup が再作成された最新バックアップを消さない", async () => {
+		const first =
+			createDeferred<Awaited<ReturnType<typeof ipc.createBackup>>>();
+		const second =
+			createDeferred<Awaited<ReturnType<typeof ipc.createBackup>>>();
+		mockedIpc.createBackup
+			.mockReturnValueOnce(first.promise)
+			.mockReturnValueOnce(second.promise);
+
+		const { result, rerender } = renderHook(
+			({ isDirty }: { isDirty: boolean }) =>
+				useAutoBackup({ filePath: "/tmp/file.txt", isDirty }),
+			{ initialProps: { isDirty: true } },
+		);
+
+		// performBackup#1 が createBackup#1 を呼ぶ（未解決、世代 G0）。
+		await act(async () => {});
+		expect(mockedIpc.createBackup).toHaveBeenCalledTimes(1);
+
+		// dirty→clean で世代を進める。
+		rerender({ isDirty: false });
+		await act(async () => {});
+		// clean→dirty で同一パスの performBackup#2 をキューに積む（世代 G1）。
+		rerender({ isDirty: true });
+		await act(async () => {});
+
+		// create#1 を解決 → performBackup#1 は stale（G0 != G1）。
+		await act(async () => {
+			first.resolve({ ok: true, data: "/tmp/file.backup" });
+			await first.promise;
+		});
+		// create#2 を解決 → performBackup#2 は有効で hasBackup=true。
+		await act(async () => {
+			second.resolve({ ok: true, data: "/tmp/file.backup" });
+			await second.promise;
+		});
+		await act(async () => {});
+
+		// 削除実行時点でも同一ファイルが dirty のため、後続 performBackup が
+		// 作り直した最新バックアップを stale cleanup が削除してはならない。
+		expect(mockedIpc.deleteBackup).not.toHaveBeenCalled();
+		expect(result.current.hasBackup).toBe(true);
+	});
 });

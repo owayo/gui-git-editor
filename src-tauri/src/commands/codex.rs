@@ -73,10 +73,13 @@ async fn open_codex_terminal_macos(merged_path: String) -> Result<(), AppError> 
     ensure_single_line("project directory", &project_dir)?;
     ensure_single_line("codex request", &request)?;
 
+    // iTerm2 の write text で対話シェルへ 1 行として送られるため、! のヒストリ展開まで
+    // 無効化できるシングルクォートで各引数を囲む（ダブルクォート内では ! が展開され、
+    // パスに ! を含むと codex コマンドが event not found で丸ごと拒否される）。
     let codex_cmd = format!(
-        "codex exec --full-auto --cd \"{}\" \"{}\"",
-        shell_escape(&project_dir),
-        shell_escape(&request),
+        "codex exec --full-auto --cd {} {}",
+        shell_single_quote(&project_dir),
+        shell_single_quote(&request),
     );
 
     let apple_script = format!(
@@ -151,13 +154,12 @@ fn ensure_single_line(label: &str, value: &str) -> Result<(), AppError> {
     Ok(())
 }
 
-/// ダブルクォートされた shell 引数の中で安全に使えるよう文字列をエスケープする。
+/// シングルクォートで囲んで shell 引数として安全に渡せる形にする。
+/// シングルクォート内は `!`（ヒストリ展開）や `$` `` ` `` を含め一切展開されないため、
+/// 対話シェルへ write text で送っても安全。内部の `'` は `'\''` で一旦閉じて再開する。
 #[cfg(target_os = "macos")]
-fn shell_escape(s: &str) -> String {
-    s.replace('\\', "\\\\")
-        .replace('"', "\\\"")
-        .replace('$', "\\$")
-        .replace('`', "\\`")
+fn shell_single_quote(s: &str) -> String {
+    format!("'{}'", s.replace('\'', "'\\''"))
 }
 
 /// AppleScript のダブルクォート文字列内で安全に使えるよう文字列をエスケープする。
@@ -172,16 +174,32 @@ mod tests {
 
     #[test]
     #[cfg(target_os = "macos")]
-    fn test_shell_escape_basic() {
-        assert_eq!(shell_escape("hello world"), "hello world");
+    fn test_shell_single_quote_basic() {
+        assert_eq!(shell_single_quote("hello world"), "'hello world'");
     }
 
     #[test]
     #[cfg(target_os = "macos")]
-    fn test_shell_escape_special_chars() {
-        assert_eq!(shell_escape("he\"llo"), "he\\\"llo");
-        assert_eq!(shell_escape("$HOME"), "\\$HOME");
-        assert_eq!(shell_escape("back\\slash"), "back\\\\slash");
+    fn test_shell_single_quote_special_chars() {
+        // シングルクォート内では特殊文字はすべてリテラル。
+        assert_eq!(shell_single_quote("he\"llo"), "'he\"llo'");
+        assert_eq!(shell_single_quote("$HOME"), "'$HOME'");
+        assert_eq!(shell_single_quote("back\\slash"), "'back\\slash'");
+    }
+
+    #[test]
+    #[cfg(target_os = "macos")]
+    fn test_shell_single_quote_neutralizes_bang() {
+        // ! を含むパスでもヒストリ展開されないようシングルクォートで囲む。
+        assert_eq!(shell_single_quote("important!.txt"), "'important!.txt'");
+        assert_eq!(shell_single_quote("a!!b"), "'a!!b'");
+    }
+
+    #[test]
+    #[cfg(target_os = "macos")]
+    fn test_shell_single_quote_embedded_single_quote() {
+        // 内部の ' は '\'' で閉じて再開する。
+        assert_eq!(shell_single_quote("a'b"), "'a'\\''b'");
     }
 
     #[test]
@@ -206,17 +224,17 @@ mod tests {
 
     #[test]
     #[cfg(target_os = "macos")]
-    fn test_shell_escape_backtick() {
-        assert_eq!(shell_escape("run `cmd`"), "run \\`cmd\\`");
+    fn test_shell_single_quote_backtick() {
+        assert_eq!(shell_single_quote("run `cmd`"), "'run `cmd`'");
     }
 
     #[test]
     #[cfg(target_os = "macos")]
-    fn test_shell_escape_combined() {
-        // 複数の特殊文字を含むパスのエスケープ
+    fn test_shell_single_quote_combined() {
+        // 複数の特殊文字を含むパスもシングルクォート内でリテラル化される。
         assert_eq!(
-            shell_escape("path with \"quotes\" and $var"),
-            "path with \\\"quotes\\\" and \\$var"
+            shell_single_quote("path with \"quotes\" and $var"),
+            "'path with \"quotes\" and $var'"
         );
     }
 }

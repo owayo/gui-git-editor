@@ -28,6 +28,13 @@ export function useKeyboardShortcuts({
 }: ShortcutHandlers) {
 	const handleKeyDown = useCallback(
 		(event: KeyboardEvent) => {
+			// モーダル表示中はアプリ全体のショートカットを抑止し、モーダル側に委ねる。
+			// (保存+終了や undo/redo が背後で発火し、編集中のモーダル内容や
+			//  バックアップ復元の選択を失わせるのを防ぐ)
+			if (document.querySelector("[aria-modal='true']")) {
+				return;
+			}
+
 			const { ctrlKey, metaKey, shiftKey } = event;
 			// Shift 併用時の英字キーは event.key が大文字になる（例: Shift+Z は "Z"）。
 			// 比較を安定させるため小文字へ正規化する。
@@ -42,11 +49,8 @@ export function useKeyboardShortcuts({
 				return;
 			}
 
-			// Escape: キャンセル（モーダルが開いている場合はモーダル側に委ねる）
+			// Escape: キャンセル
 			if (key === "escape") {
-				if (document.querySelector("[aria-modal='true']")) {
-					return;
-				}
 				event.preventDefault();
 				onCancel?.();
 				return;

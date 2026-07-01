@@ -19,14 +19,10 @@ function findContentLineRanges(
 			side === "local" ? conflict.localContent : conflict.remoteContent;
 		if (!content) continue;
 
+		// Rust parser は行を join("\n") で連結し末尾に改行を付けないため、
+		// split 後の末尾 "" は区切り由来ではなく実データの空行。pop すると
+		// コンフリクト内容末尾の空行が装飾から漏れるため取り除かない。
 		const contentLines = content.split("\n");
-		// 内容が \n で終わる場合の末尾空行を取り除く。
-		if (
-			contentLines.length > 0 &&
-			contentLines[contentLines.length - 1] === ""
-		) {
-			contentLines.pop();
-		}
 		if (contentLines.length === 0) continue;
 
 		for (let i = searchFrom; i <= fileLines.length - contentLines.length; i++) {

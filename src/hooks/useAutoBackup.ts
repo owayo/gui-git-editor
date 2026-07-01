@@ -72,7 +72,19 @@ export function useAutoBackup({
 				!enabledRef.current;
 
 			if (isStale) {
-				await enqueueBackupOp(() => deleteBackup(requestedFilePath));
+				// 削除は実行時点で再評価する。dirty→clean→dirty の往復で世代だけ進み、
+				// 同一ファイルが再び dirty になった場合、後続の performBackup が同じ
+				// .backup を作り直して hasBackup=true にしているため、ここで無条件に
+				// 消すと hasBackup とディスク状態が食い違う。
+				await enqueueBackupOp(async () => {
+					const stillWanted =
+						filePathRef.current === requestedFilePath &&
+						isDirtyRef.current &&
+						enabledRef.current;
+					if (!stillWanted) {
+						await deleteBackup(requestedFilePath);
+					}
+				});
 				return;
 			}
 
