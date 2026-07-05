@@ -84,6 +84,7 @@ pnpm test:all          # 全テスト（JS + Rust）
 - `mergeStore.save` は保存完了時に保存した `mergedContent` と最新の `mergedContent` を突き合わせて `isDirty` を再計算する。`await ipc.writeFile` 中に MERGED パネルが手動編集（`updateMergedContent`）された場合でも、追加入力した未保存差分を `isDirty: false` で誤って消さない（`fileStore.saveFile` と同じパターン）
 - `mergeStore.fetchBlame` は呼び出しごとに `blameRequestId` を進め、応答前に新しい `initMerge` / `fetchBlame` が始まった場合や `mergedPath` が変わった場合は古い blame で上書きしない。`initMerge` 開始時は即座に `blameRequestId` を進めて `localBlame` / `remoteBlame` を `null` にリセットし、新ファイルに旧 blame が一時的に残らない
 - `App` は通常ファイル読み込み後に `checkBackupExists` で既存 `.backup` を検出し、`BackupRecoveryDialog` で復元/破棄を選ばせる。バックアップ確認中は `useAutoBackup` を無効化し、前回セッションの `.backup` を新しい自動バックアップで上書きしない。commit/rebase 内容の parse と serialize 結果の保存では `""` を有効な内容として扱い、失敗判定は `null` のみで行う
+- `ActionBar` は dirty 表示と保存可否を分離する。commit/rebase は Git エディタの正常終了として未変更でも保存できる必要があるため `canSaveWhenClean` で保存ボタンを有効化し、未変更時に「未保存の変更があります」を表示しない
 - 自動バックアップは元ファイルと同じディレクトリには置かず、OS 標準のキャッシュ領域（macOS: `~/Library/Caches/gui-git-editor/backups/`、Linux: `$XDG_CACHE_HOME/gui-git-editor/backups/` または `~/.cache/gui-git-editor/backups/`、Windows: `%LOCALAPPDATA%/gui-git-editor/backups/`）へ隔離する。バックアップ名は元パスのハッシュ + basename で一意化する。これは `git rebase -i` が `.git/rebase-merge/git-rebase-todo.backup` を自身の rebase 状態管理用に作成しており、同じ場所に gui-git-editor が `.backup` を作ると衝突して「毎回バックアップがある」と誤検出してしまう問題を回避するため。`check_backup_exists` / `delete_backup` も同隔離パスを参照し、git 内部の `.backup` を一切触らない
 - `stagingStore` と `commitDiffStore` と `commitStore.validate` は request id で非同期レスポンスを突き合わせ、古い diff/status/validation 応答が新しい結果を上書きしない
 - `stagingStore` は同一パスが staged/unstaged の両方に存在する場合でも、ユーザーが選択中の側を維持しつつ、status 更新後の diff を再取得して stale 表示を残さない。`fetchStatus` 開始時に進行中の diff 応答を無効化し、status 取得失敗後に古い diff がエラーや表示を上書きしないようにする。`fetchStatus` のエラーパスでは `isLoadingDiff` もリセットし、スピナーの永続表示を防止する
@@ -93,7 +94,8 @@ pnpm test:all          # 全テスト（JS + Rust）
 - `useKeyboardShortcuts` と `useMergeKeyboardShortcuts` の Escape ハンドラは `aria-modal` 要素の存在を確認し、モーダルが開いている場合はモーダル側に処理を委ねてアプリ終了を防止する
 - Rust 側の staging コマンドは `git status --porcelain=v1 -z` を使い、空白を含むパスや rename のパスを引用符付き文字列として誤解釈しない
 - Rust 側の commit diff コマンドは `git diff-tree --name-status -z -M -C` を使い、タブを含むパスや rename/copy をタブ区切りテキストとして誤解釈しない
-- `pnpm-workspace.yaml` の `overrides` で `monaco-editor` 経由の `dompurify` をパッチ済み版へ固定し、production 依存の既知 XSS 脆弱性が再混入しないようにする。pnpm 11 の build script 承認は同ファイルの `allowBuilds` で管理し、現時点では `esbuild` のみ明示許可する
+- `pnpm-workspace.yaml` の `overrides` で `monaco-editor` 経由の `dompurify` と `jsdom` / `vitest` 経由の `undici` をパッチ済み版へ固定し、既知脆弱性が再混入しないようにする。pnpm 11 の build script 承認は同ファイルの `allowBuilds` で管理し、現時点では `esbuild` のみ明示許可する
+- Rust 側は Tauri 経由の `plist` を lockfile で `1.10.0` 以上へ解決し、`quick-xml` は RustSec の `RUSTSEC-2026-0194` / `RUSTSEC-2026-0195` を回避する `0.41.0` 以上を維持する
 - Rebase の undo / redo は `isUndoRedoRef` フラグで `pushSnapshot` をスキップし、redo 履歴が即座にクリアされる問題を防止する
 - `stagingStore` と `commitDiffStore` の `selectFile` は開始時・成功時に `error` をクリアし、diff 取得エラー時は `error` を設定して失敗を握りつぶさない
 - Merge の3パネルリサイズは左右どちらのセパレータでも下限クランプ時の余剰をもう一方のパネルに反映し、合計幅を保存する

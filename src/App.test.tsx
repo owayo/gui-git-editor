@@ -270,6 +270,11 @@ describe("App", () => {
 			});
 		});
 
+		expect(
+			screen.queryByText("未保存の変更があります"),
+		).not.toBeInTheDocument();
+		expect(screen.getByRole("button", { name: "保存" })).not.toBeDisabled();
+
 		await user.click(screen.getByRole("button", { name: "保存" }));
 
 		await waitFor(() => {
@@ -319,9 +324,12 @@ describe("App", () => {
 			});
 		});
 
-		act(() => {
-			useRebaseStore.setState({ isDirty: true });
-		});
+		expect(
+			screen.queryByText("未保存の変更があります"),
+		).not.toBeInTheDocument();
+		expect(
+			screen.getByRole("button", { name: "Rebaseを開始" }),
+		).not.toBeDisabled();
 
 		await user.click(screen.getByRole("button", { name: "Rebaseを開始" }));
 

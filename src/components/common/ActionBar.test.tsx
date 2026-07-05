@@ -46,6 +46,16 @@ describe("ActionBar", () => {
 		expect(saveButton).toBeDisabled();
 	});
 
+	it("allows save when clean without showing dirty status", () => {
+		render(<ActionBar {...defaultProps} canSaveWhenClean={true} />);
+
+		const saveButton = screen.getByRole("button", { name: /保存/ });
+		expect(saveButton).not.toBeDisabled();
+		expect(
+			screen.queryByText("未保存の変更があります"),
+		).not.toBeInTheDocument();
+	});
+
 	it("disables save button when saving", () => {
 		render(<ActionBar {...defaultProps} isDirty={true} isSaving={true} />);
 

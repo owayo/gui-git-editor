@@ -15,6 +15,8 @@ interface ActionBarProps {
 	canRedo?: boolean;
 	isSaving?: boolean;
 	isDirty?: boolean;
+	/** 未変更でも保存ボタンを有効にする。Git エディタの正常終了用途で使う。 */
+	canSaveWhenClean?: boolean;
 	saveLabel?: string;
 	/** 検証エラーメッセージ。存在する場合は保存ボタンを無効にする。 */
 	validationError?: string | null;
@@ -29,10 +31,12 @@ export function ActionBar({
 	canRedo = false,
 	isSaving = false,
 	isDirty = false,
+	canSaveWhenClean = false,
 	saveLabel = "保存",
 	validationError = null,
 }: ActionBarProps) {
-	const canSave = isDirty && !isSaving && !validationError;
+	const canSave =
+		(isDirty || canSaveWhenClean) && !isSaving && !validationError;
 	return (
 		<div className="flex items-center justify-between border-t border-gray-200 bg-gray-100 px-4 py-2 dark:border-gray-700 dark:bg-gray-800">
 			{/* 左側: Undo/Redo */}

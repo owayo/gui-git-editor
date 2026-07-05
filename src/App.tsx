@@ -393,9 +393,10 @@ function App() {
 					fileType === "rebase_todo"
 						? rebaseIsDirty
 						: isCommitType
-							? true
+							? commitIsDirty
 							: isDirty
 				}
+				canSaveWhenClean={fileType === "rebase_todo" || isCommitType}
 				saveLabel={fileType === "rebase_todo" ? "Rebaseを開始" : "保存"}
 				validationError={
 					fileType === "rebase_todo" ? getValidationError() : null
