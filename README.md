@@ -34,7 +34,7 @@ Interactive rebase、commit message編集、squash、rewordなどをすべてサ
 - 🧩 **Git標準todo互換** - `fixup -C/-c <commit>` と `update-ref <ref>` を壊さず保持
 - 🤖 **AIコミットメッセージ** - [git-smart-commit](https://github.com/owayo/git-smart-commit) 連携で自動生成
 - 🔄 **Undo/Redo** - リスト操作の取り消し・やり直し。入力欄ではブラウザ/エディタ本来の undo/redo を優先
-- 🛟 **自動バックアップ** - 未保存変更を `.backup` に退避し、次回起動時に復元/破棄を選択可能
+- 🛟 **自動バックアップ** - 未保存変更を OS 標準のキャッシュ領域へ隔離して退避し、次回起動時に復元/破棄を選択可能
 - 🌙 **ダークモード** - システムテーマに自動追従
 - 🔀 **Merge Tool** - 3パネルビューでコンフリクト解決（LOCAL / MERGED / REMOTE）
 - 🧭 **Worktree対応** - linked worktree でもマージ元 ref とブランチラベルを正しく判定
@@ -213,7 +213,7 @@ pnpm check                # Biome lint + format
 pnpm typecheck            # TypeScript 型チェック
 ```
 
-主要UIコンポーネント（`ActionBar`, `SubjectInput`, `FileList`, `FileDiffViewer`, `TrailersDisplay`, `CommitFileList`, `RebaseEntryList`, `RebaseEntryItem`, `ConflictNavigator`, `MonacoPanel`, `BackupRecoveryDialog`, `BodyTextarea`, `ErrorDisplay`, `FileStatusBadge`）に加えて、`FileDiffViewer` の diff ファイルヘッダー色分け、`MonacoPanel` の空文字変更通知・editor ref 受け渡し・スクロール通知、`App` の既存バックアップ検出・復元・保存成功時のバックアップ削除・バックアップ確認中の自動バックアップ抑制、空文字の commit/rebase 内容の解析と空文字の保存、未変更 commit/rebase の保存ボタン有効化と未保存表示の抑制、`MergeEditor` の空 LOCAL ファイル表示、`mergeStore` のコンフリクト解決/復元ロジック（diff3 revert、空側コンフリクト、ファイル全体が空文字へ解決された場合の revert、MERGED 手動編集後の再解析と最新位置での解決を含む）、`fileStore` のバックアップパス整合性と読込失敗時の stale 内容クリア、`stagingStore` / `commitDiffStore` の競合した非同期応答の無視、diff 取得エラー表示、status 更新後の diff 再取得もテストで検証しています。
+主要UIコンポーネント（`ActionBar`, `SubjectInput`, `FileList`, `FileDiffViewer`, `TrailersDisplay`, `CommitFileList`, `RebaseEntryList`, `RebaseEntryItem`, `ConflictNavigator`, `MonacoPanel`, `BackupRecoveryDialog`, `BodyTextarea`, `ErrorDisplay`, `FileStatusBadge`）に加えて、`FileDiffViewer` の diff ファイルヘッダー色分け、`MonacoPanel` の空文字変更通知・editor ref 受け渡し・スクロール通知、`useSidePanelConflictDecorations` の同一内容コンフリクトの出現順対応・装飾解除・Monaco API 未提供時の安全性、`App` の既存バックアップ検出・復元・保存成功時のバックアップ削除・バックアップ確認中の自動バックアップ抑制、空文字の commit/rebase 内容の解析と空文字の保存、未変更 commit/rebase の保存ボタン有効化と未保存表示の抑制、`MergeEditor` の空 LOCAL ファイル表示、`mergeStore` のコンフリクト解決/復元ロジック（diff3 revert、空側コンフリクト、ファイル全体が空文字へ解決された場合の revert、MERGED 手動編集後の再解析と最新位置での解決を含む）、`fileStore` のバックアップパス整合性と読込失敗時の stale 内容クリア、`stagingStore` / `commitDiffStore` の競合した非同期応答の無視、diff 取得エラー表示、status 更新後の diff 再取得もテストで検証しています。
 `utils/rebase.ts` と `rebaseStore` では、特殊コマンドを含む rebase todo に対する `fixup` / `squash` の検証と `squashAll` の安全な変換も確認しています。
 `useKeyboardShortcuts` のクロスプラットフォームキーバインドと、input / textarea では undo/redo を横取りしない挙動、`useMergeKeyboardShortcuts` のマージ画面キーバインド（保存/キャンセル/コンフリクト移動/モーダル表示中の Escape 抑制）、`useAutoBackup` の自動バックアップ間隔・dirty 状態連動・クリーンアップに加えて、保存完了後に遅れて完了したバックアップの自動削除と `hasBackup` の状態同期もカバーしています。
 `rebaseStore` の `parseContent` / `serialize` の IPC 連携（成功・失敗・空エントリ）、`mergeStore` の `acceptRemote` / `acceptBoth` / コンフリクトナビゲーション / `save`、`themeStore` のシステムテーマ変更イベントリスナーもテストでカバーしています。
@@ -221,13 +221,13 @@ pnpm typecheck            # TypeScript 型チェック
 `ipc.ts` の全 IPC ラッパーに対し、`invoke` に渡す引数キーが camelCase であることを検証し、snake_case 混入の再発を防止しています。
 `commitStore` の `validate` request-ID ガード（古い応答の破棄、連続入力時の最新結果のみ反映）と、`RewordModal` の splitMessage/joinMessage ヘルパー・キーボードショートカット（Escape/Cmd+Enter）・git-smart-commit 連携による AI 生成の成功/失敗フローもテストでカバーしています。
 Rust 側では、コミットメッセージの subject/body 行長を Unicode 文字数で検証するケース、rebase todo の `merge -c` / `merge -C` と `fixup -C` / `fixup -c` を保存後も区別して保持するケース、`update-ref` を特殊コマンドとして保持するケース、`git diff-tree --name-status -z` の NUL 区切り出力でタブを含むパスや rename を正しく解析するケースをテストしています。
-ファイル I/O コマンドの読み込み・欠損ファイル・バックアップ復元ライフサイクルと、linked worktree の Git directory 解決も Rust 側テストで検証しています。
+ファイル I/O コマンドの読み込み・欠損ファイル・バックアップ復元ライフサイクルに加え、バックアップ作成先の権限エラーを読み元の問題として誤表示しないこと、復元後のバックアップ削除失敗を通知すること、linked worktree の Git directory 解決も Rust 側テストで検証しています。
 
-依存監査は `pnpm audit --audit-level moderate` と `cargo audit --no-fetch` で確認します。`monaco-editor` 経由の `dompurify` と、`jsdom` / `vitest` 経由の `undici` は `pnpm-workspace.yaml` の `overrides` でパッチ済み版へ固定しています。Rust 側は Tauri 経由の `plist` / `quick-xml` を lockfile で脆弱性修正版に解決しています。pnpm 11 の build script 承認は同ファイルの `allowBuilds` で管理し、現時点では `esbuild` のみ明示許可しています。
+依存監査は `pnpm audit --audit-level low` と `cargo audit --no-fetch` で確認します。`monaco-editor` 経由の `dompurify` は `^3.4.12`、`jsdom` / `vitest` 経由の `undici` は `7.28.0` を `pnpm-workspace.yaml` の `overrides` で固定しています。Rust 側は Tauri 経由の `plist` / `quick-xml` を lockfile で脆弱性修正版に解決しています。pnpm 11 の build script 承認は同ファイルの `allowBuilds` で管理し、現時点では `esbuild` のみ明示許可しています。
 
 ### Tech Stack
 
-- **Frontend**: React 19, TypeScript 6, Tailwind CSS v4, Zustand 5, Monaco Editor, dnd-kit
+- **Frontend**: React 19, TypeScript 7, Tailwind CSS v4, Zustand 5, Monaco Editor, dnd-kit
 - **Backend**: Rust, Tauri v2
 - **Build**: Vite 8
 - **Test**: Vitest, Testing Library

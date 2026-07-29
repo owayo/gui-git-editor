@@ -4,7 +4,7 @@ Git操作（rebase、コミットメッセージ編集、マージコンフリ�
 
 ## Tech Stack
 
-- **Frontend**: React 19 + TypeScript 6 + Tailwind CSS v4 + Zustand + Monaco Editor + dnd-kit
+- **Frontend**: React 19 + TypeScript 7 + Tailwind CSS v4 + Zustand + Monaco Editor + dnd-kit
 - **Backend**: Rust + Tauri v2
 - **Build**: Vite 8
 - **Linter/Formatter**: Biome (`biome.jsonc`、インデント: タブ、クォート: ダブル)
@@ -94,13 +94,14 @@ pnpm test:all          # 全テスト（JS + Rust）
 - `useKeyboardShortcuts` と `useMergeKeyboardShortcuts` の Escape ハンドラは `aria-modal` 要素の存在を確認し、モーダルが開いている場合はモーダル側に処理を委ねてアプリ終了を防止する
 - Rust 側の staging コマンドは `git status --porcelain=v1 -z` を使い、空白を含むパスや rename のパスを引用符付き文字列として誤解釈しない
 - Rust 側の commit diff コマンドは `git diff-tree --name-status -z -M -C` を使い、タブを含むパスや rename/copy をタブ区切りテキストとして誤解釈しない
-- `pnpm-workspace.yaml` の `overrides` で `monaco-editor` 経由の `dompurify` と `jsdom` / `vitest` 経由の `undici` をパッチ済み版へ固定し、既知脆弱性が再混入しないようにする。pnpm 11 の build script 承認は同ファイルの `allowBuilds` で管理し、現時点では `esbuild` のみ明示許可する
+- `pnpm-workspace.yaml` の `overrides` で `monaco-editor` 経由の `dompurify` を `^3.4.12`、`jsdom` / `vitest` 経由の `undici` を `7.28.0` に固定し、既知脆弱性が再混入しないようにする。pnpm 11 の build script 承認は同ファイルの `allowBuilds` で管理し、現時点では `esbuild` のみ明示許可する
 - Rust 側は Tauri 経由の `plist` を lockfile で `1.10.0` 以上へ解決し、`quick-xml` は RustSec の `RUSTSEC-2026-0194` / `RUSTSEC-2026-0195` を回避する `0.41.0` 以上を維持する
 - Rebase の undo / redo は `isUndoRedoRef` フラグで `pushSnapshot` をスキップし、redo 履歴が即座にクリアされる問題を防止する
 - `stagingStore` と `commitDiffStore` の `selectFile` は開始時・成功時に `error` をクリアし、diff 取得エラー時は `error` を設定して失敗を握りつぶさない
 - Merge の3パネルリサイズは左右どちらのセパレータでも下限クランプ時の余剰をもう一方のパネルに反映し、合計幅を保存する
 - `check_codex_available` / `open_codex_terminal_macos` / `resolve_git_root` は `tokio::process::Command` で非同期実行し、Tokio ワーカースレッドのブロックを防止する（`check_git_sc_available` と整合）
 - Rust 側の file / merge コマンドは `tokio::fs` を使用してファイル I/O を非同期実行し、Tokio ワーカースレッドのブロックを防止する。事前 `Path::exists()` チェックは行わず読み込みエラーから `FileNotFound` を派生させて TOCTOU を回避する。書き込み・copy の destination 側エラーはパス誤導を避けるため `IoError` に分類する
+- `create_backup_in` の `fs::copy` 失敗は `NotFound` のみ読み元の `FileNotFound` として分類し、読み元と書き込み先のどちらが原因か断定できないその他のエラーは、正常な読み元パスを表示しない `IoError` とする。`restore_backup` は復元後のバックアップ削除で `NotFound` を成功扱いにし、それ以外の削除失敗はバックアップパス付きエラーとして通知する
 - `read_merge_files` は LOCAL / REMOTE / BASE / MERGED の読み込みを `tokio::try_join!` で並行実行し、ブロッキングプール上の待ちを重ねる。I/O 失敗時はブランチ名取得 (`detect_branch_names` の git 子プロセス起動) を行わないよう、ファイル読み込み成功後に逐次実行する
 - `check_backup_exists` は metadata 取得エラー（権限不足や symlink loop 等）を `Path::exists()` 同様 false 扱いとし、呼び出し側へ伝搬しない。`delete_backup` は NotFound を成功扱いとして冪等性を保つ
 - `AppError::from_io_with_path` ヘルパーは `std::io::Error` の `NotFound` / `PermissionDenied` を呼び出し元のパス付きで分類する。`From<std::io::Error>` 経由ではパスが失われるため、ファイル操作の文脈ではこちらを使う
@@ -135,6 +136,7 @@ pnpm test:all          # 全テスト（JS + Rust）
 - Rust 側の `determine_merge_ref` テストで、local 側の HEAD 返却・remote 側の MERGE_HEAD 優先・REBASE_HEAD/CHERRY_PICK_HEAD へのフォールバック・state 不在時のエラー返却をカバー
 - Rust 側の `resolve_git_dir` テストで、linked worktree の `.git` ファイルから実体の Git directory を解決し remote 側 state ファイルを参照できることをカバー
 - Rust 側の file コマンドテストで、ファイル読み込み時の種別判定、存在しないファイルのパス付きエラー、バックアップ作成・復元・削除のライフサイクルをカバー（さらに `check_backup_exists` が missing 時に `None` を返すこと、`delete_backup` が NotFound を冪等に扱うこと、`create_backup` が存在しないファイルに対し `FileNotFound` を返すこと、`restore_backup` の destination 側 `PermissionDenied` で `target_path` をエラーに残すことを追加でカバー）。さらに、`git rebase -i` が同居させる `.git/rebase-merge/git-rebase-todo.backup` を gui-git-editor のバックアップが上書き / 誤検出 / 誤削除しないこと、`backup_path_in` が同一パスに対し決定的、別パスに対し別パスを返し basename を末尾に保持することもカバー
+- Rust 側の file コマンドテストで、バックアップ作成先が書き込み不能な場合に読み元パスを `PermissionDenied` と誤表示しないこと、および復元後のバックアップ削除失敗を握りつぶさず、復元済みの対象と残存バックアップを確認できることをカバー
 - Rust 側の `error::from_io_with_path` テストで、`NotFound` / `PermissionDenied` / その他の io::Error からのエラー分類と、パス情報の保持をカバー
 - Rust 側の merge コマンドテストで、`read_file_content` の成功・FileNotFound パス保持、`path_exists` / `path_is_dir` のディレクトリ・ファイル・欠落判定、`read_merge_files` の 3 ファイル並列読み込みと欠落ファイル時の `FileNotFound` 派生をカバー
 - `mergeStore` の revert で LOCAL / REMOTE / diff3 BASE が空のコンフリクトを余計な空行なしで復元する動作と、ファイル全体が空文字へ解決されたコンフリクトを末尾改行なしで復元する動作をテストでカバー
@@ -169,6 +171,7 @@ pnpm test:all          # 全テスト（JS + Rust）
 - Rust 側の `format_unix_timestamp` の負値ガード、`shell_escape` のバッククォート・複合特殊文字、Codex iTerm2 連携の単一行入力検証をテストでカバー
 - `ConflictActions` の未解決時 LOCAL / REMOTE / 両方ボタン、解決済み時の戻すボタン、ストアアクション呼び出し、ブランチラベル反映をテストでカバー
 - `MonacoPanel` の空文字変更通知、`editorRef` 受け渡し、スクロール変更通知、テーマ/readonly オプション反映をテストでカバー
+- `useSidePanelConflictDecorations` は同一内容のコンフリクトが複数ある場合の出現順対応、アンマウント時の装飾解除、Monaco API 未提供時の安全な無処理をテストでカバー
 - `MergeEditor` は LOCAL が空ファイルでも読み込み待ちに戻らず、3 パネルを表示する挙動と、マージ対象ファイルのパスをヘッダーに表示する挙動（ディレクトリ＋ファイル名の分割表示、ディレクトリを含まないファイル名のみのパス）をテストでカバー
 - `MergeEditor` は全コンフリクト解決後も解決済み行の「戻す」ボタンを表示し、`revertConflict` が UI から到達可能であることをテストでカバー
 - `MergeActionBar` の保存・キャンセル・ステータス表示、保存成功時の `exitApp(0)` 実行と失敗時の非実行をテストでカバー

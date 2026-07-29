@@ -114,4 +114,52 @@ describe("useSidePanelConflictDecorations", () => {
 		expect(decos[0].range.startLineNumber).toBe(2);
 		expect(decos[0].range.endLineNumber).toBe(3);
 	});
+
+	it("同じ内容の複数コンフリクトをファイル順に装飾する", () => {
+		const conflicts = [
+			baseConflict({ id: 0, localContent: "same" }),
+			baseConflict({ id: 1, localContent: "same" }),
+		];
+		const decos = renderRegionDecorations(
+			"head\nsame\nmiddle\nsame\ntail",
+			conflicts,
+			"local",
+		);
+
+		expect(decos).toHaveLength(2);
+		expect(decos[0].range.startLineNumber).toBe(2);
+		expect(decos[1].range.startLineNumber).toBe(4);
+	});
+
+	it("アンマウント時に登録済み装飾を解除する", () => {
+		const { unmount } = renderHook(() =>
+			useSidePanelConflictDecorations(
+				{ current: mockEditor } as never,
+				"head\na\ntail",
+				[baseConflict({ localContent: "a" })],
+				"local",
+				true,
+			),
+		);
+
+		expect(mockEditor.deltaDecorations).toHaveBeenCalledTimes(1);
+		unmount();
+		expect(mockEditor.deltaDecorations).toHaveBeenLastCalledWith(["id-0"], []);
+	});
+
+	it("Monaco API が未設定なら装飾処理を開始しない", () => {
+		(window as unknown as { monaco?: unknown }).monaco = undefined;
+
+		renderHook(() =>
+			useSidePanelConflictDecorations(
+				{ current: mockEditor } as never,
+				"head\na\ntail",
+				[baseConflict({ localContent: "a" })],
+				"local",
+				true,
+			),
+		);
+
+		expect(mockEditor.deltaDecorations).not.toHaveBeenCalled();
+	});
 });

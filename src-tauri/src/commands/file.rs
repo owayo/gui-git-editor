@@ -44,6 +44,18 @@ fn map_write_error(path: &str, err: std::io::Error) -> AppError {
     }
 }
 
+fn map_backup_copy_error(source_path: &str, err: std::io::Error) -> AppError {
+    match err.kind() {
+        // 親ディレクトリは作成済みなので、NotFound は読み元の消失として扱う。
+        std::io::ErrorKind::NotFound => AppError::from_io_with_path(source_path.to_string(), err),
+        // copy は読み元と書き込み先のどちらで失敗したか判別できないため、
+        // 正常な読み元パスを問題箇所として表示しない。
+        _ => AppError::IoError {
+            message: err.to_string(),
+        },
+    }
+}
+
 /// 内容をファイルへ書き込む。
 #[tauri::command]
 pub async fn write_file(path: String, content: String) -> Result<(), AppError> {
@@ -121,11 +133,11 @@ async fn create_backup_in(base: &Path, source_path: &str) -> Result<String, AppE
             .map_err(|e| map_write_error(&parent.to_string_lossy(), e))?;
     }
 
-    // 事前 exists() を行わず copy 失敗時に NotFound を判定する（TOCTOU 回避）。
-    // source（読み込み対象）側のエラー分類を採用するため from_io_with_path を使う。
+    // 事前に存在確認せず copy 失敗時に NotFound を判定する（TOCTOU 回避）。
+    // NotFound は読み込み元として分類し、それ以外は問題パスを断定しない。
     fs::copy(source_path, &backup_path)
         .await
-        .map_err(|e| AppError::from_io_with_path(source_path.to_string(), e))?;
+        .map_err(|e| map_backup_copy_error(source_path, e))?;
 
     Ok(backup_path.to_string_lossy().to_string())
 }
@@ -175,10 +187,12 @@ pub async fn restore_backup(backup_path: String, target_path: String) -> Result<
         .await
         .map_err(|e| map_write_error(&target_path, e))?;
 
-    // 復元後はバックアップファイルを削除する（失敗しても呼び出し側へ伝搬しない）。
-    let _ = fs::remove_file(backup).await;
-
-    Ok(())
+    // 復元後はバックアップを削除し、失敗時は古いバックアップが残ることを通知する。
+    match fs::remove_file(backup).await {
+        Ok(()) => Ok(()),
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(()),
+        Err(e) => Err(AppError::from_io_with_path(backup_path, e)),
+    }
 }
 
 /// バックアップファイルが存在するか確認する。
@@ -327,6 +341,19 @@ mod tests {
     }
 
     #[test]
+    fn test_backup_copy_permission_denied_does_not_misreport_source_path() {
+        let error = map_backup_copy_error(
+            "/readable/source.txt",
+            std::io::Error::new(
+                std::io::ErrorKind::PermissionDenied,
+                "バックアップ先へ書き込めません",
+            ),
+        );
+
+        assert!(matches!(error, AppError::IoError { .. }));
+    }
+
+    #[test]
     fn test_backup_path_is_isolated_from_source_directory() {
         // git rebase -i が `.git/rebase-merge/git-rebase-todo.backup` を作っても、
         // gui-git-editor のバックアップはキャッシュ側に隔離され衝突しないことを検証する。
@@ -382,6 +409,97 @@ mod tests {
             "{}",
             file_name
         );
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn test_create_backup_destination_permission_denied_is_io_error() {
+        use std::os::unix::fs::PermissionsExt;
+
+        let dir = create_test_dir();
+        let backup_base = dir.join("backups");
+        let source_path = dir.join("source.txt");
+        let source_path_string = source_path.to_string_lossy().to_string();
+        std_fs::create_dir_all(&backup_base).unwrap();
+        std_fs::write(&source_path, "content\n").unwrap();
+
+        let mut permissions = std_fs::metadata(&backup_base).unwrap().permissions();
+        permissions.set_mode(0o555);
+        std_fs::set_permissions(&backup_base, permissions).unwrap();
+
+        // root 実行など書き込み制限を受けない環境では、この検証をスキップする。
+        let probe_path = backup_base.join("write-probe");
+        if std_fs::OpenOptions::new()
+            .write(true)
+            .create_new(true)
+            .open(&probe_path)
+            .is_ok()
+        {
+            let _ = std_fs::remove_file(&probe_path);
+            let mut permissions = std_fs::metadata(&backup_base).unwrap().permissions();
+            permissions.set_mode(0o755);
+            std_fs::set_permissions(&backup_base, permissions).unwrap();
+            cleanup_test_dir(&dir);
+            return;
+        }
+
+        let error =
+            tauri::async_runtime::block_on(create_backup_in(&backup_base, &source_path_string))
+                .unwrap_err();
+
+        let mut permissions = std_fs::metadata(&backup_base).unwrap().permissions();
+        permissions.set_mode(0o755);
+        std_fs::set_permissions(&backup_base, permissions).unwrap();
+        cleanup_test_dir(&dir);
+
+        assert!(matches!(error, AppError::IoError { .. }));
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn test_restore_backup_delete_failure_is_reported_with_backup_path() {
+        use std::os::unix::fs::PermissionsExt;
+
+        let dir = create_test_dir();
+        let backup_base = dir.join("backups");
+        let target_path = dir.join("file.txt");
+        let target_path_string = target_path.to_string_lossy().to_string();
+        std_fs::write(&target_path, "original\n").unwrap();
+        let backup_path =
+            tauri::async_runtime::block_on(create_backup_in(&backup_base, &target_path_string))
+                .unwrap();
+        std_fs::write(&target_path, "changed\n").unwrap();
+
+        let mut permissions = std_fs::metadata(&backup_base).unwrap().permissions();
+        permissions.set_mode(0o555);
+        std_fs::set_permissions(&backup_base, permissions).unwrap();
+
+        // root 実行など削除制限を受けない環境では、この検証をスキップする。
+        let probe_path = backup_base.join("delete-probe");
+        if std_fs::write(&probe_path, "probe").is_ok() {
+            let _ = std_fs::remove_file(&probe_path);
+            let mut permissions = std_fs::metadata(&backup_base).unwrap().permissions();
+            permissions.set_mode(0o755);
+            std_fs::set_permissions(&backup_base, permissions).unwrap();
+            cleanup_test_dir(&dir);
+            return;
+        }
+        let result =
+            tauri::async_runtime::block_on(restore_backup(backup_path.clone(), target_path_string));
+
+        let mut permissions = std_fs::metadata(&backup_base).unwrap().permissions();
+        permissions.set_mode(0o755);
+        std_fs::set_permissions(&backup_base, permissions).unwrap();
+        let restored = std_fs::read_to_string(&target_path).unwrap();
+        let backup_remains = Path::new(&backup_path).exists();
+        cleanup_test_dir(&dir);
+
+        assert_eq!(restored, "original\n");
+        assert!(backup_remains);
+        assert!(matches!(
+            result,
+            Err(AppError::PermissionDenied { path }) if path == backup_path
+        ));
     }
 
     #[cfg(unix)]
