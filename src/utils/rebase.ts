@@ -84,6 +84,33 @@ export function findSquashTarget(
 }
 
 /**
+ * 指定コミットへ squash / fixup される後続コミットのハッシュを返す。
+ * exec や label などの特殊行は統合関係を切らないため読み飛ばし、
+ * 次の統合先になれるコミット行に到達した時点で探索を終える。
+ */
+export function collectSquashedCommitHashes(
+	entries: RebaseEntry[],
+	entryId: string,
+): string[] {
+	const index = entries.findIndex((entry) => entry.id === entryId);
+	if (index === -1 || !isSquashTargetCommandType(entries[index].command.type)) {
+		return [];
+	}
+
+	const hashes: string[] = [];
+	for (let i = index + 1; i < entries.length; i++) {
+		const entry = entries[i];
+		if (entry.command.type === "squash" || entry.command.type === "fixup") {
+			hashes.push(entry.commit_hash);
+		} else if (isSquashTargetCommandType(entry.command.type)) {
+			break;
+		}
+	}
+
+	return hashes;
+}
+
+/**
  * 「すべて1つにまとめる」で対象にする、コミット系エントリ数を数える。
  */
 export function countSquashableEntries(

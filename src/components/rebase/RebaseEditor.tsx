@@ -3,6 +3,7 @@ import { useFileStore, useRebaseStore } from "../../stores";
 import type { RebaseEntry, SimpleCommand } from "../../types/git";
 import { getModifierKey, getShortcut } from "../../utils/platform";
 import {
+	collectSquashedCommitHashes,
 	countSquashableEntries,
 	hasSquashTargetBeforeEntry,
 } from "../../utils/rebase";
@@ -23,36 +24,6 @@ const COMMAND_SHORTCUTS: Record<string, SimpleCommand> = {
 	f: "fixup",
 	d: "drop",
 };
-
-/**
- * 後続の squash / fixup で統合されるコミットのハッシュを集める。
- * AI 生成時に統合対象の変更をまとめて渡すために使う。
- */
-function collectRelatedHashes(
-	entries: RebaseEntry[],
-	entryId: string,
-): string[] {
-	const index = entries.findIndex((e) => e.id === entryId);
-	if (index === -1) return [];
-
-	const relatedHashes: string[] = [];
-
-	// 後続エントリを順に見ていく
-	for (let i = index + 1; i < entries.length; i++) {
-		const entry = entries[i];
-		const cmdType = entry.command.type;
-
-		// squash / fixup だけを関連コミットとして扱う
-		if (cmdType === "squash" || cmdType === "fixup") {
-			relatedHashes.push(entry.commit_hash);
-		} else {
-			// 連続した squash / fixup の塊が途切れたら終了する
-			break;
-		}
-	}
-
-	return relatedHashes;
-}
 
 export function RebaseEditor() {
 	const {
@@ -372,7 +343,9 @@ export function RebaseEditor() {
 				isOpen={rewordEntry !== null}
 				commitHash={rewordEntry?.commit_hash ?? ""}
 				relatedHashes={
-					rewordEntry ? collectRelatedHashes(entries, rewordEntry.id) : []
+					rewordEntry
+						? collectSquashedCommitHashes(entries, rewordEntry.id)
+						: []
 				}
 				initialMessage={rewordEntry ? cleanMessage(rewordEntry.message) : ""}
 				onSave={handleRewordSave}

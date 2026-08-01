@@ -66,6 +66,7 @@ pnpm test:all          # 全テスト（JS + Rust）
 - テーマは `zustand/middleware/persist` でローカルストレージに永続化
 - Rebase エントリ一覧は `role="listbox"` / `role="option"` の ARIA 構造を採用し、項目選択はキーボード操作に対応
 - Rebase の `fixup` / `squash` の統合先判定（`hasSquashTargetBeforeIndex`）は `pick` / `reword` / `edit` のみを対象とし、`squash` / `fixup` 自体や `exec` などの特殊コマンドを統合先としない（`findSquashTarget` と整合）
+- Rebase の reword AI メッセージ生成では、`collectSquashedCommitHashes` が `exec`・`label` などの特殊行を読み飛ばし、次の `pick` / `reword` / `edit` までにある `squash` / `fixup` を関連コミットとして収集する。特殊行で統合関係を誤って切らない
 - Rebase の「すべて1つにまとめる」は commit 系エントリだけを `fixup` 化し、`exec`・`label`・`drop` などの特殊行は保持する
 - Rebase の `merge -c <commit>` / `merge -C <commit>` は保存後も区別を保持する。`-c` はマージコミットメッセージ編集を要求するため、`-C` に正規化してはいけない
 - Rebase の `fixup -C <commit>` / `fixup -c <commit>` は、`-C` / `-c` を `fixup_option` として保持し、`commit_hash` には実コミットハッシュを入れる。選択時の差分取得に `-C` / `-c` を誤って渡さない
@@ -127,7 +128,7 @@ pnpm test:all          # 全テスト（JS + Rust）
 - `vitest` の `globals: true` 設定済み
 - commit/rebase/merge の表示系（`FileList`, `FileDiffViewer`, `TrailersDisplay`, `CommitFileList`, `RebaseEntryList`, `ConflictNavigator`）と `mergeStore` の競合解決・復元・再読み込み整合性ロジックをテストでカバー
 - `FileDiffViewer` は `--- a/...` / `+++ b/...` の diff ファイルヘッダーを追加・削除行として色付けしないこと、実際の `---content` / `+++content` 行は追加・削除行として扱うことをテストでカバー
-- `utils/rebase.ts` と `rebaseStore` のテストで、特殊コマンドを含む todo に対する `fixup` / `squash` の検証と `squashAll` の安全性をカバー（`squash`/`fixup` のみの場合に統合先なしと判定するケース、plain fixup 化で `fixup_option` を引き継がないケースを含む）
+- `utils/rebase.ts` と `rebaseStore` のテストで、特殊コマンドを含む todo に対する `fixup` / `squash` の検証と `squashAll` の安全性をカバー（特殊行を挟んだ関連コミット収集、`squash`/`fixup` のみの場合に統合先なしと判定するケース、plain fixup 化で `fixup_option` を引き継がないケースを含む）
 - Rust 側の rebase parser テストで `merge -c` と `merge -C`、`fixup -C` と `fixup -c` の保存時の区別保持、および `update-ref` の保持をカバー
 - Rust 側の rebase parser テストで `reword` シリアライズが単一行の `exec` を生成し、生メッセージを平文で漏らさず base64 化すること、GNU(`-d`)/BSD(`-D`) 両対応のデコード判定と `printf '%s'` を含むことをカバー
 - Rust 側の commit parser テストで、日本語などの Unicode subject/body 行長を文字数で検証するケースをカバー
@@ -168,7 +169,7 @@ pnpm test:all          # 全テスト（JS + Rust）
 - `RewordModal` の splitMessage/joinMessage ヘルパー（subject/body 分割・結合）、キーボードショートカット（Escape/Cmd+Enter）、props 挙動、git-smart-commit 連携による AI 生成の成功/失敗フローをテストでカバー
 - `stagingStore` と `commitDiffStore` の `selectFile` エラーハンドリング（error 設定・開始時クリア・成功時クリア）をテストでカバー
 - `fileStore` の読込失敗時に前回ファイル内容が残留しないことをテストでカバー
-- Rust 側の `format_unix_timestamp` の負値ガード、`shell_escape` のバッククォート・複合特殊文字、Codex iTerm2 連携の単一行入力検証をテストでカバー
+- Rust 側の `format_unix_timestamp` の負値ガードと Unix epoch 境界、`shell_escape` のバッククォート・複合特殊文字、Codex iTerm2 連携の単一行入力検証をテストでカバー
 - `ConflictActions` の未解決時 LOCAL / REMOTE / 両方ボタン、解決済み時の戻すボタン、ストアアクション呼び出し、ブランチラベル反映をテストでカバー
 - `MonacoPanel` の空文字変更通知、`editorRef` 受け渡し、スクロール変更通知、テーマ/readonly オプション反映をテストでカバー
 - `useSidePanelConflictDecorations` は同一内容のコンフリクトが複数ある場合の出現順対応、アンマウント時の装飾解除、Monaco API 未提供時の安全な無処理をテストでカバー

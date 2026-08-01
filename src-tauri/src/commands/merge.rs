@@ -295,7 +295,7 @@ fn parse_line_porcelain(output: &str) -> Vec<BlameLine> {
     let mut results: Vec<BlameLine> = Vec::new();
     let mut current_hash = String::new();
     let mut current_author = String::new();
-    let mut current_time: i64 = 0;
+    let mut current_time: Option<i64> = None;
     let mut current_tz_offset: i64 = 0;
     let mut current_summary = String::new();
     let mut current_line: usize = 0;
@@ -306,8 +306,7 @@ fn parse_line_porcelain(output: &str) -> Vec<BlameLine> {
             // 破損 metadata (author-time が i64 上限付近) でのオーバーフローを防ぐ。
             // overflow-checks 有効ビルドでは素の加算が panic するため checked_add を使う。
             let date = current_time
-                .checked_add(current_tz_offset)
-                .map(format_unix_timestamp)
+                .map(|timestamp| format_unix_timestamp(timestamp, current_tz_offset))
                 .unwrap_or_else(|| "unknown".to_string());
             results.push(BlameLine {
                 line_number: current_line,
@@ -323,7 +322,7 @@ fn parse_line_porcelain(output: &str) -> Vec<BlameLine> {
         } else if let Some(rest) = line.strip_prefix("author ") {
             current_author = rest.to_string();
         } else if let Some(rest) = line.strip_prefix("author-time ") {
-            current_time = rest.parse::<i64>().unwrap_or(0);
+            current_time = rest.parse::<i64>().ok();
         } else if let Some(rest) = line.strip_prefix("author-tz ") {
             current_tz_offset = parse_tz_offset(rest);
         } else if let Some(rest) = line.strip_prefix("summary ") {
@@ -362,15 +361,20 @@ fn parse_tz_offset(tz: &str) -> i64 {
     sign * (hours * 3600 + minutes * 60)
 }
 
-/// 外部 crate を使わず Unix timestamp を YYYY-MM-DD 形式へ変換する。
-fn format_unix_timestamp(timestamp: i64) -> String {
-    if timestamp <= 0 {
+/// 外部 crate を使わず Unix timestamp を作者のタイムゾーンで YYYY-MM-DD 形式へ変換する。
+fn format_unix_timestamp(timestamp: i64, tz_offset: i64) -> String {
+    if timestamp < 0 {
         return "unknown".to_string();
     }
 
+    let Some(local_timestamp) = timestamp.checked_add(tz_offset) else {
+        return "unknown".to_string();
+    };
+
     // 日数ベースの簡易計算を行う。
     let secs_per_day: i64 = 86400;
-    let mut days = timestamp / secs_per_day;
+    // UTC epoch に負のオフセットを適用した場合も前日として扱うため、切り捨て除算を使う。
+    let mut days = local_timestamp.div_euclid(secs_per_day);
     // 月計算を単純化するため epoch を 1970-01-01 から 0000-03-01 基準へずらす。
     days += 719468;
 
@@ -590,17 +594,23 @@ filename src/main.rs
 
     #[test]
     fn test_format_unix_timestamp() {
-        assert_eq!(format_unix_timestamp(0), "unknown");
-        assert_eq!(format_unix_timestamp(1700000000), "2023-11-14");
-        assert_eq!(format_unix_timestamp(1000000000), "2001-09-09");
+        assert_eq!(format_unix_timestamp(0, 0), "1970-01-01");
+        assert_eq!(format_unix_timestamp(0, -5 * 3600), "1969-12-31");
+        assert_eq!(format_unix_timestamp(1700000000, 0), "2023-11-14");
+        assert_eq!(format_unix_timestamp(1000000000, 0), "2001-09-09");
     }
 
     #[test]
     fn test_format_unix_timestamp_negative() {
         // 負のタイムスタンプ（1970年以前）は u32 wrap を防止して "unknown" を返す
-        assert_eq!(format_unix_timestamp(-1), "unknown");
-        assert_eq!(format_unix_timestamp(-86400), "unknown");
-        assert_eq!(format_unix_timestamp(i64::MIN), "unknown");
+        assert_eq!(format_unix_timestamp(-1, 9 * 3600), "unknown");
+        assert_eq!(format_unix_timestamp(-86400, 0), "unknown");
+        assert_eq!(format_unix_timestamp(i64::MIN, 0), "unknown");
+    }
+
+    #[test]
+    fn test_format_unix_timestamp_offset_overflow() {
+        assert_eq!(format_unix_timestamp(i64::MAX, 1), "unknown");
     }
 
     #[test]

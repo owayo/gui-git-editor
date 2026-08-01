@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { RebaseEntry } from "../types/git";
 import {
+	collectSquashedCommitHashes,
 	countSquashableEntries,
 	findSquashTarget,
 	hasSquashTargetBeforeEntry,
@@ -71,6 +72,32 @@ describe("rebase utils", () => {
 			];
 
 			expect(findSquashTarget(entries, 3)?.id).toBe("1");
+		});
+	});
+
+	describe("collectSquashedCommitHashes", () => {
+		it("特殊コマンドを挟んだ後続 squash/fixup も同じ統合先として集める", () => {
+			const entries = [
+				makeEntry("1"),
+				makeEntry("exec", { type: "exec", value: "echo hi" }),
+				makeEntry("2", { type: "fixup" }),
+				makeEntry("label", { type: "label", value: "onto-main" }),
+				makeEntry("3", { type: "squash" }),
+				makeEntry("4"),
+				makeEntry("5", { type: "fixup" }),
+			];
+
+			expect(collectSquashedCommitHashes(entries, "1")).toEqual([
+				"abc2",
+				"abc3",
+			]);
+		});
+
+		it("存在しない ID と統合先になれない行は空配列を返す", () => {
+			const entries = [makeEntry("1"), makeEntry("2", { type: "fixup" })];
+
+			expect(collectSquashedCommitHashes(entries, "missing")).toEqual([]);
+			expect(collectSquashedCommitHashes(entries, "2")).toEqual([]);
 		});
 	});
 
