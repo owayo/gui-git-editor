@@ -96,7 +96,7 @@ pnpm test:all          # 全テスト（JS + Rust）
 - Rust 側の staging コマンドは `git status --porcelain=v1 -z` を使い、空白を含むパスや rename のパスを引用符付き文字列として誤解釈しない
 - Rust 側の commit diff コマンドは `git diff-tree --name-status -z -M -C` を使い、タブを含むパスや rename/copy をタブ区切りテキストとして誤解釈しない
 - `pnpm-workspace.yaml` の `overrides` で `monaco-editor` 経由の `dompurify` を `^3.4.12`、`jsdom` / `vitest` 経由の `undici` を `7.28.0` に固定し、既知脆弱性が再混入しないようにする。pnpm 11 の build script 承認は同ファイルの `allowBuilds` で管理し、現時点では `esbuild` のみ明示許可する
-- Rust 側は Tauri 経由の `plist` を lockfile で `1.10.0` 以上へ解決し、`quick-xml` は RustSec の `RUSTSEC-2026-0194` / `RUSTSEC-2026-0195` を回避する `0.41.0` 以上を維持する
+- Rust 側は Tauri 経由の `plist` を lockfile で `1.10.0` 以上へ解決し、`quick-xml` は RustSec の `RUSTSEC-2026-0194` / `RUSTSEC-2026-0195` を回避する `0.41.0` 以上、`event-listener` は `RUSTSEC-2026-0221` を回避する `5.4.2` 以上を維持する
 - Rebase の undo / redo は `isUndoRedoRef` フラグで `pushSnapshot` をスキップし、redo 履歴が即座にクリアされる問題を防止する
 - `stagingStore` と `commitDiffStore` の `selectFile` は開始時・成功時に `error` をクリアし、diff 取得エラー時は `error` を設定して失敗を握りつぶさない
 - Merge の3パネルリサイズは左右どちらのセパレータでも下限クランプ時の余剰をもう一方のパネルに反映し、合計幅を保存する
@@ -127,6 +127,7 @@ pnpm test:all          # 全テスト（JS + Rust）
 - `@testing-library/react` + `@testing-library/user-event` を使用
 - `vitest` の `globals: true` 設定済み
 - commit/rebase/merge の表示系（`FileList`, `FileDiffViewer`, `TrailersDisplay`, `CommitFileList`, `RebaseEntryList`, `ConflictNavigator`）と `mergeStore` の競合解決・復元・再読み込み整合性ロジックをテストでカバー
+- `CommitChangeViewer` はマウント時とコミット切替時のファイル一覧取得、ファイル選択時の差分取得引数、読み込み中・取得エラー表示をテストでカバー
 - `FileDiffViewer` は `--- a/...` / `+++ b/...` の diff ファイルヘッダーを追加・削除行として色付けしないこと、実際の `---content` / `+++content` 行は追加・削除行として扱うことをテストでカバー
 - `utils/rebase.ts` と `rebaseStore` のテストで、特殊コマンドを含む todo に対する `fixup` / `squash` の検証と `squashAll` の安全性をカバー（特殊行を挟んだ関連コミット収集、`squash`/`fixup` のみの場合に統合先なしと判定するケース、plain fixup 化で `fixup_option` を引き継がないケースを含む）
 - Rust 側の rebase parser テストで `merge -c` と `merge -C`、`fixup -C` と `fixup -c` の保存時の区別保持、および `update-ref` の保持をカバー
