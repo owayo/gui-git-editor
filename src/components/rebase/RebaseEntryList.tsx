@@ -54,11 +54,20 @@ export function RebaseEntryList({
 		(event: DragEndEvent) => {
 			const { active, over } = event;
 
-			if (over && active.id !== over.id) {
-				const oldIndex = entries.findIndex((e) => e.id === active.id);
-				const newIndex = entries.findIndex((e) => e.id === over.id);
-				onReorder(oldIndex, newIndex);
+			if (!over || active.id === over.id) {
+				return;
 			}
+
+			const oldIndex = entries.findIndex((e) => e.id === active.id);
+			const newIndex = entries.findIndex((e) => e.id === over.id);
+
+			// ドラッグ中に entries が差し替わると findIndex が -1 を返しうる。
+			// そのまま onReorder(-1, ...) を通すと並び順が壊れるため、ここで捨てる。
+			if (oldIndex === -1 || newIndex === -1) {
+				return;
+			}
+
+			onReorder(oldIndex, newIndex);
 		},
 		[entries, onReorder],
 	);

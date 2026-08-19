@@ -321,5 +321,57 @@ describe("RebaseEntryList", () => {
 				expect(option.parentElement).toBe(listbox);
 			}
 		});
+
+		it("ドラッグ中に entries が差し替わった場合は onReorder を呼ばない", () => {
+			const onReorder = vi.fn();
+			layout = installTestLayout();
+
+			const { rerender } = render(
+				<RebaseEntryList
+					entries={THREE_ENTRIES}
+					selectedEntryId={null}
+					onSelectEntry={vi.fn()}
+					onReorder={onReorder}
+					onCommandChange={vi.fn()}
+				/>,
+			);
+			const rects = layout.stackVertically(screen.getAllByRole("option"));
+
+			const handle = screen.getByRole("button", {
+				name: "first commitを移動",
+			});
+			const from = centerY(rects[0]);
+			const to = centerY(rects[2]);
+
+			fireEvent.pointerDown(handle, {
+				isPrimary: true,
+				button: 0,
+				clientX: 0,
+				clientY: from,
+			});
+			fireEvent.pointerMove(document, { clientX: 0, clientY: from + 12 });
+			fireEvent.pointerMove(document, { clientX: 0, clientY: to });
+
+			// ドロップ前に一覧が別の ID 集合へ差し替わると findIndex が -1 を返す。
+			// そのまま onReorder(-1, ...) を通すと並び順が壊れるため呼んではいけない。
+			const replaced: RebaseEntry[] = THREE_ENTRIES.map((entry, index) => ({
+				...entry,
+				id: `replaced-${index + 1}`,
+			}));
+			rerender(
+				<RebaseEntryList
+					entries={replaced}
+					selectedEntryId={null}
+					onSelectEntry={vi.fn()}
+					onReorder={onReorder}
+					onCommandChange={vi.fn()}
+				/>,
+			);
+			layout.stackVertically(screen.getAllByRole("option"));
+
+			fireEvent.pointerUp(document, { clientX: 0, clientY: to });
+
+			expect(onReorder).not.toHaveBeenCalled();
+		});
 	});
 });
