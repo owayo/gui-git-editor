@@ -98,19 +98,25 @@ export function RebaseEntryList({
 						<span className="flex-1 border-t border-dashed border-gray-300 dark:border-gray-600" />
 					</div>
 
+					{/*
+						RebaseEntryItem を wrapper 要素で包まないこと。
+						dnd-kit は containerNodeRect にドラッグ中ノードの parentElement の矩形を使うため、
+						1 行ごとの wrapper で包むと restrictToParentElement が「その行自身の矩形」に
+						transform をクランプし、行が 1px も動かず並び替えが成立しなくなる。
+						親は必ずこの一覧コンテナ（全行を含む要素）でなければならない。
+					*/}
 					{entries.map((entry, index) => (
-						<div key={entry.id}>
-							<RebaseEntryItem
-								entry={entry}
-								isSelected={entry.id === selectedEntryId}
-								isFirst={index === 0}
-								isLast={index === entries.length - 1}
-								canSquashOrFixup={hasSquashTargetBeforeIndex(entries, index)}
-								squashTarget={findSquashTarget(entries, index)}
-								onSelect={() => onSelectEntry(entry.id)}
-								onCommandChange={(cmd) => onCommandChange(entry.id, cmd)}
-							/>
-						</div>
+						<RebaseEntryItem
+							key={entry.id}
+							entry={entry}
+							isSelected={entry.id === selectedEntryId}
+							isFirst={index === 0}
+							isLast={index === entries.length - 1}
+							canSquashOrFixup={hasSquashTargetBeforeIndex(entries, index)}
+							squashTarget={findSquashTarget(entries, index)}
+							onSelect={() => onSelectEntry(entry.id)}
+							onCommandChange={(cmd) => onCommandChange(entry.id, cmd)}
+						/>
 					))}
 
 					{/* 最新コミットの位置を示すガイド */}

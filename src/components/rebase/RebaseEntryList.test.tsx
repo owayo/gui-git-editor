@@ -1,6 +1,12 @@
-import { render, screen, within } from "@testing-library/react";
+import { fireEvent, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import {
+	centerY,
+	dragVertically,
+	installTestLayout,
+	type TestLayout,
+} from "../../test/dndLayout";
 import type { RebaseEntry } from "../../types/git";
 import { RebaseEntryList } from "./RebaseEntryList";
 
@@ -16,6 +22,16 @@ const ENTRIES: RebaseEntry[] = [
 		command: { type: "pick" },
 		commit_hash: "2222222",
 		message: "second commit",
+	},
+];
+
+const THREE_ENTRIES: RebaseEntry[] = [
+	...ENTRIES,
+	{
+		id: "entry-3",
+		command: { type: "pick" },
+		commit_hash: "3333333",
+		message: "third commit",
 	},
 ];
 
@@ -175,6 +191,135 @@ describe("RebaseEntryList", () => {
 
 		expect(onCommandChange).toHaveBeenCalledWith("entry-1", {
 			type: "reword",
+		});
+	});
+
+	// マウスでの D&D 並び替えのデグレ防止。
+	// dnd-kit は containerNodeRect にドラッグ中ノードの parentElement の矩形を使うため、
+	// 各行を wrapper 要素で包むと restrictToParentElement が transform を
+	// 「その行自身の矩形」へクランプし、行が 1px も動かず onDragEnd の over が
+	// active と同一になって並び替えが成立しなくなる。
+	describe("ドラッグ&ドロップでの並び替え", () => {
+		let layout: TestLayout | null = null;
+
+		afterEach(() => {
+			layout?.restore();
+			layout = null;
+		});
+
+		function renderWithLayout(entries: RebaseEntry[], onReorder: () => void) {
+			layout = installTestLayout();
+
+			render(
+				<RebaseEntryList
+					entries={entries}
+					selectedEntryId={null}
+					onSelectEntry={vi.fn()}
+					onReorder={onReorder}
+					onCommandChange={vi.fn()}
+				/>,
+			);
+
+			// jsdom はレイアウトを持たないため、行へ擬似的な矩形を割り当てる。
+			return layout.stackVertically(screen.getAllByRole("option"));
+		}
+
+		it("下方向へドラッグすると onReorder が移動元と移動先で呼ばれる", () => {
+			const onReorder = vi.fn();
+			const rects = renderWithLayout(THREE_ENTRIES, onReorder);
+
+			dragVertically(
+				screen.getByRole("button", { name: "first commitを移動" }),
+				{
+					from: centerY(rects[0]),
+					to: centerY(rects[2]),
+				},
+			);
+
+			expect(onReorder).toHaveBeenCalledTimes(1);
+			expect(onReorder).toHaveBeenCalledWith(0, 2);
+		});
+
+		it("上方向へドラッグすると onReorder が移動元と移動先で呼ばれる", () => {
+			const onReorder = vi.fn();
+			const rects = renderWithLayout(THREE_ENTRIES, onReorder);
+
+			dragVertically(
+				screen.getByRole("button", { name: "third commitを移動" }),
+				{
+					from: centerY(rects[2]),
+					to: centerY(rects[0]),
+				},
+			);
+
+			expect(onReorder).toHaveBeenCalledTimes(1);
+			expect(onReorder).toHaveBeenCalledWith(2, 0);
+		});
+
+		it("隣の行までドラッグすると 1 つ分だけ移動する", () => {
+			const onReorder = vi.fn();
+			const rects = renderWithLayout(THREE_ENTRIES, onReorder);
+
+			dragVertically(
+				screen.getByRole("button", { name: "second commitを移動" }),
+				{
+					from: centerY(rects[1]),
+					to: centerY(rects[2]),
+				},
+			);
+
+			expect(onReorder).toHaveBeenCalledWith(1, 2);
+		});
+
+		it("同じ位置にドロップした場合は onReorder を呼ばない", () => {
+			const onReorder = vi.fn();
+			const rects = renderWithLayout(THREE_ENTRIES, onReorder);
+
+			// 行の高さ (60px) の内側に留まるので移動先は自分自身のまま。
+			dragVertically(
+				screen.getByRole("button", { name: "first commitを移動" }),
+				{
+					from: centerY(rects[0]),
+					to: centerY(rects[0]) + 12,
+				},
+			);
+
+			expect(onReorder).not.toHaveBeenCalled();
+		});
+
+		it("ドラッグ開始距離 (8px) に満たない移動では並び替えない", () => {
+			const onReorder = vi.fn();
+			const rects = renderWithLayout(THREE_ENTRIES, onReorder);
+
+			const handle = screen.getByRole("button", {
+				name: "first commitを移動",
+			});
+			const from = centerY(rects[0]);
+			fireEvent.pointerDown(handle, {
+				isPrimary: true,
+				button: 0,
+				clientX: 0,
+				clientY: from,
+			});
+			fireEvent.pointerMove(document, { clientX: 0, clientY: from + 4 });
+			fireEvent.pointerUp(document, { clientX: 0, clientY: from + 4 });
+
+			expect(onReorder).not.toHaveBeenCalled();
+		});
+
+		it("並び替え対象の行は一覧コンテナの直接の子である", () => {
+			renderWithLayout(THREE_ENTRIES, vi.fn());
+
+			const listbox = screen.getByRole("listbox", {
+				name: "Rebaseエントリ一覧",
+			});
+			const options = screen.getAllByRole("option");
+
+			// 1 行だけを包む wrapper があると restrictToParentElement が
+			// その wrapper の矩形へクランプしてドラッグが無効化される。
+			for (const option of options) {
+				expect(option.parentElement).toBe(listbox);
+			}
 		});
 	});
 });

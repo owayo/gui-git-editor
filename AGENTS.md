@@ -65,6 +65,7 @@ pnpm test:all          # 全テスト（JS + Rust）
 - ストアは Zustand で管理、`stores/index.ts` で一括エクスポート
 - テーマは `zustand/middleware/persist` でローカルストレージに永続化
 - Rebase エントリ一覧は `role="listbox"` / `role="option"` の ARIA 構造を採用し、項目選択はキーボード操作に対応
+- Rebase エントリ一覧の各行（`RebaseEntryItem`）は一覧コンテナの直接の子として描画し、1 行ごとの wrapper 要素で包まない。dnd-kit は `containerNodeRect` にドラッグ中ノードの `parentElement` の矩形を使うため、wrapper で包むと `restrictToParentElement` が transform を「その行自身の矩形」へクランプし、行が 1px も動かず `onDragEnd` の `over` が `active` と同一になってマウスの D&D 並び替えが成立しなくなる（`RebaseEditor` の Cmd+↑/↓ による並び替えは dnd-kit を経由しないため影響を受けず、症状が「キーボードだけ動く」形で出る）
 - Rebase の `fixup` / `squash` の統合先判定（`hasSquashTargetBeforeIndex`）は `pick` / `reword` / `edit` のみを対象とし、`squash` / `fixup` 自体や `exec` などの特殊コマンドを統合先としない（`findSquashTarget` と整合）
 - Rebase の reword AI メッセージ生成では、`collectSquashedCommitHashes` が `exec`・`label` などの特殊行を読み飛ばし、次の `pick` / `reword` / `edit` までにある `squash` / `fixup` を関連コミットとして収集する。特殊行で統合関係を誤って切らない
 - Rebase の「すべて1つにまとめる」は commit 系エントリだけを `fixup` 化し、`exec`・`label`・`drop` などの特殊行は保持する
@@ -180,6 +181,8 @@ pnpm test:all          # 全テスト（JS + Rust）
 - `CodexResolveButton` の利用可否表示・起動ボタン無効化・再読み込みボタン表示・`checkCodexAvailable` 呼び出しをテストでカバー
 - `CommitEditor` の git-sc 利用可否によるボタン表示制御（`data:false`・取得失敗時の非表示、`data:true` 時のボタン表示）と、`handleGenerateWithAI` の subject/body 分割ロジック（空行区切りでの subject + body 分割、複数段落を保持した body、空行なしでの subject 全文・body 空、空文字レスポンス時の subject/body クリア、エラー時の既存入力保持とエラー表示、生成完了後の disabled 解除）をテストでカバー
 - テスト環境では `scrollIntoView` と `ResizeObserver` を `setup.ts` でモック（dnd-kit / headlessui が使用）
+- dnd-kit の D&D は矩形計算だけで移動先を決めるが jsdom はレイアウトを持たず `getBoundingClientRect()` が常に 0 を返すため、`src/test/dndLayout.ts` の `installTestLayout()` で擬似レイアウトを与えてからテストする。矩形未指定の要素には子孫の和集合を返すので、1 行ごとの wrapper はその行と同じ矩形・一覧コンテナは全行を含む矩形となり、ブラウザ上の親子関係がそのまま再現される。ドラッグは `dragVertically()` が PointerSensor の `activationConstraint`（8px）を超える移動を挟んで再現する
+- `RebaseEntryList` のマウス D&D 並び替え（下方向・上方向・隣接行・同一位置では非発火・8px 未満では非発火）と、各行が一覧コンテナの直接の子であること（wrapper 要素の再混入検知）をテストでカバー
 - `useKeyboardShortcuts` のテストで、実機どおり大文字 "Z"（Shift 押下時の event.key）での redo 発火と、`Cmd+Shift+S` / `Cmd+Shift+Y` を発火させない挙動をカバー
 - `commitStore` のテストで、trailer 追加で dirty になること、trailer 変更後に subject / body を元へ戻しても isDirty を維持すること、trailer を追加→削除して元へ戻すと isDirty が false に戻ることをカバー
 - `useAutoBackup` のテストで、create / delete を直列化し前段の create 完了まで次の create を開始しない挙動をカバー
